@@ -1,62 +1,126 @@
-# Hardware recovered from the paper
+# Hardware reconstruction
+
+This document separates three things that must not be confused:
+
+1. **parts explicitly named by Engeler**;
+2. **facts recoverable from manufacturer/PTB documentation**;
+3. **engineering choices made by this repository to produce a buildable first prototype**.
+
+The detailed first-pass circuit proposal is in [`11-analog-reference-design.md`](11-analog-reference-design.md).
 
 ## Published component inventory
 
-The block diagram of the demonstration receiver identifies the following parts explicitly:
+The demonstration receiver block diagram identifies the following parts explicitly:
 
-| Function | Part / specification in paper |
-|---|---|
-| ferrite antenna | HKW FTD02011R |
-| antenna input device | BF245A JFET |
-| analog band-pass | LTC1562, 8th-order filter |
-| programmable gain | LTC6912 PGA |
-| ADC | LTC1407, 14 bit, 930 kS/s |
-| FPGA | Xilinx XC3S1400AN |
-| debug DAC | LTC2624, 4 channel |
-| history memory | 3600 s logical history in FPGA design |
-| user output | LCD |
-| debug/control | USB plus internal debug path |
-| reference clock | oscillator, exact part not identified |
+| Function | Part / specification in paper | Reconstruction status |
+|---|---|---|
+| ferrite antenna | HKW FTD02011R | exact reference named; detailed electrical data still to be measured/recovered |
+| antenna input device | BF245A JFET | exact family named; original bias network unknown |
+| analog band-pass | LTC1562, 8th-order filter | exact IC named; original resistor values unknown |
+| programmable gain | LTC6912 PGA | exact family named; `-1` vs `-2` suffix unknown |
+| ADC | LTC1407 family, labelled 14 bit, 930 kS/s | 14-bit member must be an `A` variant; exact suffix unknown |
+| FPGA | Xilinx XC3S1400AN | exact family/device named |
+| debug DAC | LTC2624, 4 channel | exact family named; channel mapping unknown |
+| history memory | 3600 s logical history | FPGA implementation detail |
+| user output | LCD | type/interface unknown |
+| debug/control | USB plus internal debug path | interface device/protocol unknown |
+| reference clock | oscillator | exact oscillator unknown |
 
-## Analog front-end requirements
+## Important ADC part-number clarification
 
-### Ferrite antenna interface
+Analog Devices documents the family as follows:
 
-The antenna is resonant and high impedance. The BF245A input stage should therefore be rebuilt as a low-noise, low-loading buffer/amplifier. The paper does **not** provide:
+- `LTC1407` / `LTC1407-1`: 12-bit;
+- `LTC1407A` / `LTC1407A-1`: 14-bit.
 
-- ferrite coil inductance;
-- resonating capacitor value;
+Engeler's block diagram uses the shortened label **LTC1407** while explicitly stating **14 bit**. Therefore this repository records the historical fact as “LTC1407 family, 14-bit A variant” until a photograph/BOM of the original board establishes the suffix.
+
+For a new build, [`11-analog-reference-design.md`](11-analog-reference-design.md) currently recommends `LTC1407A-1` because its bipolar differential span is convenient for an AC receiver signal.
+
+## Ferrite antenna requirements
+
+The antenna is resonant and high impedance. The paper also notes that tuned ferrite antennas can have significant resonant-frequency tolerance, which directly affects group delay and absolute PM timing.
+
+The original paper does **not** provide:
+
+- exact coil inductance;
+- exact resonating capacitor value;
+- ferrite permeability/material;
+- winding resistance;
+- Q;
 - tap/coupling arrangement;
-- BF245A source/drain resistor values;
-- bias current;
-- exact front-end gain;
+- mechanical spacing to the PCB.
+
+A secondary comparison based on HKW antenna data reports approximately 897 µH and about 700 Hz bandwidth for several HKW DCF77 ferrite rods. This is useful only as a prototype starting point and must not be assumed to be the exact FTD02011R value.
+
+If `L ~= 897 µH`, resonance at 77.5 kHz requires about `C ~= 4.70 nF`. Measure the actual antenna before fixing this value.
+
+## BF245A input stage
+
+NXP identifies the BF245A as a general-purpose N-channel JFET. The A grade has a broad device spread, including approximately 2 to 6.5 mA `IDSS`, so a copied fixed bias network would be risky even if one were guessed.
+
+The paper does not publish:
+
+- source/drain resistor values;
+- operating current;
+- topology (source follower versus common-source details);
+- exact gain;
 - ESD/protection network.
 
-These must be determined from the actual antenna or a substitute.
+For the first rebuild, use the high-impedance source-follower starting point documented in `11-analog-reference-design.md`, measure several devices, and only then freeze the bias network.
 
-### Band-pass
+## LTC1562 analog band-pass
 
-The LTC1562 is stated to form an 8th-order band-pass, but the complete transfer function and external component values are not printed. The reconstruction should therefore first choose a target based on the detector needs:
+This part is now much better constrained than in the first version of this documentation.
 
-- enough bandwidth for PM timing (the useful DCF77 main + first side-lobe bandwidth discussed in the paper is about 2583 Hz);
-- strong rejection of nearby switched-mode-supply interference;
-- known and preferably calibratable group delay.
+Analog Devices publishes a directly relevant **8th-order high-frequency band-pass** application using all four LTC1562 sections. The example has:
 
-Do not assume a 15 Hz analog filter merely because the AM digital Goertzel path has 15 Hz effective bandwidth. The analog path must preserve the PM waveform as well.
+```text
+-3 dB bandwidth = center frequency / 10
+overall gain = 10
+```
 
-### PGA and dynamic range
+The nearest published table entry is 80 kHz. Scaling the resistor network by `80/77.5` gives a credible first prototype at the DCF77 carrier:
 
-The LTC6912 is FPGA-controlled. The paper uses a design assumption of up to **100 dB(µV/m)** maximum field strength plus **20 dB headroom** when considering the near-transmitter end of the dynamic range.
+| Resistor group | 77.5 kHz calculated target |
+|---|---:|
+| `RIN1` | 4.79 kOhm |
+| `RQ1` | 47.9 kOhm |
+| `R21` | 12.8 kOhm |
+| `RIN2`, `RIN3`, `RIN4` | 47.9 kOhm |
+| `RQ2`, `RQ3`, `RQ4` | 47.9 kOhm |
+| `R22`, `R23`, `R24` | 12.8 kOhm |
 
-At the far/weak-signal end, simulation suggested that even a DCF77 amplitude of **1 ADC LSB** could be sufficient under noise; the hardware design chose about **2 LSB** as the minimum wanted-signal amplitude target.
+This produces a first-pass analog bandwidth around **7.75 kHz**, intentionally much wider than the digital AM path.
 
-This implies a very wide required gain range and argues for a deliberately slow AGC that responds to overall ADC headroom rather than to the 100/200 ms DCF77 AM pulse itself.
+PTB documentation shows that preserving only the main PRN spectral lobe already calls for approximately **1.292 kHz** total receive bandwidth. Therefore the analog BPF must preserve PM sidebands; it must not be designed from the ~15 Hz AM Goertzel bandwidth.
+
+The values above are **reconstruction values derived from the manufacturer application circuit**, not recovered original Engeler values.
+
+## LTC6912 PGA
+
+Analog Devices lists two variants:
+
+- `LTC6912-1`: gains 0, 1, 2, 5, 10, 20, 50, 100 V/V;
+- `LTC6912-2`: gains 0, 1, 2, 4, 8, 16, 32, 64 V/V.
+
+The paper does not state which one is populated. The rebuild currently prefers `LTC6912-1` for its higher maximum gain, but the FPGA interface should isolate this choice so either table can be used.
+
+The AGC should respond to ADC headroom, not to the intentional 100/200 ms DCF77 amplitude dip. Start with manual gain control during hardware bring-up.
 
 ## ADC interface
 
-The LTC1407 is clocked at **930 kS/s**. The FPGA must capture 14-bit samples with deterministic phase relative to its processing clock. Because the design disciplines its clock to DCF77, the ADC sampling rate becomes indirectly carrier locked after acquisition.
+The target sample rate is:
 
-During initial reconstruction, store raw ADC bursts to USB or on-chip RAM before implementing the entire detector. Raw captures are essential for debugging filter tuning, gain and self-interference.
+```text
+930 kS/s = 12 * 77.5 kHz
+```
+
+This exact integer relationship is central to the Engeler architecture: one carrier cycle corresponds to 12 ADC samples in the nominal clock domain.
+
+For the 14-bit 2.5 V span, one LSB is about 153 µV. The paper's weak-signal design point of only a few ADC LSBs therefore requires careful analog noise control.
+
+The LTC1407A family has differential sample-and-hold inputs. Manufacturer guidance recommends low source impedance and a fast settling driver. Because the original block diagram does not identify a separate driver, the first rebuild makes this interface explicit and treats it as a reconstruction addition.
 
 ## FPGA functional blocks to recreate
 
@@ -77,13 +141,88 @@ The paper's block diagram identifies these digital functions:
 - DAC debug outputs;
 - USB interface.
 
-The exact FPGA partitioning and buses are not published. A clean modern implementation should separate the design into streaming DSP blocks plus a lower-rate control/time-decoder domain.
+The exact FPGA partitioning and buses are not published. A modern implementation should separate the design into:
 
-## Modern-substitution policy
+- high-rate sample/phase processing;
+- chip-rate PM correlation;
+- one-second statistics/synchronisation;
+- slow control/AGC;
+- time decoder/history memory;
+- clock discipline.
 
-Recreating the *architecture* does not require sourcing every obsolete part unless exact historical reproduction is the goal. This repository should track two BOMs:
+## PRN dependency: resolved
 
-1. **reference BOM** — the exact parts named above;
-2. **rebuild BOM** — currently available replacements with equivalent noise, bandwidth, ADC rate/resolution and FPGA resources.
+The exact DCF77 PM generator is now documented in [`10-dcf77-pm-prn.md`](10-dcf77-pm-prn.md), with a reference generator in [`../tools/dcf77_prn.py`](../tools/dcf77_prn.py).
 
-Any replacement must preserve the observable interfaces needed by the algorithm: approximately 930 kS/s real samples around 77.5 kHz, stable timing, controllable gain and sufficiently low front-end noise.
+Recovered facts include:
+
+- 9-stage register;
+- feedback taps 5 and 9;
+- equivalent polynomial `x^9 + x^5 + 1`;
+- 512 balanced chips;
+- chip rate `77.5 kHz / 120`;
+- cycle start at +200 ms;
+- sequence inversion for logical 1;
+- ten inverted cycles in seconds 0-9 as PM minute identifier.
+
+## Prototype power-tree recommendation
+
+The original regulator tree is unknown. A clean rebuild can start with:
+
+```text
+5V_A   -> BF245A, LTC1562, LTC6912
+3V0_A  -> LTC1407A-1
+3V3_D  -> digital I/O as required
+FPGA core rails -> selected FPGA requirements
+```
+
+The analog rails should be low-noise. Avoid putting a switching converter, display driver or USB clock near the ferrite antenna.
+
+## Mandatory hardware debug points
+
+The first PCB should expose:
+
+- antenna node (high impedance);
+- JFET output;
+- band-pass output;
+- PGA output;
+- ADC input;
+- ADC `CONV`, `SCK`, and serial data;
+- analog ground/reference;
+- one FPGA debug output;
+- optional DAC debug channels.
+
+A receiver this sensitive is much easier to debug if every stage can be validated without relying on the final time decoder.
+
+## Reference BOM versus rebuild BOM
+
+This repository tracks two concepts:
+
+### Historical/reference BOM
+
+Use the exact parts named in the paper where the purpose is to reproduce the 2012 demonstrator as closely as possible.
+
+### Rebuild BOM
+
+Use obtainable parts and explicit interface specifications where exact historical parts are unavailable. Any substitution must preserve:
+
+- high input impedance at the ferrite antenna;
+- sufficient low-frequency noise performance;
+- at least the PM signal bandwidth;
+- controllable wide gain range;
+- approximately 14-bit ADC resolution;
+- deterministic 930 kS/s timing or a carefully adapted equivalent;
+- FPGA resources sufficient for correlation and 3600 s history.
+
+## Next hardware deliverable
+
+The next milestone after validating this reference design is a **KiCad schematic revision 0** with:
+
+1. measured antenna parameters;
+2. simulated/measured LTC1562 response;
+3. selected PGA suffix;
+4. selected ADC suffix and driver;
+5. final analog power rails;
+6. test-point and connector plan.
+
+Until those measurements are available, the repository should not pretend that a guessed schematic is the original Engeler board.
