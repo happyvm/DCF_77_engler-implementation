@@ -22,13 +22,25 @@ Le meilleur et le deuxième score sont suivis pendant la recherche. `confident`
 requiert à la fois `MIN_SCORE` et un écart `MIN_GAP`; le résultat et les métriques
 restent visibles même si la confiance échoue.
 
-## Limite actuelle
+## Historique et calendrier
 
-Cette première version recherche une observation de huit bits chargée par le
-contrôleur. Le décodeur final devra accumuler les contributions de plusieurs
-minutes dans l'historique circulaire de 3600 secondes, gérer les changements de
-minute pendant cet historique puis lancer le même moteur candidat partagé pour
-les recherches minute et heure.
+`soft_history` conserve 3 600 observations dans un tableau synchrone compact
+(AM, PM, validité, qualité et position de seconde). Cette écriture RTL portable
+est destinée à l'inférence EBR ECP5 et ne contient aucune primitive constructeur.
+Le contrôleur parcourt le tampon du plus récent au plus ancien et cadence les
+moteurs partagés, au lieu de dupliquer les corrélateurs.
+
+`calendar_candidate_search` généralise cette recherche séquentielle au jour du
+mois, jour de semaine, mois, année et aux indicateurs CET/CEST, A1 et A2. Les
+parités font partie des mots candidats et les trois métriques (meilleur,
+deuxième, écart) sont conservées. La publication n'intervient qu'après trois
+trames civiles consécutives cohérentes.
+
+Les fonctions calendaires couvrent les années 2000--2099, les longueurs de mois,
+le 29 février et le changement de date à minuit. Les sauts CET/CEST ne sont
+acceptés que lorsqu'ils sont annoncés le dernier dimanche de mars/octobre. Une
+seconde 60 est acceptée sous A2; elle allonge la minute mais ne duplique ni ne
+saute l'horodatage de la minute suivante.
 
 ## Recherche de l'heure
 
