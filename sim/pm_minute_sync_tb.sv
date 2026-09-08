@@ -10,7 +10,8 @@ module pm_minute_sync_tb;
     integer result_count = 0;
 
     pm_minute_sync #(
-        .INPUT_BITS(16), .MIN_SCORE(21'd1000), .MIN_GAP(21'd100)
+        .INPUT_BITS(16), .QUALIFICATION_ENABLED(1'b1),
+        .MIN_SCORE(21'd1000), .MIN_GAP(21'd100)
     ) dut (.*);
     always #5 clk = ~clk;
     always @(posedge clk)

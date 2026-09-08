@@ -9,6 +9,9 @@
 
 module pm_minute_sync #(
     parameter int INPUT_BITS = 34,
+    // Qualification is deliberately opt-in: zero thresholds must never turn
+    // an unconfigured detector (or an all-zero input stream) into a lock.
+    parameter bit QUALIFICATION_ENABLED = 1'b0,
     parameter logic [INPUT_BITS+4:0] MIN_SCORE = '0,
     parameter logic [INPUT_BITS+4:0] MIN_GAP = '0
 ) (
@@ -97,7 +100,8 @@ module pm_minute_sync #(
                     pm_polarity_inverted <= updated_polarity;
                     best_magnitude       <= updated_best;
                     quality_gap          <= updated_best - updated_second;
-                    locked <= (updated_best >= MIN_SCORE) &&
+                    locked <= QUALIFICATION_ENABLED &&
+                              (updated_best >= MIN_SCORE) &&
                               ((updated_best - updated_second) >= MIN_GAP);
                     search_index    <= '0;
                     best_score_q    <= '0;

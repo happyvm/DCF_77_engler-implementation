@@ -7,6 +7,7 @@
 module hour_candidate_search #(
     parameter int SOFT_BITS = 24,
     parameter int SCORE_BITS = SOFT_BITS + 3,
+    parameter bit QUALIFICATION_ENABLED = 1'b0,
     parameter logic signed [SCORE_BITS-1:0] MIN_SCORE = '0,
     parameter logic [SCORE_BITS-1:0] MIN_GAP = '0
 ) (
@@ -102,7 +103,8 @@ module hour_candidate_search #(
                     hour         <= updated_hour;
                     best_score   <= updated_best;
                     quality_gap  <= updated_best - updated_second;
-                    confident    <= (updated_best >= MIN_SCORE) &&
+                    confident    <= QUALIFICATION_ENABLED &&
+                                    (updated_best >= MIN_SCORE) &&
                                     ((updated_best - updated_second) >= MIN_GAP);
                     result_valid <= 1'b1;
                     busy         <= 1'b0;
