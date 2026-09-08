@@ -23,8 +23,14 @@ The demonstration receiver block diagram identifies the following parts explicit
 | debug DAC | LTC2624, 4 channel | exact family named; channel mapping unknown |
 | history memory | 3600 s logical history | FPGA implementation detail |
 | user output | LCD | type/interface unknown |
-| debug/control | USB plus internal debug path | interface device/protocol unknown |
+| debug/control | USB interface connected to the FPGA `Debug` block | interface device/protocol unknown; **not shown as the board power source** |
 | reference clock | oscillator | exact oscillator unknown |
+
+### Historical USB clarification
+
+Engeler's Fig. 24 explicitly draws a block labelled `USB` underneath and connected to the FPGA `Debug` block. It therefore supports the statement that the demonstrator had a USB **debug/control interface**.
+
+The same figure does **not** identify USB as the receiver power input, and the paper does not recover the demonstrator's regulator tree or external power-source details. This repository must therefore never describe the historical board as "USB-powered" unless a separate primary source establishes that fact.
 
 ## Important ADC part-number clarification
 
@@ -139,7 +145,7 @@ The paper's block diagram identifies these digital functions:
 - debug capture/output;
 - LCD interface;
 - DAC debug outputs;
-- USB interface.
+- USB debug/control interface.
 
 The exact FPGA partitioning and buses are not published. A modern implementation should separate the design into:
 
@@ -176,7 +182,7 @@ The original regulator tree is unknown. A clean rebuild can start with:
 FPGA core rails -> selected FPGA requirements
 ```
 
-The analog rails should be low-noise. Avoid putting a switching converter, display driver or USB clock near the ferrite antenna.
+The analog rails should be low-noise. Avoid putting a switching converter or other high-activity digital circuitry near the ferrite antenna.
 
 ## Mandatory hardware debug points
 
