@@ -1,46 +1,78 @@
-# Hardware CAD workflow: tscircuit -> KiCad
+# Hardware CAD workflow: tscircuit -> KiCad -> Quilter -> KiCad
 
 ## Decision
 
 The rebuild schematic and PCB are authored in **tscircuit**.
 
-The tscircuit TypeScript/TSX source is the project-controlled hardware source of truth. KiCad files are generated/exported artifacts used for review, manufacturing checks, hand finishing where necessary, and exchange with conventional EDA workflows.
+The tscircuit TypeScript/TSX source is the project-controlled hardware source of truth. KiCad is the interchange/review format used to hand the board to **Quilter** for AI-assisted placement and routing, then to inspect and finish the returned native KiCad project before fabrication.
 
 ```text
 hardware/tscircuit source
         |
-        +--> schematic/PCB previews
-        +--> Circuit JSON
-        +--> placement checks
-        +--> local/cloud autorouting
-        +--> fabrication outputs
-        +--> KiCad export
-                    |
-                    v
-             KiCad inspection
-             DRC / final review
+        +--> schematic / Circuit JSON / board constraints
+        |
+        v
+   KiCad export
+        |
+        +--> board outline
+        +--> stackup / DRC rules
+        +--> placement regions
+        +--> keepouts
+        +--> mechanically/RF-critical locked parts
+        |
+        v
+      Quilter
+ placement + routing
+        |
+        v
+ native KiCad result
+        |
+        +--> engineering review
+        +--> DRC / ERC
+        +--> RF/EMI inspection
+        +--> manual corrections if required
+        |
+        v
+ Gerbers / BOM / PnP / release archive
 ```
 
-This policy is intended to make the board reproducible, reviewable in code, and suitable for AI-assisted placement/routing without making an opaque online layout the only editable design record.
+This policy keeps the design reproducible in code while using Quilter specifically as the placement/routing engine. Quilter is not the source of electrical intent and a generated layout is never released without independent review.
 
 ## Why tscircuit fits this project
 
-tscircuit currently provides:
+tscircuit provides a code-defined schematic/PCB source, explicit component placement, Circuit JSON and export paths to KiCad. That makes it suitable for a design where component substitutions, lifecycle decisions and physical RF constraints need to remain version-controlled.
 
-- schematics and PCB layout from TypeScript/React-style source;
-- explicit component placement controls;
-- automatic and cloud autorouting;
-- customizable autorouter APIs;
-- fabrication-file generation;
-- Circuit JSON as an intermediate representation;
-- conversion/export to KiCad schematic and PCB formats;
-- AI-oriented board generation workflows.
+The authoritative design intent includes:
 
-The official tscircuit guidance recommends validating connectivity and placement before enabling routing, then iterating with placement checks and PCB snapshots.
+- electrical connectivity;
+- component/footprint selection;
+- board outline;
+- RF and mechanical keepouts;
+- mandatory placement relationships;
+- net classes and critical-net intent;
+- power-domain intent.
+
+## Why Quilter is the placement/routing engine
+
+Quilter currently accepts complete designs from supported ECAD tools including KiCad, performs placement and routing, and returns native design files for review and editing.
+
+For this project that means Quilter gets a **prepared KiCad project**, not an unconstrained raw netlist.
+
+Before submission we provide:
+
+- complete schematic/netlist;
+- final board outline for the iteration;
+- mounting holes and mechanically fixed connectors;
+- stackup;
+- KiCad DRC rules/net classes;
+- differential/impedance rules where applicable;
+- placement regions/rooms where useful;
+- explicit keepouts;
+- locked RF/mechanical components.
+
+Quilter's own workflow recommends setting this intent before generation and iterating on returned candidates rather than treating the first result as final.
 
 ## Repository structure
-
-The intended hardware tree is:
 
 ```text
 hardware/
@@ -60,200 +92,230 @@ hardware/
         power.tsx
         debug.tsx
       parts/
-        ... reusable symbols/footprints/part wrappers ...
       board/
         placement.ts
         constraints.ts
+        quilter.ts
     dist/
-      ... generated files; not authoritative ...
+      circuit-json/
+      kicad-pre-quilter/
+      kicad-post-quilter/
+      fabrication/
 ```
 
-The board should be decomposed into electrical/physical blocks rather than defining every component in one file.
+`dist/` contains generated/review artifacts and is never the only copy of design intent.
 
 ## Source-of-truth rule
 
-Changes that affect electrical connectivity, component choice, footprint, or intended placement must be represented back in tscircuit source.
+Changes that affect electrical connectivity, component choice, footprint or required physical placement must be represented back in tscircuit source.
 
-Do not allow a hand-edited KiCad export to silently become the only copy of an important design change.
+A Quilter/KiCad result can contain routing details that are not practical to encode directly in tscircuit. For each fabricated revision we therefore archive both:
 
-If KiCad is used to repair or optimize something that tscircuit cannot yet represent cleanly:
+1. the exact tscircuit source revision that generated the candidate;
+2. the exact reviewed post-Quilter KiCad project used for fabrication.
 
-1. record the change;
-2. port the intent back to tscircuit where possible;
-3. regenerate the export;
-4. compare the regenerated and hand-reviewed board.
+If engineering review changes connectivity, footprints or a mandatory placement rule in KiCad, that intent must be ported back to tscircuit before the next design iteration.
 
-For a release, archive both the tscircuit source revision and the exact reviewed KiCad/fabrication output.
+## Placement ownership
 
-## Recommended design sequence
+### Locked before Quilter
 
-### 1. Connectivity first
+Quilter must **not** freely decide the following positions:
 
-Create the full schematic/netlist before optimizing PCB routing.
+- ferrite antenna connector / antenna mechanical interface;
+- high-impedance first input device;
+- critical tuning components immediately around the antenna input;
+- board-edge connectors whose position is mechanical;
+- mounting holes;
+- any shield-can outline or enclosure-critical object.
 
-Each block must expose explicit named interfaces so component substitutions remain manageable, for example:
+The first analog stage should be treated as a manually defined RF island rather than a generic collection of components.
+
+### Constrained regions
+
+Quilter may optimize placement inside predefined regions for:
+
+- analog band-pass;
+- PGA;
+- ADC/driver;
+- ECP5/configuration flash;
+- clock source;
+- digital power;
+- USB/debug.
+
+The desired board floorplan is approximately:
 
 ```text
-ANT_P / ANT_N
-AFE_OUT
-ADC_IN_P / ADC_IN_N
-ADC_CNV / ADC_SCK / ADC_SDO
-TCXO_CLK
-TCXO_SCL / TCXO_SDA
-PGA_CS / PGA_SCK / PGA_MOSI
-JTAG_*
-USB/debug
++-----------------------------------------------------------+
+| ANT / quiet RF | analog filter | ADC | digital / ECP5    |
+|                | PGA           |     | clock / flash      |
+|                |               |     | USB/debug/power    |
++-----------------------------------------------------------+
 ```
 
-### 2. Place critical components manually
+with physical distance and return-path control between the ferrite/input region and high-activity digital circuitry.
 
-For this receiver, AI/autoplacement must not decide all placement freely.
+## Hard layout constraints for Quilter
 
-The following physical relationships are RF-critical and should be constrained explicitly:
+The constraints below are engineering requirements, not optimization suggestions.
 
-- ferrite antenna far from FPGA, USB and switch-mode regulators;
-- input buffer immediately beside the antenna interface;
-- band-pass and PGA kept in the quiet analog region;
-- ADC at the analog/digital boundary;
-- TCXO kept away from the ferrite/input node and noisy switch nodes;
-- ECP5, configuration flash and digital regulators grouped together;
-- decoupling directly at every supply pin/group;
-- test points accessible without long high-impedance stubs.
+### Antenna/input region
 
-### 3. Check placement before routing
+- no fast digital trace under the ferrite/input region;
+- no switching-regulator node nearby;
+- no USB routing nearby;
+- no ECP5 clock trace nearby;
+- minimize the high-impedance antenna-to-input-device connection;
+- preserve a clean reference/return strategy appropriate to the analog topology;
+- avoid unnecessary test-point stubs on the high-impedance node.
 
-Use the current tscircuit placement/build checks and inspect generated PCB images before routing.
+### Clock source
 
-The acceptance criteria are not merely "no overlap". Review:
+- keep oscillator/TCXO physically separated from ferrite and first analog stage;
+- short direct clock route to ECP5 clock input;
+- no large clock test stub;
+- keep clock return current confined to the digital region;
+- evaluate harmonic relationships to 77.5 kHz before clock-source freeze.
 
-- analog/digital partitioning;
-- antenna clearance;
-- connector accessibility;
-- decoupling distances;
-- current-return paths;
-- clock-trace length/exposure;
-- switch-node distance from the receiver front end;
-- BGA escape feasibility;
-- test-point accessibility.
+### ADC boundary
 
-### 4. Route in stages
+- ADC sits at the analog/digital boundary;
+- analog driver and ADC decoupling remain compact;
+- digital outputs leave toward ECP5, not across the analog section;
+- conversion/sample clock is routed as a critical digital net;
+- reference/common-mode network is protected from digital return currents.
 
-Preferred order:
+### Power
 
-1. power and ground strategy;
-2. antenna/input analog path;
-3. filter/PGA/ADC analog path;
-4. TCXO and clock path;
-5. ADC digital interface;
-6. ECP5 configuration/JTAG;
-7. remaining slow control buses;
+- switching converters belong in the noisiest/farthest digital region;
+- sensitive analog rails use appropriate filtering/post-regulation;
+- decoupling stays close to the corresponding pins;
+- plane splits or stitching strategy must follow actual return-current analysis, not arbitrary analog/digital ground labels.
+
+## Routing priorities
+
+Quilter handles the routing candidate, but the design intent should express roughly this priority:
+
+1. antenna/input analog path;
+2. analog filter/PGA/ADC path;
+3. ADC reference/common-mode/power;
+4. clock source and FPGA clock input;
+5. FPGA power/configuration/JTAG;
+6. ADC digital interface;
+7. low-rate controls such as PGA/I2C;
 8. USB/display/debug last.
 
-Use local or cloud autorouting only after the placement is credible.
+The goal is not necessarily the shortest total copper. The goal is lowest risk to DCF77 sensitivity and timing integrity.
 
-For complex routing tscircuit supports cloud autorouters and an autorouting API; the routing output must still be reviewed for this unusually noise-sensitive receiver.
+## Quilter iteration loop
 
-## AI-assisted placement/routing policy
+Expected workflow per board revision:
 
-Online/AI layout is welcome as an optimization assistant, not as an authority on RF behaviour.
-
-The AI may propose:
-
-- component packing;
-- BGA fan-out;
-- trace/via minimization;
-- alternative routing solutions;
-- decoupling placement improvements;
-- mechanical-space optimization.
-
-It must not override hard constraints such as:
-
-- the ferrite keepout;
-- quiet analog region;
-- no fast clock under/near antenna input;
-- switcher keepout;
-- sensitive return-path rules;
-- explicit board-edge connector orientation;
-- test access requirements.
-
-Every AI-generated board revision must pass deterministic checks and human visual review.
-
-## KiCad export
-
-tscircuit's current toolchain includes conversion from Circuit JSON to KiCad schematic (`.kicad_sch`), PCB (`.kicad_pcb`) and project formats. The CLI also supports export workflows such as `kicad_pcb` / `kicad_zip` depending on the installed version.
-
-Typical release workflow:
-
-```bash
-# evaluate/build circuit
-npx tsci build index.circuit.tsx
-
-# inspect locally
-npx tsci dev index.circuit.tsx
-
-# generate PCB/schematic snapshots as supported by the installed CLI
-npx tsci snapshot index.circuit.tsx
-
-# export KiCad bundle (exact switches are pinned with the project CLI version)
-npx tsci export index.circuit.tsx -f kicad_zip -o dist/dcf77-receiver.kicad.zip
+```text
+1. build/export tscircuit -> KiCad
+2. inspect pre-Quilter KiCad project
+3. lock critical placements and verify constraints
+4. upload native KiCad design to Quilter
+5. generate multiple placement/routing candidates where useful
+6. inspect physics/DRC results
+7. download selected native KiCad candidate
+8. review RF/EMI-sensitive areas manually
+9. correct constraints/source intent if needed
+10. resubmit for another Quilter iteration
+11. freeze reviewed KiCad revision
+12. run final DRC/ERC and Gerber inspection
 ```
 
-The project must pin the tested tscircuit/CLI versions; do not rely indefinitely on an unversioned global CLI.
+Quilter states that real projects often go through several engineer-review/resubmission cycles. That matches our intended process.
 
-## Mandatory KiCad post-export validation
+## What must be reviewed after Quilter
 
-The KiCad export must be opened and checked before manufacturing.
+A DRC-clean board can still be a poor DCF77 receiver.
 
-At minimum:
+Mandatory human review includes:
 
-- run KiCad ERC/DRC as applicable;
-- verify every BGA/IC pad number against the source pinout;
-- verify board outline and any cutouts;
-- verify silkscreen text size/thickness;
-- verify copper zones and ground planes;
-- inspect all via drill/annular-ring settings;
-- verify net classes/clearances;
-- compare critical component coordinates against tscircuit intent;
-- regenerate Gerbers from the reviewed project and inspect them independently.
+- antenna clearance and quiet-zone integrity;
+- first-stage trace lengths and parasitics;
+- analog return paths;
+- filter component physical grouping;
+- ADC reference/driver geometry;
+- FPGA BGA escape and plane continuity;
+- decoupling effectiveness;
+- oscillator/clock coupling paths;
+- switching-regulator hot loops;
+- USB/debug coupling toward the RF region;
+- ground-return crossings under sensitive traces;
+- via fences/shield provisions where useful;
+- test-point stubs;
+- thermal and assembly feasibility.
 
-This is especially important because tscircuit/KiCad integration is under active development. Recent 2026 issue reports have included exporter problems involving silkscreen font scaling and interior cutouts. These are reasons for post-export checking, not reasons to abandon the coded workflow.
+Then run KiCad DRC/ERC and inspect generated Gerbers independently.
+
+## KiCad export from tscircuit
+
+tscircuit's conversion toolchain can produce KiCad schematic/PCB project artifacts from the code-defined design.
+
+The exact CLI command is pinned with the project version before Rev.0 release. The conceptual flow is:
+
+```bash
+npx tsci build index.circuit.tsx
+npx tsci dev index.circuit.tsx
+npx tsci snapshot index.circuit.tsx
+npx tsci export index.circuit.tsx -f kicad_zip -o dist/kicad-pre-quilter/dcf77-receiver.zip
+```
+
+Because the converter is actively developed, the pre-Quilter export is checked before upload and the returned post-Quilter project is checked again before fabrication.
 
 ## Version/reproducibility policy
 
-Before the first PCB release, commit:
+For every submitted Quilter iteration archive:
 
-- `package.json` lockfile;
-- exact tscircuit CLI/core versions;
-- any custom footprint modules;
-- exact autorouter configuration/provider;
-- board screenshots;
-- exported Circuit JSON;
-- reviewed KiCad bundle;
-- manufacturing Gerbers/BOM/PnP outputs;
-- a release checklist recording DRC/ERC results.
+- git commit SHA of tscircuit source;
+- pinned tscircuit dependency/CLI versions;
+- pre-Quilter KiCad archive checksum;
+- Quilter submission date/job identifier if available;
+- constraints used for the run;
+- selected returned candidate;
+- post-Quilter KiCad archive checksum;
+- screenshots/notes from engineering review.
+
+For every fabrication release additionally archive:
+
+- final KiCad DRC/ERC result;
+- Gerbers;
+- drill files;
+- BOM;
+- pick-and-place;
+- stackup/fabrication notes;
+- reviewed PDF/plots if generated;
+- release checklist.
 
 ## Manufacturing source hierarchy
 
-During development:
+During schematic/PCB development:
 
 ```text
-tscircuit source = authoritative design intent
+tscircuit = authoritative electrical and physical design intent
 ```
 
-For a fabricated revision:
+During layout optimization:
 
 ```text
-tscircuit source + reviewed release export + fabrication files
+KiCad export -> Quilter -> reviewed KiCad
 ```
 
-form the immutable release record.
+For a fabricated board revision:
 
-The goal is to be able to regenerate a functionally identical board even if a particular online AI/autorouter service later changes or disappears.
+```text
+tscircuit source revision
++ reviewed post-Quilter KiCad project
++ exact manufacturing package
+= immutable release record
+```
 
 ## References
 
 - tscircuit documentation: https://docs.tscircuit.com/
 - tscircuit repository: https://github.com/tscircuit/tscircuit
-- tscircuit CLI: https://github.com/tscircuit/cli
-- autorouting API documentation: https://github.com/tscircuit/docs/blob/main/docs/web-apis/autorouting-api.mdx
-- KiCad converter: https://github.com/tscircuit/circuit-json-to-kicad
+- tscircuit KiCad converter: https://github.com/tscircuit/circuit-json-to-kicad
+- Quilter product/workflow: https://www.quilter.ai/product
