@@ -9,7 +9,7 @@ Goals:
 - keep all ECP5 user I/O at 3.3 V;
 - place the 25 MHz TCXO on a true primary-clock input;
 - keep ADC/PGA traffic next to the ADC boundary;
-- keep Raspberry Pi traffic next to the HAT header;
+- keep Raspberry Pi SPI/UART/PPS traffic next to the HAT header;
 - keep external PPS/LCD on a separate bank;
 - leave left-side banks quiet/spare near the ferrite/AFE;
 - reserve Bank 8 for configuration/JTAG.
@@ -65,7 +65,7 @@ VCCAUX 2.5 V: G11, L7
 
 ```text
 Bank 0  -> spare / low-rate future control
-Bank 1  -> TCXO + Raspberry Pi HAT+ host interface
+Bank 1  -> TCXO + Raspberry Pi HAT+ SPI/UART/PPS host interface
 Bank 2  -> LTC1407A ADC + LTC6912 control
 Bank 3  -> reference PPS + LCD + diagnostics
 Bank 6  -> reserve / keep quiet near AFE
@@ -137,8 +137,40 @@ Reference mapping:
 | `HAT_IRQ` | GPIO25 | **22** | **C12** (`PT74B`) | ECP5 -> Pi |
 | `HAT_RESET_N` | GPIO24 | **18** | **B12** (`PT74A`) | Pi -> ECP5 |
 | `HAT_PPS` | GPIO4 | **7** | **A11** (`PT71A`) | ECP5 -> Pi |
+| `HAT_UART_TX` | GPIO15 / RXD | **10** | **A13** (`PT83A`) | ECP5 -> Pi |
+| `HAT_UART_RX` | GPIO14 / TXD | **8** | **A14** (`PT83B`) | Pi -> ECP5 |
 
-All are in Bank 1 and powered by `3V3_D = PI_3V3`.
+Signal names `HAT_UART_TX/RX` are relative to the ECP5.
+
+All host-interface balls are in Bank 1 and powered by `3V3_D = PI_3V3`.
+
+## UART electrical and timing policy
+
+Reference UART:
+
+```text
+115200 baud
+8 data bits
+no parity
+1 stop bit
+no flow control
+```
+
+Reference wiring:
+
+```text
+ECP5 A13/PT83A -> 33R -> Pi GPIO15/RXD, physical pin 10
+Pi GPIO14/TXD, physical pin 8 -> 33R -> ECP5 A14/PT83B
+
+HAT_UART_TX -> 47k -> 3V3_D
+HAT_UART_RX -> 47k -> 3V3_D
+```
+
+The 47 kOhm resistors hold the asynchronous lines in the normal idle-high state while one endpoint is resetting/configuring.
+
+Normal operation sends one short date/time/status frame per second. Keep the reference frame at or below 64 bytes and schedule it approximately in the `993...999 ms` tail after the DCF77 PM sequence. At 115200 8N1, 64 bytes require about 5.56 ms.
+
+See [`29-hat-uart-time.md`](29-hat-uart-time.md) for the frame format and Raspberry Pi software policy.
 
 ## Sideband electrical policy
 
@@ -150,7 +182,7 @@ HAT_PPS     -> defined low until timebase valid
 
 Provide ~33 ohm source-series damping on SPI clock/data outputs and PPS/IRQ where practical.
 
-Use modest SPI rate in normal operation; raw ADC streaming is diagnostic mode.
+Use modest SPI rate in normal operation; raw ADC streaming is diagnostic mode. UART is reserved for low-rate time/date telemetry rather than raw sample streaming.
 
 # 8. HAT+ ID EEPROM
 
@@ -177,11 +209,10 @@ WP -> test point + 1 kOhm pull-up to PI_3V3
 Rev.0 intentionally leaves free:
 
 - GPIO2/GPIO3 (`I2C1`);
-- GPIO14/GPIO15 UART;
 - GPIO7/CE1;
 - remaining unneeded GPIOs.
 
-This keeps the interface narrow and reduces host switching.
+GPIO14/GPIO15 are no longer free; they are dedicated to the DCF77 UART.
 
 # 10. ECP5 Bank 8 exact balls
 
@@ -228,7 +259,7 @@ W25Q64 DO   -> MISO   T7
 ```text
 HAT header / top edge
        |
-   Bank 1 host + TCXO
+   Bank 1 TCXO + SPI + UART + HAT PPS
        |
       ECP5
        |------ Bank 2 -> ADC/PGA boundary
@@ -241,10 +272,13 @@ Hard routing rules:
 
 - `CLK_25M` short/direct SiT5356 -> `C9`;
 - ADC digital cluster kept together;
-- HAT SPI stays in digital/top region;
+- HAT SPI/UART stays in the digital/top region;
+- UART activity is normally confined to the end-of-second tail;
 - `PPS_REF` routes directly to output buffer/connector;
 - no Bank 1/2/3 fast signal detours through ferrite/OPA810 region;
 - unused Bank 6/7 pins get no decorative test routing.
+
+`A12/PT71B` stays spare between the HAT PPS pair and the UART pair rather than becoming another routine digital signal.
 
 # 12. Machine-readable source
 
@@ -262,4 +296,4 @@ The tscircuit ECP5 wrapper and generated LPF constraints must be derived from or
 - Lattice ECP5/ECP5-5G Family Data Sheet.
 - Lattice ECP5/ECP5-5G sysCONFIG User Guide.
 - Raspberry Pi HAT+ Specification.
-- Raspberry Pi 40-pin GPIO documentation.
+- Raspberry Pi 40-pin GPIO and UART documentation.
