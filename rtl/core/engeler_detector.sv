@@ -12,6 +12,7 @@ module engeler_detector #(
     parameter int SOFT_BITS = 32,
     parameter int AM_OUTPUT_SHIFT = 20,
     parameter int PM_OUTPUT_SHIFT = 24,
+    parameter bit QUALIFICATION_ENABLED = 1'b0,
     parameter logic [SOFT_BITS+14:0] MINUTE_MIN_SCORE = '0,
     parameter logic [SOFT_BITS+14:0] MINUTE_MIN_GAP = '0
 ) (
@@ -76,6 +77,7 @@ module engeler_detector #(
 
     pm_minute_sync #(
         .INPUT_BITS(SOFT_BITS + 10),
+        .QUALIFICATION_ENABLED(QUALIFICATION_ENABLED),
         .MIN_SCORE(MINUTE_MIN_SCORE), .MIN_GAP(MINUTE_MIN_GAP)
     ) minute_sync_i (
         .clk(clk), .rst(rst), .pm_second_soft(pm_correlation),

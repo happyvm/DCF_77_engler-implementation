@@ -9,12 +9,14 @@ BUILD_DIR ?= build
 .PHONY: test test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
+	test-lock-controller test-qualification-disabled \
 	lint-pps-uart lint-goertzel lint-detector lint formal synth \
 	resource-check test-tools tool-versions clean
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
-	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml test-tools
+	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
+	test-lock-controller test-qualification-disabled test-tools
 
 test-adc-if: $(BUILD_DIR)/adc_if_tb.vvp
 	$(VVP) $<
@@ -143,6 +145,24 @@ $(BUILD_DIR)/hour_candidate_search_tb.vvp: \
 		rtl/ml_decoder/hour_candidate_search.sv sim/hour_candidate_search_tb.sv
 	mkdir -p $(BUILD_DIR)
 	$(IVERILOG) -g2012 -Wall -s hour_candidate_search_tb -o $@ $^
+
+test-lock-controller: $(BUILD_DIR)/receiver_lock_controller_tb.vvp
+	$(VVP) $<
+
+$(BUILD_DIR)/receiver_lock_controller_tb.vvp: \
+		rtl/control/receiver_lock_controller.sv sim/receiver_lock_controller_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s receiver_lock_controller_tb -o $@ $^
+
+test-qualification-disabled: $(BUILD_DIR)/qualification_disabled_tb.vvp
+	$(VVP) $<
+
+$(BUILD_DIR)/qualification_disabled_tb.vvp: \
+		rtl/sync/pm_minute_sync.sv \
+		rtl/ml_decoder/minute_candidate_search.sv \
+		rtl/ml_decoder/hour_candidate_search.sv sim/qualification_disabled_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s qualification_disabled_tb -o $@ $^
 
 lint-detector:
 	$(IVERILOG) -g2012 -Wall -s engeler_detector -o /dev/null \

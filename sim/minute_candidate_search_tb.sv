@@ -11,7 +11,8 @@ module minute_candidate_search_tb;
     integer index;
 
     minute_candidate_search #(
-        .SOFT_BITS(16), .MIN_SCORE(20'sd700), .MIN_GAP(20'd100)
+        .SOFT_BITS(16), .QUALIFICATION_ENABLED(1'b1),
+        .MIN_SCORE(20'sd700), .MIN_GAP(20'd100)
     ) dut (.*);
     always #5 clk = ~clk;
 
