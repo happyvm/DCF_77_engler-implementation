@@ -19,6 +19,7 @@ The original paper is kept only as a source document under [`archive/papers/Enge
 - [`docs/09-gaps-and-open-questions.md`](docs/09-gaps-and-open-questions.md) — remaining unknowns, with resolved items separated from genuine gaps.
 - [`docs/10-dcf77-pm-prn.md`](docs/10-dcf77-pm-prn.md) — exact PTB PRN/PZF generator, timing and PM minute marker.
 - [`docs/11-analog-reference-design.md`](docs/11-analog-reference-design.md) — first buildable analog front-end proposal and BOM.
+- [`docs/12-ecp5-migration.md`](docs/12-ecp5-migration.md) — ECP5 target, resources, clocking, configuration, power and HDL-portability plan.
 - [`docs/references.md`](docs/references.md) — Engeler, PTB and manufacturer sources.
 
 Useful implementation tool:
@@ -33,7 +34,7 @@ flowchart LR
     B --> C[LTC1562\n8th-order band-pass]
     C --> D[LTC6912\nprogrammable gain]
     D --> E[LTC1407 family\n14-bit A variant\n930 kS/s]
-    E --> F[Xilinx XC3S1400AN FPGA]
+    E --> F[Xilinx XC3S1400AN\nhistorical FPGA]
     F --> G[carrier / phase detect]
     G --> H[Goertzel PM correlation]
     H --> I[second sync + detection]
@@ -45,14 +46,27 @@ flowchart LR
     F --> M[USB / debug / DAC]
 ```
 
+## Rebuild FPGA target
+
+The historical XC3S1400AN will **not** be used for the new implementation. The current first-choice target is:
+
+```text
+Lattice ECP5 LFE5U-45F
+caBGA256 / BG256
+no SERDES required
+```
+
+The 45F gives comfortable margin for the Goertzel paths, PRN correlator, debug instrumentation and ML decoder. The board and HDL should preserve a possible LFE5U-25F population where pin/resource usage permits. See [`docs/12-ecp5-migration.md`](docs/12-ecp5-migration.md).
+
 ## Key target values
 
 | Item | Target / implementation value |
 |---|---:|
 | DCF77 carrier | 77.5 kHz |
 | ADC rate | 930 kS/s = 12 × carrier |
-| ADC | LTC1407 family, 14-bit A variant |
-| FPGA | Xilinx XC3S1400AN in the historical receiver |
+| ADC | LTC1407 family, 14-bit A variant in the historical receiver |
+| historical FPGA | Xilinx XC3S1400AN |
+| rebuild FPGA | Lattice ECP5 LFE5U-45F, BG256 preferred |
 | ML history | 3600 s |
 | Goertzel AM 3 dB bandwidth | ~15 Hz |
 | Goertzel PM 3 dB bandwidth | ~930 Hz |
@@ -77,18 +91,20 @@ flowchart LR
 - 512-chip reference generator implemented in Python;
 - first LTC1562 77.5 kHz resistor set derived from the manufacturer's 8th-order band-pass application;
 - 14-bit LTC1407 family ambiguity narrowed to an `A` variant;
-- first analog prototype architecture and bring-up procedure documented.
+- first analog prototype architecture and bring-up procedure documented;
+- ECP5 selected as the rebuild FPGA family, with LFE5U-45F/BG256 as the current Rev.0 target.
 
 ### Still to recover or choose
 
 - exact FTD02011R electrical parameters used by Engeler;
-- original BF245A bias/topology;
-- original LTC1562 resistor values;
-- LTC6912 suffix;
-- exact LTC1407A suffix and any separate ADC driver;
-- oscillator/clock-tree part numbers;
+- replacement/front-end topology for the obsolete BF245A;
+- original LTC1562 resistor values versus final sustainable filter implementation;
+- LTC6912 suffix or replacement PGA;
+- final ADC choice and driver;
+- reference oscillator and ECP5 clock-discipline implementation;
+- SPI configuration flash and FPGA power-tree parts;
 - original PCB/Gerbers and connector details;
-- FPGA HDL and fixed-point constants.
+- fixed-point constants and final ECP5 resource mapping.
 
 These remaining gaps are tracked in [`docs/09-gaps-and-open-questions.md`](docs/09-gaps-and-open-questions.md).
 
@@ -100,12 +116,12 @@ Its starting point is:
 
 ```text
 77.5 kHz ferrite antenna
- -> BF245A high-impedance buffer
- -> LTC1562 8th-order band-pass
- -> LTC6912 PGA
+ -> high-impedance input stage
+ -> LTC1562 8th-order band-pass (reference Rev.0 option)
+ -> LTC6912 PGA (reference Rev.0 option)
  -> explicit ADC drive/common-mode stage
- -> LTC1407A-family 14-bit ADC @ 930 kS/s
- -> FPGA
+ -> ~14-16 bit ADC @ 930 kS/s
+ -> Lattice ECP5
 ```
 
 The first-pass LTC1562 target values derived from the 80 kHz manufacturer application are approximately:
@@ -156,18 +172,21 @@ The paper is an architecture/performance paper, **not a complete construction do
 
 The goal is to produce a receiver that can actually be rebuilt without silently presenting guessed circuitry as historical fact.
 
+A second rule now applies to obsolete silicon: **reproduce the behaviour and measured performance of the Engeler receiver, not the lifecycle problems of its 2012 BOM**.
+
 ## Recommended project strategy
 
 Rebuild the system incrementally:
 
 1. characterize/tune the ferrite antenna;
-2. validate the JFET and LTC1562 chain with a signal generator;
-3. capture clean 930 kS/s raw ADC data;
-4. implement AM/carrier phase detection;
-5. validate the 512-chip PM correlator;
-6. implement second/minute synchronisation;
-7. add the ML time decoder;
-8. add clock discipline;
-9. measure self-interference and final timing performance.
+2. validate the input stage and analog band-pass with a signal generator;
+3. bring up ECP5 configuration, clocking and ADC capture;
+4. capture clean 930 kS/s raw ADC data;
+5. implement AM/carrier phase detection;
+6. validate the 512-chip PM correlator;
+7. implement second/minute synchronisation;
+8. add the ML time decoder;
+9. add clock discipline;
+10. measure self-interference and final timing performance.
 
 Raw ADC recordings should be retained as regression data so later DSP revisions can be tested without changing the RF environment.
