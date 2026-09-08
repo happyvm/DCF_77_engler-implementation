@@ -1,349 +1,238 @@
 # ECP5 clock generation and DCF77 discipline
 
-## Decision
+## Current preferred architecture
 
-The rebuild will **not** continuously retune or reconfigure the ECP5 PLL to follow DCF77.
+The initial rebuild plan used a generic 25 MHz XO, a fixed 125 MHz ECP5 clock, and a 40-bit fractional ADC sample scheduler.
 
-Instead, the clock architecture is split into three independent concepts:
+That remains a valid fallback and simulation architecture, but the preferred hardware plan has improved after selecting a programmable SiTime Super-TCXO.
 
-1. a conventional fixed FPGA system clock;
-2. a numerically controlled ADC sample scheduler;
-3. a very slow DCF77 carrier-discipline loop that adjusts the scheduler increment.
-
-This is the ECP5 equivalent of Engeler's occasional `d-1` / `d+1` divider correction, but it avoids disturbing the global FPGA clock tree.
-
-The initial implementation target is:
+The Rev.0 target is now:
 
 ```text
-25.000 MHz LVCMOS XO
+SiTime SiT5348 DCTCXO
+24.180000 MHz
         |
         v
-ECP5 sysCLOCK PLL
+ECP5 fixed PLL x5
         |
-        +---- 125.000 MHz fixed system clock
-                    |
-                    v
-             fractional accumulator
-                    |
-                    +---- sample_ce / ADC CONV, average 930 kS/s
+        v
+120.900 MHz system clock
+        |
+        +--> exact /130 --> 930 kS/s ADC timing
+        |
+        +--> DCF77 DSP
+
+DCF77 carrier phase
+        |
+        v
+slow discipline loop
+        |
+        v
+SiT5348 I2C digital frequency control
 ```
 
-The FPGA logic continues running from the fixed 125 MHz clock. Only the **clock-enable / conversion-event timing** is fractionally advanced or delayed.
+See [`15-sitime-super-tcxo.md`](15-sitime-super-tcxo.md) for the oscillator selection and detailed reasoning.
 
-## Why not discipline the ECP5 PLL directly?
+## Why 24.18 MHz is special
 
-The ECP5 PLL is useful for producing a clean fixed processing clock, but continuously changing PLL parameters would make the DCF77 clock loop unnecessarily device-specific and would risk lock/relock transients.
-
-Lattice specifies the ECP5 PLL with a 400-800 MHz VCO range and 10-400 MHz phase-detector range in the current family data sheet. A 25 MHz reference and 125 MHz output can use a 500 MHz VCO operating point, comfortably inside those limits.
-
-A candidate divider set for a normal `EHXPLLL` configuration is:
+The target is mathematically coherent with DCF77:
 
 ```text
-CLKI        = 25 MHz
-CLKI_DIV    = 1
-CLKFB_DIV   = 5
-CLKOP_DIV   = 4
-fPFD        = 25 MHz
-fVCO        = 500 MHz
-CLKOP       = 125 MHz
+930 kHz     = 12 * 77.5 kHz
+24.18 MHz   = 26 * 930 kHz
+            = 312 * 77.5 kHz
+120.90 MHz  = 5 * 24.18 MHz
+            = 130 * 930 kHz
+            = 1560 * 77.5 kHz
 ```
 
-The exact primitive parameters must still be generated/checked with the selected ECP5 toolchain (`ecppll`, Diamond/Clarity, or equivalent) before the board bitstream is frozen.
+Therefore the ADC conversion interval can be exactly 130 system-clock cycles with no fractional event scheduling in the preferred implementation.
 
-Dynamic PLL phase adjustment is not required for the first receiver implementation.
-
-## Why 125 MHz?
-
-A 25 MHz oscillator is a common, easily multi-sourced board clock. Multiplication by five produces a processing frequency high enough to quantize ADC conversion instants finely without forcing the whole FPGA to run at an unnecessarily high EMI/power level.
-
-At 125 MHz:
+The system also retains exact sample-domain relationships:
 
 ```text
-system-clock period = 8 ns
-ideal ADC period     = 1 / 930 kHz = 1075.268817... ns
-ideal clocks/sample  = 125 MHz / 930 kHz
-                     = 134.4086021505...
+1 carrier cycle   = 12 ADC samples
+1 PRN chip        = 1440 ADC samples
+200 ms            = 186000 ADC samples
+512 PRN chips     = 737280 ADC samples
+1 second          = 930000 ADC samples
 ```
 
-Therefore the ADC conversion scheduler naturally emits intervals of 134 or 135 system-clock periods. The phase accumulator ensures that the long-term average is exact to its numerical resolution and that timing error remains bounded to approximately one 125 MHz clock period.
+## Discipline philosophy
 
-This deliberately resembles Engeler's occasional one-clock timing correction rather than pretending that every physical ADC interval must be mathematically identical.
+The ECP5 PLL remains **fixed**.
 
-## 40-bit sample phase accumulator
+Do not continuously reprogram PLL divider values to follow DCF77.
 
-A 40-bit accumulator is sufficient and deliberately avoids overengineering the first RTL version.
+Instead, the slow carrier-discipline controller commands the SiT5348 DCTCXO frequency through I2C. This adjusts the real clock source while the FPGA clock tree stays in a legal, stable PLL configuration.
 
-For a nominal 125 MHz system clock and 930 kS/s sample rate:
+This is closer to a conventional disciplined oscillator and removes the sample-event quantisation of the generic-XO plan.
 
-```text
-NOMINAL_INC = round(2^40 * 930000 / 125000000)
-            = 8,180,366,511
-```
+## SiTime as the correction actuator
 
-The resulting nominal sample rate is approximately:
+The carrier detector estimates phase. A persistent phase slope means the local clock is slightly fast or slow.
 
-```text
-930000.0000394 samples/s
-```
-
-or only about:
-
-```text
-+0.000042 ppm
-```
-
-from the mathematical target.
-
-One accumulator-LSB change corresponds to roughly:
-
-```text
-0.000122 ppm
-```
-
-of sample-rate correction.
-
-This is already much finer than the ~0.003 ppm correction resolution reported for Engeler's demonstration receiver.
-
-### Correction range
-
-At this accumulator scaling:
-
-```text
-1 ppm correction ~= 8,180 increment counts
-```
-
-A signed 24-bit trim field therefore provides vastly more correction range than needed for an ordinary quartz oscillator while keeping the arithmetic small.
-
-The recommended interface is conceptually:
-
-```text
-sample_increment = NOMINAL_INC + signed_trim
-```
-
-with `signed_trim` updated only by the slow carrier-discipline loop.
-
-## Timing quantisation and jitter budget
-
-The fractional scheduler places each ideal sample instant on the nearest reachable 8 ns clock grid through its accumulated phase.
-
-For a simple bounded/uniform timing-error estimate, one 8 ns quantisation interval corresponds to about 2.31 ns RMS timing uncertainty.
-
-At a 77.5 kHz input carrier, this is approximately a **59 dB jitter-limited SNR** estimate:
-
-```text
-SNR_jitter ~= -20 log10(2*pi*fcarrier*sigma_t)
-```
-
-The maximum one-system-clock carrier phase interval is only about:
-
-```text
-8 ns / (1 / 77.5 kHz) * 360 deg ~= 0.223 deg
-```
-
-This is in the same engineering spirit as Engeler's deliberately non-uniform divider correction, for which the paper estimated a roughly 50 dB clock-jitter ceiling. The real prototype must still measure this rather than relying only on the calculation.
-
-The ECP5 PLL's own specified clock jitter is far smaller than the 8 ns scheduler quantisation, so the scheduler and the board oscillator dominate this particular timing budget.
-
-## DCF77 integer relationships retained in the sample domain
-
-Once the **average sample rate is disciplined to 930 kS/s**, all important DCF77 ratios remain exact integer relationships in sample count:
-
-```text
-carrier period:
-    12 samples
-
-PRN chip duration:
-    120 carrier periods
-    = 1440 ADC samples
-
-200 ms PRN start offset:
-    186000 ADC samples
-
-512-chip PRN duration:
-    512 * 1440
-    = 737280 ADC samples
-
-PRN end position:
-    186000 + 737280
-    = 923280 samples
-    = 992.7741935... ms
-
-one nominal second:
-    930000 samples
-```
-
-This is extremely useful: the FPGA can express all carrier/PRN timing in the **disciplined sample domain**, while the 125 MHz system clock remains merely an implementation clock.
-
-Do not generate the PRN chip timing from an unrelated free-running 645.833 Hz divider. Generate it from second-phase/sample position so that the phase code remains coherent with the receiver's DCF77 timebase.
-
-## Proposed RTL boundary
-
-The first clock-control layer should provide:
-
-```text
-clk_sys_125m       fixed FPGA clock
-pll_locked         fixed PLL status
-sample_ce          one-cycle pulse for each ADC conversion event
-sample_trim        signed rate correction
-sample_phase       optional debug accumulator state
-```
-
-Later timing logic derives:
-
-```text
-carrier_sample_phase  modulo 12 sample position
-second_sample_phase   0 .. 929999 after second lock
-prn_chip_index        0 .. 511 while the PZF window is active
-```
-
-Keep those counters out of the PLL wrapper. They belong to the portable DCF77 core.
-
-## ADC implications
-
-This architecture is especially well suited to a SAR ADC with a `CONV`/`CNV` input:
-
-- `sample_ce` schedules the conversion edge;
-- the ADC serial clock can remain a conventional fixed/divided FPGA clock;
-- sample timing and serial readout timing are separated;
-- the DCF77 discipline loop never touches the ECP5 global system clock.
-
-The final ADC must be checked for minimum conversion spacing and serial-readout completion at the shortest scheduler interval (134 system-clock periods, about 1.072 us).
-
-## Carrier-discipline loop
-
-### Observable
-
-The detector provides a carrier phase estimate. A persistent slope in measured phase versus local time indicates sample-clock frequency error.
-
-A 1 ppm local timing-rate error corresponds to approximately:
-
-```text
-77,500 carrier cycles/s * 1e-6
-= 0.0775 carrier cycles/s
-= 27.9 degrees/s
-```
-
-so even a modest phase estimator has substantial leverage for measuring quartz error.
-
-### Loop structure
-
-Use two operating states.
-
-#### Acquisition
-
-- begin with the nominal accumulator increment;
-- permit a wide correction range (at least +/-100 ppm);
-- average carrier phase over short windows;
-- reject impulsive phase measurements before they affect frequency control;
-- estimate the phase slope and drive the sample increment toward zero slope.
-
-This stage replaces the coarse part of Engeler's binary-search clock correction.
-
-#### Tracking
-
-After stable carrier lock:
-
-- narrow the carrier estimator bandwidth;
-- update `sample_trim` slowly (nominally once per second or slower);
-- use a low-bandwidth PI/FLL-style controller or a paper-compatible binary-search controller;
-- slew correction rather than making large instantaneous changes;
-- freeze or heavily damp correction during carrier dropouts.
-
-Exact loop coefficients are **not yet frozen**. They must be selected from simulation and recorded receiver captures because the phase-noise statistics depend strongly on RF conditions.
-
-## Hole-punching / impulse rejection
-
-Retain Engeler's important clock-loop protection:
+The clock loop is:
 
 ```text
 carrier phase
     -> unwrap
-    -> reject/mute implausibly large single-sample deviations
-    -> slow frequency estimator
-    -> sample_trim
+    -> reject impulsive/outlier measurements
+    -> estimate slow frequency error
+    -> loop filter / search controller
+    -> SiT5348 digital frequency-control word
 ```
 
-A lightning impulse or local switching event must not permanently pull the disciplined clock.
+The loop should run slowly, nominally once per second or slower in steady tracking.
 
-The decoder may tolerate one corrupted second; a corrupted clock estimate can poison many seconds.
+The SiT5348 DCTCXO frequency-control response is fast relative to this loop: manufacturer data gives roughly 103 us typical command-to-frequency-change delay plus roughly 16.5 us typical settling time.
 
-## Holdover behaviour
+## Expected operating states
 
-When carrier lock is lost:
+### Startup/free run
 
-1. freeze the last trusted `sample_trim`;
-2. continue timekeeping from the local XO;
-3. increase an uncertainty/holdover-age metric;
-4. reacquire carrier phase without an abrupt time jump;
-5. only resume normal tracking after phase measurements pass confidence checks.
+Run the SiT5348 at its factory nominal 24.18 MHz frequency.
 
-A TCXO is therefore optional rather than mandatory. A normal quartz XO should already be adequate for receiver development because DCF77 continuously disciplines it; a TCXO only improves long holdover periods.
+The ±50 ppb stability class is already better than the approximate 0.1 ppm disciplined-clock target reported in Engeler's receiver, so the system starts from a very strong clock even before radio lock.
 
-## Oscillator lifecycle strategy
+### Carrier acquisition
 
-Do not lock the PCB to a rare DCF77-related oscillator frequency.
+Use wider carrier estimator bandwidth and estimate residual phase slope.
 
-Use a **standard 25 MHz LVCMOS oscillator** and treat the oscillator as a replaceable BOM item with electrical requirements rather than a magic part number.
+Because the oscillator should already be close, apply conservative tuning limits. A requirement for multi-ppm correction should be treated as a diagnostic condition.
 
-Initial requirements:
+### Tracking
+
+After carrier confidence is good:
+
+- narrow the carrier estimator;
+- update the SiTime frequency offset slowly;
+- retain Engeler's impulse rejection/hole punching;
+- avoid chasing short-term propagation phase variations;
+- log commanded offset and phase residual for validation.
+
+### Holdover
+
+On carrier loss:
+
+1. freeze the last trusted SiTime frequency correction;
+2. continue local timing;
+3. track holdover age/uncertainty;
+4. reacquire carrier with a guarded transition;
+5. resume corrections only after confidence is restored.
+
+## Exact ADC timing
+
+For the preferred clock plan:
 
 ```text
-frequency       25.000 MHz
-supply          3.3 V preferred
-logic           LVCMOS
-initial accuracy <= +/-25 ppm preferred
-industrial-temp option desirable
-low phase jitter preferred
-output enable   useful but not mandatory
+clk_sys = 120,900,000 Hz
+Fs      =     930,000 Hz
+ratio   =         130 clocks/sample
 ```
 
-PCB recommendations:
+A simple modulo-130 counter can therefore produce `sample_ce`.
 
-- use a common 4-pad oscillator footprint selected during schematic capture;
-- provide a 0-ohm option or mux point for an external clock source;
-- expose a clock test point away from the ferrite antenna;
-- keep the XO and FPGA clock traces physically far from the antenna/JFET input;
-- avoid routing any 25/125 MHz line under the analog input section.
+The ADC-specific wrapper converts `sample_ce` into the actual CNV/CONV pulse width and serial readout timing required by the chosen ADC.
 
-The production BOM should have at least two approved oscillator sources before the board is declared lifecycle-safe.
+The portable detector core must continue to see only sample events/data, not ADC electrical details.
 
-## EMI consequences
+## ECP5 PLL
 
-The system clock no longer needs to be an exact harmonic of 77.5 kHz, which is beneficial from a self-interference perspective.
+The fixed PLL converts 24.18 MHz to 120.9 MHz.
 
-However, the ADC conversion pattern is still DCF77-related and digital activity can still create deterministic spectral lines. Therefore Engeler's randomised/burst processing concept remains relevant even with the ECP5 design.
+The exact `EHXPLLL` primitive parameters must be generated/validated with the selected toolchain (`ecppll`, Project Trellis flow, or Lattice Diamond/Clarity) rather than manually assuming divider syntax.
 
-During RF bring-up, compare antenna spectra in at least these modes:
+The intended arithmetic relationship is fixed; primitive settings are an implementation detail.
 
-1. FPGA configured but DSP idle;
-2. ADC scheduler running;
-3. carrier/Goertzel processing running continuously;
-4. randomised/burst DSP scheduling enabled;
-5. USB/debug traffic enabled/disabled.
+## Fallback: generic XO + fractional scheduler
 
-Self-interference at or close to 77.5 kHz is a board acceptance criterion, not a cosmetic EMC issue.
+The repository retains [`../rtl/core/sample_scheduler.sv`](../rtl/core/sample_scheduler.sv).
 
-## Verification plan
+The original fallback design is:
 
-Before this clock architecture is considered complete:
+```text
+25 MHz generic XO
+ -> fixed ECP5 PLL
+ -> 125 MHz
+ -> 40-bit phase accumulator
+ -> average 930 kS/s sample_ce
+```
 
-1. simulate the accumulator for several billion system clocks or an equivalent mathematical model;
-2. verify sample count and bounded phase error;
-3. sweep `sample_trim` across at least +/-100 ppm;
-4. confirm monotonic frequency response and absence of accumulator overflow pathologies;
-5. run the carrier detector against synthetically clock-offset DCF77 captures;
-6. verify acquisition from at least +/-50 ppm;
-7. inject burst phase errors and confirm hole-punching behaviour;
-8. measure actual `CONV` jitter on hardware;
-9. measure carrier-phase noise with the clock loop open and closed;
-10. measure FPGA/XO self-interference at the ferrite input.
+Its nominal increment is:
+
+```text
+8,180,366,511
+```
+
+and it provides extremely fine average-rate correction. It is useful for:
+
+- boards without the SiTime DCTCXO;
+- simulation/reference testing;
+- comparing timing architectures;
+- emergency BOM substitutions;
+- algorithm development before final hardware.
+
+It is no longer the preferred production timing path because the 24.18 MHz DCTCXO permits exact integer sample timing.
+
+## Burst-noise protection
+
+Engeler's hole-punching principle is retained regardless of clock actuator.
+
+Atmospheric/lightning or local switching impulses can produce bad carrier-phase observations. A bad phase point must not cause a persistent oscillator correction.
+
+Use:
+
+```text
+phase measurement
+ -> quality/outlier check
+ -> unwrap
+ -> low-bandwidth frequency estimate
+ -> actuator command
+```
+
+During poor carrier confidence, freeze rather than chase the measurement.
+
+## Self-interference warning
+
+24.18 MHz is deliberately an integer harmonic of DCF77:
+
+```text
+24.18 MHz = 312 * 77.5 kHz
+```
+
+That is ideal for timing arithmetic but potentially dangerous for an ultra-sensitive receiver if clock leakage reaches the ferrite antenna.
+
+PCB requirements therefore include:
+
+- strong physical separation between TCXO/ECP5 and the antenna/input stage;
+- no clock routing under the analog front end;
+- short clock traces;
+- controlled output slew where available;
+- quiet return paths;
+- switcher/USB separation;
+- antenna-spectrum measurements with digital subsystems toggled on/off.
+
+Engeler's randomized/burst DSP scheduling may still be needed because digital processing activity can create coherent spurs even when the master oscillator itself is clean.
+
+## Verification requirements
+
+Before clock discipline is accepted:
+
+1. validate legal ECP5 PLL configuration for 24.18 -> 120.9 MHz;
+2. verify exactly 130 system clocks between nominal ADC conversion events;
+3. validate SiT5348 I2C frequency-control writes on hardware;
+4. measure oscillator frequency command resolution/linearity over the small range actually used;
+5. measure command delay and transient impact;
+6. acquire DCF77 carrier from known deliberate clock offsets;
+7. verify loop convergence and residual phase slope;
+8. inject impulsive phase errors and verify hole punching;
+9. verify holdover/reacquisition behaviour;
+10. measure clock-related spectral lines at the antenna input.
 
 ## Source documents
 
-Primary ECP5 clock references:
-
-- Lattice `FPGA-DS-02012`, **ECP5 and ECP5-5G Family Data Sheet**;
-- Lattice `FPGA-TN-02200`, **ECP5 and ECP5-5G sysCLOCK PLL/DLL Design and Usage Guide**;
-- Project Trellis `ecppll` utility/source, used by the open ECP5 toolchain to calculate legal PLL divider sets.
-
-The clock-discipline concept itself is derived from Engeler's receiver architecture; the fixed-PLL plus fractional-sample-scheduler implementation is a new reconstruction choice for this repository.
+- Engeler receiver paper archived in this repository;
+- Lattice ECP5 family data sheet and sysCLOCK PLL usage guide;
+- SiTime SiT5348 product page and data sheet;
+- [`15-sitime-super-tcxo.md`](15-sitime-super-tcxo.md) for the rebuild-specific oscillator plan.
