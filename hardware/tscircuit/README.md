@@ -14,6 +14,10 @@ The analog front end, ADC, clock, ECP5, display/timing outputs and downstream re
 Now selected or strongly preferred for Rev.0:
 
 ```text
+Antenna      TDK B82453C0275A000, X winding
+Antenna C    560 pF + 22 pF C0G/NP0, fixed
+Antenna R    330 kOhm damping, fixed
+Input buffer OPA810IDBVR
 FPGA         Lattice ECP5 LFE5U-45F, BG256 preferred
 ADC          LTC1407AIMSE-1#PBF
 ADC rate     930 kS/s
@@ -29,10 +33,10 @@ Display      transflective 20x2 LCD on both PCB variants
 5V AFE       low-loss passively filtered 5V_SYS
 ```
 
+The integrated antenna network is intentionally **no-trim**. Component values are fixed from the TDK inductance tolerance, OPA810 input capacitance budget and a deliberately broadened loaded Q. Per-board capacitor selection is not part of the reference build.
+
 Still open before the complete `index.circuit.tsx` is frozen:
 
-- sustainable high-impedance antenna input stage;
-- exact antenna part/tuning network from measured L/Q;
 - final LTC6912 OPN/package;
 - exact regulator OPN/package/passives after power simulation and sourcing re-check;
 - exact ECP5 speed/temperature OPN;
@@ -44,6 +48,7 @@ Still open before the complete `index.circuit.tsx` is frozen:
 
 ADC details are in [`../../docs/18-adc-selection.md`](../../docs/18-adc-selection.md).
 Power details are in [`../../docs/19-power-tree.md`](../../docs/19-power-tree.md).
+Antenna/input details are in [`../../docs/20-antenna-input.md`](../../docs/20-antenna-input.md).
 
 ## Planned structure
 
@@ -122,7 +127,7 @@ Current downstream architecture:
 5V_SYS
   |
   +--> low-loss passive filter -> 5V_AFE
-  |      -> LTC1562 / LTC6912 / input stage
+  |      -> OPA810 / LTC1562 / LTC6912
   |
   +--> LT3042 -> 3V3_ADC_A
   |      -> LTC1407A-1 / OPA2835
@@ -155,15 +160,17 @@ The HAT+ variant uses Raspberry Pi 3.3 V only for HAT identification / power-sta
 
 The following are not freely placed by Quilter:
 
-- antenna mechanical interface;
-- first high-impedance input device;
-- critical antenna tuning components;
+- TDK B82453C0275A000 antenna orientation and board-edge position;
+- fixed 560 pF + 22 pF C0G tuning capacitors and 330 kOhm damping resistor;
+- OPA810 immediately beside the active X winding input node;
 - LTC1562/PGA analog chain;
 - ADC, LT3042, OPA2835 and the input RC network as a tight cluster;
 - TCXO and its dedicated LDO/clock escape direction;
 - switcher hot loops and inductors;
 - mounting holes;
 - mechanically fixed board-edge connectors.
+
+No fast clock, USB, SPI, ADC serial clock or buck switch node may run under or beside the integrated ferrite/input cluster. The unused Y/Z antenna windings remain open and must not acquire long PCB stubs.
 
 Analog, ADC, clock, FPGA, LCD, USB/debug and power blocks receive placement regions/keepouts so Quilter optimizes within the intended RF floorplan rather than inventing the floorplan itself.
 
@@ -208,6 +215,27 @@ Selection is based on:
 7. lifecycle and sourcing depth.
 
 See [`../../docs/15-sitime-super-tcxo.md`](../../docs/15-sitime-super-tcxo.md).
+
+## Antenna/input block
+
+Reference Rev.0 integrated input:
+
+```text
+TDK B82453C0275A000 X winding
+  || 560 pF C0G
+  || 22 pF C0G
+  || 330 kOhm
+       |
+       +--> ANT_IN
+              |
+              +--> OPA810 voltage follower @ 5V_AFE
+                       |
+                       +--> LTC1562
+```
+
+The resonant network is centered around a quiet 2.5 V `VCM_AFE` node. The fixed values target approximately 586 pF total capacitance after the OPA810/PCB input-capacitance budget is included.
+
+There is no reference-BOM trimmer. Prototype measurements validate the calculation but do not determine per-board component values.
 
 ## ADC block
 
