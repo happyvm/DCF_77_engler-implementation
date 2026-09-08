@@ -10,7 +10,13 @@
 
 module engeler_observables #(
     parameter int SAMPLE_BITS = 14,
-    parameter int STATE_BITS = 32
+    parameter int STATE_BITS = 32,
+    // Bank scaling constants, exposed so a time-compressed simulation can
+    // widen the bins in proportion to a shortened second; hardware keeps
+    // the bank's own defaults.
+    parameter logic signed [18:0] CARRIER_SCALE = 19'sd131059,
+    parameter logic signed [18:0] AM_SCALE      = 19'sd130993,
+    parameter logic signed [18:0] PM_SCALE      = 19'sd126157
 ) (
     input  logic clk,
     input  logic rst,
@@ -37,7 +43,8 @@ module engeler_observables #(
     logic signed [PRODUCT_BITS-1:0] pm_ir, pm_ri;
 
     engeler_goertzel_bank #(
-        .SAMPLE_BITS(SAMPLE_BITS), .STATE_BITS(STATE_BITS)
+        .SAMPLE_BITS(SAMPLE_BITS), .STATE_BITS(STATE_BITS),
+        .CARRIER_SCALE(CARRIER_SCALE), .AM_SCALE(AM_SCALE), .PM_SCALE(PM_SCALE)
     ) detector_i (
         .clk(clk), .rst(rst), .sample_ce(sample_ce), .sample(sample),
         .carrier_s1(carrier_s1), .carrier_s2(carrier_s2),

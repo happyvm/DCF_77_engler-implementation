@@ -13,14 +13,16 @@ BUILD_DIR ?= build
 	lint-pps-uart lint-goertzel lint-detector lint formal synth \
 	resource-check timing test-tools test-soft-history test-ml-controller \
 	test-frequency-discipline tool-versions clean test-integration synth-core \
-	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator
+	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator \
+	test-second-phase-ramp test-system
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
 	test-second-phase test-lock-controller test-qualification-disabled test-tools \
 	test-soft-history test-ml-controller test-frequency-discipline test-integration \
-	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator
+	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator \
+	test-second-phase-ramp
 
 test-integration: $(BUILD_DIR)/dcf77_hat_top_tb.vvp
 	$(VVP) $<
@@ -29,7 +31,28 @@ TOP_RTL := rtl/ecp5/clock_reset_ecp5.sv rtl/platform/adc_if.sv \
 	rtl/platform/uart_tx.sv rtl/core/sample_scheduler.sv rtl/core/pps_generator.sv \
 	rtl/core/time_telemetry.sv rtl/core/pps_uart.sv rtl/goertzel/*.sv rtl/am/*.sv \
 	rtl/pm/*.sv rtl/sync/*.sv rtl/core/engeler_detector.sv rtl/ml_decoder/*.sv \
-	rtl/control/*.sv rtl/clock_discipline/*.sv rtl/top/dcf77_hat_top.sv
+	rtl/control/*.sv rtl/clock_discipline/*.sv rtl/core/dcf77_receiver_core.sv \
+	rtl/top/dcf77_hat_top.sv
+
+# Everything the receiver core needs, without the HAT shell (PLL, sample
+# scheduler, ADC serial interface): the system test drives the core at one
+# sample per clock instead of paying for the 32-edge ADC frame per sample.
+CORE_RTL := rtl/core/pps_generator.sv rtl/core/time_telemetry.sv rtl/core/pps_uart.sv \
+	rtl/platform/uart_tx.sv rtl/goertzel/*.sv rtl/am/*.sv rtl/pm/*.sv rtl/sync/*.sv \
+	rtl/core/engeler_detector.sv rtl/ml_decoder/*.sv rtl/control/*.sv \
+	rtl/clock_discipline/*.sv rtl/core/dcf77_receiver_core.sv
+
+test-second-phase-ramp: $(BUILD_DIR)/second_phase_ramp_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/second_phase_ramp_tb.vvp: rtl/sync/second_phase_detector.sv sim/second_phase_ramp_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s second_phase_ramp_tb -o $@ $^
+
+test-system: $(BUILD_DIR)/dcf77_system_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/dcf77_system_tb.vvp: $(CORE_RTL) sim/dcf77_system_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s dcf77_system_tb -o $@ $^
 
 $(BUILD_DIR)/dcf77_hat_top_tb.vvp: $(TOP_RTL) sim/dcf77_hat_top_tb.sv
 	mkdir -p $(BUILD_DIR)

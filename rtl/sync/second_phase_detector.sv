@@ -15,7 +15,17 @@ module second_phase_detector #(
     parameter int ACQUIRE_HITS = 2,
     parameter int HOLDOVER_AFTER = 2,
     parameter int AGE_BITS = 16,
-    parameter int QUALITY_BITS = 8
+    parameter int QUALITY_BITS = 8,
+    // AM notch onset = envelope below (1 - 2^-EDGE_DROP_SHIFT) of the
+    // remembered full-carrier level. DCF77 reduces the carrier to ~15%
+    // (a >95% drop in the amplitude-squared observable), so 1/32 is far
+    // inside the notch yet crossed only a few tens of carrier cycles
+    // after the true onset given the AM bin's ~1.7k-cycle time constant.
+    parameter int EDGE_DROP_SHIFT = 5,
+    // Peak-hold decay: 2^15 cycles > one second, so the reference keeps
+    // the full level across the 200 ms reduction yet still follows a
+    // slowly fading carrier.
+    parameter int REF_DECAY_SHIFT = 15
 ) (
     input  logic clk,
     input  logic rst,
@@ -44,7 +54,13 @@ module second_phase_detector #(
     logic [HIT_BITS-1:0] search_hits;
     logic [MISS_BITS-1:0] missed_seconds;
     logic first_edge;
-    logic signed [INPUT_BITS:0] envelope_magnitude, previous_magnitude;
+    logic signed [INPUT_BITS:0] envelope_magnitude;
+    // Slow peak-hold of the envelope magnitude (snaps up, decays with a
+    // time constant of 2^REF_DECAY_SHIFT carrier cycles -- longer than a
+    // second, so it still remembers the full-carrier level through the
+    // 200 ms reduction) and the one-edge-per-notch arming flag.
+    logic signed [INPUT_BITS:0] reference_level;
+    logic edge_armed, notch_seen;
     logic am_edge;
     logic phase_measurement_seen;
     logic signed [1:0] slew;
@@ -63,9 +79,19 @@ module second_phase_detector #(
             envelope_magnitude = -((INPUT_BITS + 1)'(am_envelope));
         else
             envelope_magnitude = (INPUT_BITS + 1)'(am_envelope);
-        am_edge = carrier_ce &&
-                  (previous_magnitude > envelope_magnitude) &&
-                  ((previous_magnitude - envelope_magnitude) >=
+        // The envelope leaves the Goertzel AM bin as a first-order response
+        // (time constant ~1.7k carrier cycles), so a notch is a long,
+        // monotonic ramp rather than a step: comparing only adjacent
+        // cycles would fire on every cycle of the ramp and never let the
+        // one-second spacing check succeed. Instead detect the onset as
+        // the first cycle the magnitude has fallen by EDGE_DROP_SHIFT
+        // (1/32) of the remembered full-carrier level, and re-arm only
+        // once it has climbed back above 3/4 of that level -- exactly one
+        // edge per notch, a few tens of cycles after the true onset.
+        am_edge = carrier_ce && edge_armed &&
+                  (envelope_magnitude <
+                   (reference_level - (reference_level >>> EDGE_DROP_SHIFT))) &&
+                  ((reference_level - envelope_magnitude) >=
                    (INPUT_BITS + 1)'(AM_EDGE_THRESHOLD));
         if (position <= POS_BITS'(TRACK_WINDOW))
             am_error = $signed({1'b0, position});
@@ -77,15 +103,37 @@ module second_phase_detector #(
         if (rst) begin
             state <= SEARCH; position <= '0; search_spacing <= '0;
             search_hits <= '0; missed_seconds <= '0; first_edge <= 1'b0;
-            previous_magnitude <= '0; second_ce <= 1'b0;
+            reference_level <= '0; edge_armed <= 1'b1; notch_seen <= 1'b0;
+            second_ce <= 1'b0;
             phase_error_cycles <= '0; quality <= '0;
             measurement_outlier <= 1'b0; measurement_age <= {AGE_BITS{1'b1}};
             phase_measurement_seen <= 1'b0; slew <= '0;
         end else begin
             second_ce <= 1'b0;
             measurement_outlier <= 1'b0;
-            if (carrier_ce)
-                previous_magnitude <= envelope_magnitude;
+            if (carrier_ce) begin
+                if (envelope_magnitude > reference_level)
+                    reference_level <= envelope_magnitude;
+                else
+                    reference_level <= reference_level -
+                                       (reference_level >>> REF_DECAY_SHIFT);
+                // One edge per notch: disarm on the edge, remember that
+                // the envelope really went deep (below half the reference,
+                // so a shallow wobble cannot re-arm), and re-arm only once
+                // it has climbed back above the edge threshold itself --
+                // re-arming lower (e.g. at 3/4) would fire a second edge
+                // on the rising flank, still below 31/32 of the reference.
+                if (am_edge)
+                    edge_armed <= 1'b0;
+                if (envelope_magnitude < (reference_level >>> 1))
+                    notch_seen <= 1'b1;
+                else if (!edge_armed && notch_seen &&
+                         (envelope_magnitude >=
+                          (reference_level - (reference_level >>> (EDGE_DROP_SHIFT + 1))))) begin
+                    edge_armed <= 1'b1;
+                    notch_seen <= 1'b0;
+                end
+            end
 
             if (state == SEARCH) begin
                 if (carrier_ce && first_edge)

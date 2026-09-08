@@ -19,11 +19,14 @@ module pm_phase_discriminator #(
     parameter int OBSERVABLE_BITS = 67,
     parameter int CHIP_SOFT_BITS = 32,
     parameter int OUTPUT_SHIFT = 24,
+    parameter int SECOND_CYCLES = 77_500,
     parameter int PRN_START_CYCLE = 15_500,
+    parameter int CYCLES_PER_CHIP = 120,
+    parameter int CHIP_COUNT = 512,
     // Sub-chip offset for the early/late taps; must stay well inside one
-    // 120-cycle chip so both taps remain in the same correlation lobe as
-    // the prompt tap instead of aliasing into an unrelated one.
-    parameter int OFFSET_CYCLES = 40,
+    // chip so both taps remain in the same correlation lobe as the prompt
+    // tap instead of aliasing into an unrelated one (a third of a chip).
+    parameter int OFFSET_CYCLES = CYCLES_PER_CHIP / 3,
     parameter int PHASE_ERROR_BITS = 18,
     // A prompt correlation below this magnitude is too weak to steer
     // timing from at all (no real PM signal, or pure noise): the
@@ -49,8 +52,8 @@ module pm_phase_discriminator #(
 );
     localparam int CORR_BITS = CHIP_SOFT_BITS + 10;
     localparam int NUM_BITS = CORR_BITS + 2;
-    // Headroom for multiplying by OFFSET_CYCLES (<120, asserted below):
-    // the true product needs up to NUM_BITS + $clog2(120) bits, not just
+    // Headroom for multiplying by OFFSET_CYCLES (<256, asserted below):
+    // the true product needs up to NUM_BITS + 8 bits, not just
     // NUM_BITS -- sizing the accumulator at plain NUM_BITS silently wraps
     // for exactly the offsets this module actually uses (e.g. the default
     // 40), which is why this width is carried explicitly rather than
@@ -58,7 +61,7 @@ module pm_phase_discriminator #(
     localparam int OFFSET_BITS = 8;
     localparam int PROD_BITS = NUM_BITS + OFFSET_BITS;
 
-    // OFFSET_CYCLES is a small (<120, asserted below) compile-time
+    // OFFSET_CYCLES is a small (<256, asserted below) compile-time
     // constant, so scaling by it needs no general multiplier: unrolled
     // shift-add over its set bits synthesizes to at most a handful of
     // LUT-only adders (e.g. one add for the default 40 = 32+8) instead of
@@ -86,7 +89,9 @@ module pm_phase_discriminator #(
 
     engeler_pm_pipeline #(
         .OBSERVABLE_BITS(OBSERVABLE_BITS), .CHIP_SOFT_BITS(CHIP_SOFT_BITS),
-        .OUTPUT_SHIFT(OUTPUT_SHIFT), .PRN_START_CYCLE(PRN_START_CYCLE - OFFSET_CYCLES)
+        .OUTPUT_SHIFT(OUTPUT_SHIFT), .SECOND_CYCLES(SECOND_CYCLES),
+        .PRN_START_CYCLE(PRN_START_CYCLE - OFFSET_CYCLES),
+        .CYCLES_PER_CHIP(CYCLES_PER_CHIP), .CHIP_COUNT(CHIP_COUNT)
     ) early_i (
         .clk(clk), .rst(rst), .second_ce(second_ce), .carrier_ce(carrier_ce),
         .pm_observable(pm_observable), .correlation(early_correlation),
@@ -96,7 +101,9 @@ module pm_phase_discriminator #(
 
     engeler_pm_pipeline #(
         .OBSERVABLE_BITS(OBSERVABLE_BITS), .CHIP_SOFT_BITS(CHIP_SOFT_BITS),
-        .OUTPUT_SHIFT(OUTPUT_SHIFT), .PRN_START_CYCLE(PRN_START_CYCLE + OFFSET_CYCLES)
+        .OUTPUT_SHIFT(OUTPUT_SHIFT), .SECOND_CYCLES(SECOND_CYCLES),
+        .PRN_START_CYCLE(PRN_START_CYCLE + OFFSET_CYCLES),
+        .CYCLES_PER_CHIP(CYCLES_PER_CHIP), .CHIP_COUNT(CHIP_COUNT)
     ) late_i (
         .clk(clk), .rst(rst), .second_ce(second_ce), .carrier_ce(carrier_ce),
         .pm_observable(pm_observable), .correlation(late_correlation),
@@ -176,7 +183,7 @@ module pm_phase_discriminator #(
     end
 
     initial begin
-        if (OFFSET_CYCLES < 1 || OFFSET_CYCLES >= 120)
+        if (OFFSET_CYCLES < 1 || OFFSET_CYCLES >= CYCLES_PER_CHIP || OFFSET_CYCLES >= 256)
             $error("pm_phase_discriminator: OFFSET_CYCLES must stay within one chip");
     end
 
