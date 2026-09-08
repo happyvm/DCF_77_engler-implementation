@@ -19,6 +19,8 @@ module ml_field_sequencer_tb;
     logic result_valid;
     logic [5:0] out_minute;
     logic out_minute_confident;
+    logic signed [19:0] out_minute_best_score;
+    logic [19:0] out_minute_quality_gap;
     logic [4:0] out_hour;
     logic out_hour_confident;
     logic [5:0] out_day;
@@ -106,6 +108,8 @@ module ml_field_sequencer_tb;
 
         if (out_minute !== 6'd34 || !out_minute_confident)
             $fatal(1, "minute mismatch: got %0d confident=%0b", out_minute, out_minute_confident);
+        if (out_minute_best_score !== 20'sd800)
+            $fatal(1, "minute best_score mismatch: got %0d", out_minute_best_score);
         if (out_hour !== 5'd17 || !out_hour_confident)
             $fatal(1, "hour mismatch: got %0d confident=%0b", out_hour, out_hour_confident);
         if (out_day !== 6'd15)

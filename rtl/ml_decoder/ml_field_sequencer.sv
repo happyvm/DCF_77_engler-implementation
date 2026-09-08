@@ -38,6 +38,11 @@ module ml_field_sequencer #(
     output logic result_valid,
     output logic [5:0] out_minute,
     output logic out_minute_confident,
+    // Minute-value decode confidence (not to be confused with the
+    // second/minute-boundary sync quality tracked elsewhere): how
+    // strongly the winning minute candidate beat the runner-up.
+    output logic signed [EVIDENCE_BITS+3:0] out_minute_best_score,
+    output logic [EVIDENCE_BITS+3:0] out_minute_quality_gap,
     output logic [4:0] out_hour,
     output logic out_hour_confident,
     output logic [5:0] out_day,
@@ -79,6 +84,8 @@ module ml_field_sequencer #(
     reg minute_done, hour_done;
     reg [5:0] minute_latched;
     reg minute_confident_latched;
+    reg signed [MINUTE_SCORE_BITS-1:0] minute_score_latched;
+    reg [MINUTE_SCORE_BITS-1:0] minute_gap_latched;
     reg [4:0] hour_latched;
     reg hour_confident_latched;
     reg [5:0] day_latched;
@@ -104,8 +111,8 @@ module ml_field_sequencer #(
     wire minute_confident_p, hour_confident_p;
     wire [5:0] minute_p;
     wire [4:0] hour_p;
-    wire signed [MINUTE_SCORE_BITS-1:0] unused_minute_score;
-    wire [MINUTE_SCORE_BITS-1:0] unused_minute_gap;
+    wire signed [MINUTE_SCORE_BITS-1:0] minute_score_p;
+    wire [MINUTE_SCORE_BITS-1:0] minute_gap_p;
     wire signed [HOUR_SCORE_BITS-1:0] unused_hour_score;
     wire [HOUR_SCORE_BITS-1:0] unused_hour_gap;
 
@@ -117,7 +124,7 @@ module ml_field_sequencer #(
         .clk(clk), .rst(rst), .load_valid(minute_ld_valid), .load_index(minute_ld_idx),
         .soft_bit(history_am_evidence), .start(minute_start_p), .busy(unused_minute_busy),
         .result_valid(minute_result_p), .confident(minute_confident_p),
-        .minute(minute_p), .best_score(unused_minute_score), .quality_gap(unused_minute_gap)
+        .minute(minute_p), .best_score(minute_score_p), .quality_gap(minute_gap_p)
     );
 
     hour_candidate_search #(
@@ -177,6 +184,8 @@ module ml_field_sequencer #(
                 minute_done <= 1'b1;
                 minute_latched <= minute_p;
                 minute_confident_latched <= minute_confident_p;
+                minute_score_latched <= minute_score_p;
+                minute_gap_latched <= minute_gap_p;
             end
             if (hour_result_p) begin
                 hour_done <= 1'b1;
@@ -329,6 +338,8 @@ module ml_field_sequencer #(
                 S_DONE: begin
                     out_minute            <= minute_latched;
                     out_minute_confident  <= minute_confident_latched;
+                    out_minute_best_score <= minute_score_latched;
+                    out_minute_quality_gap<= minute_gap_latched;
                     out_hour              <= hour_latched;
                     out_hour_confident    <= hour_confident_latched;
                     out_day               <= day_latched[5:0];
