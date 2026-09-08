@@ -2,190 +2,249 @@
 
 ## Decision
 
-The Rev.0 Raspberry Pi HAT+ consumes both power rails provided by the Raspberry Pi 40-pin header:
+The Rev.0 Raspberry Pi HAT+ consumes both rails provided by the 40-pin header:
 
 ```text
-PI_5V  -> protected/gated path -> 5V_SYS
-PI_3V3 -> direct digital rail  -> 3V3_D
+PI_5V  -> TPS22975NDSGR -> 5V_SYS
+PI_3V3 -> current-measure / 0R link -> 3V3_D
 ```
 
-The standalone USB-C board is unchanged and continues to generate `3V3_D` locally from `5V_SYS`.
+The standalone board remains different only at the power/host shell and generates its own `3V3_D` from `5V_SYS`.
 
-## Why use PI_3V3
+Using Pi 3.3 V for the HAT digital domain removes one local switching converter from the receiver board while keeping all sensitive analog/clock rails locally regulated from Pi 5 V.
 
-Using the Raspberry Pi 3.3 V rail for the HAT digital domain avoids recreating an unnecessary 3.3 V switching rail on the HAT PCB.
+## Exact HAT+ input switch
 
-Benefits:
+Reference part:
 
-- removes one switching regulator from the HAT board;
-- reduces conversion loss and BOM count;
-- removes one local high-frequency switching source near the 77.5 kHz receiver;
-- directly matches Raspberry Pi GPIO voltage;
-- naturally follows HAT+ STANDBY behavior, where 5 V remains present but 3.3 V is removed.
+```text
+TPS22975NDSGR
+6 A load-switch class
+~16 mOhm typical RON
+adjustable rise time
+N variant without quick-output-discharge resistor
+```
 
-## Reference HAT+ power architecture
+Reference wiring:
+
+```text
+PI_5V -> VIN
+PI_5V -> VBIAS
+PI_3V3 -> ON
+ON -> 100 kOhm -> GND
+CT -> 1.0 nF, >=30 V -> GND
+VOUT -> 5V_SYS
+```
+
+At 5 V, the manufacturer table gives about 1.75 ms typical 10%-90% rise time with 1 nF CT.
+
+The low RON matters because `5V_AFE` feeds the LTC1562 directly through only a 0.10-ohm filter resistor and therefore has little voltage-drop budget.
+
+The ON pulldown guarantees that the HAT 5 V receiver path is off when Pi 3.3 V is absent.
+
+## Reference HAT+ power tree
 
 ```text
 PI_5V
-  -> protection / load switch
+  -> TPS22975NDSGR
   -> 5V_SYS
-       -> filtered 5V_AFE
-       -> LT3042 -> 3V3_ADC_A
-       -> TPS7A20 -> 3V3_CLK
-       -> TPS628502 -> 1V1_CORE
-       -> LCD backlight current path
+       +--> 0.10 ohm fixed filter -> 5V_AFE
+       +--> LT3042EMSE#PBF -> 3V3_ADC_A
+       +--> TPS7A2033PDQNR -> 3V3_CLK
+       +--> TPS628502DRLR -> 1V1_CORE
+       +--> LCD backlight path
 
 PI_3V3
-  -> current-measure / 0R link
-  -> 3V3_D_HAT
-       -> ECP5 3.3 V VCCIO banks
-       -> ECP5 VCCIO8
-       -> W25Q64JV configuration flash
-       -> HAT+ ID EEPROM and pull-ups
-       -> LCD logic
-       -> PPS/output logic at 3.3 V
-       -> TPS7A20 -> 2V5_AUX under controlled enable
+  -> 0R/current-measure link
+  -> 3V3_D
+       +--> all ECP5 3.3 V VCCIO banks
+       +--> ECP5 VCCIO8
+       +--> W25Q64JV configuration flash
+       +--> HAT+ ID EEPROM and pull-ups
+       +--> LCD logic
+       +--> PPS / Pi host-I/O domain
+       +--> TPS7A2025PDQNR -> 2V5_AUX
 ```
 
-The common logical rail presented to the receiver core remains `3V3_D`; only its source differs by PCB variant.
+Exact downstream power values are frozen in `docs/28-power-passives-sequencing.md` and `hardware/tscircuit/power-plan.json`.
 
-## Loads that must not use PI_3V3
+## Loads that never use PI_3V3
 
-Keep the sensitive and higher-current domains locally generated from Pi 5 V:
+`PI_3V3` is a digital I/O/configuration source only.
+
+Do not connect it to:
 
 ```text
 5V_AFE     -> OPA810 / LTC1562 / LTC6912
 3V3_ADC_A  -> LTC1407A-1 / OPA2835
 3V3_CLK    -> SiT5356 TCXO
 1V1_CORE   -> ECP5 VCC
+LCD backlight
 ```
 
-The Pi 3.3 V rail is therefore a digital-only source.
-
-## LCD backlight
-
-Do not place the roughly 30 mA LCD backlight load on Raspberry Pi 3.3 V.
-
-```text
-LCD logic     -> 3V3_D_HAT
-LCD backlight -> 5V_SYS through fixed current limiting and low-side MOSFET
-```
-
-The backlight remains off in precision RF mode.
+This prevents Raspberry Pi regulator noise from becoming the final supply for the ADC or timebase.
 
 ## STANDBY behavior
 
-Current HAT+ rules define STANDBY as:
+HAT+ STANDBY is explicitly useful to our architecture:
 
 ```text
 PI_5V  present
 PI_3V3 absent
 ```
 
-Use `PI_3V3` presence as the HAT-active indication.
-
-Normal behavior:
+Normal reference behavior is therefore:
 
 ```text
 Pi active:
 PI_3V3 valid
-  -> 3V3_D_HAT valid
-  -> enable HAT 5V_SYS path
-  -> enable local rails
-  -> ECP5 boots
+  -> 3V3_D / VCCIO8 / flash valid
+  -> 2V5_AUX valid
+  -> TPS22975N ON
+  -> 5V_SYS rises with controlled slew
+  -> 1V1_CORE / AFE / ADC / TCXO rails start
+  -> ECP5 internal POR eventually releases
 
 Pi STANDBY:
 PI_3V3 absent
-  -> 3V3_D_HAT off
-  -> disable HAT 5V_SYS path
-  -> local receiver rails off
-  -> no HAT GPIO can back-power the Pi
+  -> 3V3_D off
+  -> TPS22975N forced off by ON pulldown
+  -> 5V_SYS and all local receiver rails off
+  -> no HAT GPIO back-power path
 ```
 
-Do not provide any alternate source capable of driving `3V3_D_HAT` while `PI_3V3` is absent. JTAG/debug connectors expose the rail only as a voltage reference.
+No alternate supply may drive `3V3_D` on the HAT while `PI_3V3` is absent.
+
+JTAG/debug connectors use `3V3_D` only as a voltage reference and never inject power into it.
 
 ## ECP5 sequencing consequence
 
-On the HAT+, `VCCIO8` and the configuration flash are powered from `PI_3V3` before the local ECP5 core rail is enabled:
+The HAT naturally satisfies the Master-SPI ordering requirement because Pi 3.3 V powers the configuration domain before Pi 5 V is switched into the local core regulator:
 
 ```text
-PI_3V3 / 3V3_D valid
-       -> VCCIO8 valid
-       -> W25Q64JV valid
-       -> HAT_ACTIVE
-             -> enable 5V_SYS
-                  -> enable 1V1_CORE
-                  -> enable 2V5_AUX
+PI_3V3
+   -> VCCIO8
+   -> W25Q64JV
+   -> 2V5_AUX
+   -> enable TPS22975N
+        -> 5V_SYS
+             -> 1V1_CORE
 ```
 
-`PROGRAMN` remains controlled so configuration does not begin until required rails are valid.
+Lattice's internal POR monitors VCC, VCCAUX and VCCIO8 and does not initialize until its monitored thresholds are met.
+
+Rev.0 therefore does not add an arbitrary-delay supervisor solely to hold `PROGRAMN` low. `PROGRAMN` keeps its normal pull-up, test point and optional open-drain reset path.
 
 ## Raspberry Pi interface bank
 
-All ECP5 pins connected directly to Raspberry Pi GPIO use a 3.3 V ECP5 bank powered from `3V3_D_HAT`.
-
-Preferred interface:
+All direct Pi/ECP5 interface pins are in ECP5 Bank 1 powered by `3V3_D = PI_3V3`:
 
 ```text
-SPI SCLK
-SPI MOSI
-SPI MISO
-SPI CS
+SPI0 SCLK
+SPI0 MOSI
+SPI0 MISO
+SPI0 CE0
 IRQ / DATA_READY
-optional RESET/control
-PPS copy to Pi GPIO
+RESET/control
+PPS copy to Pi
 ```
 
-No level shifter is required for normal 3.3 V Pi GPIO operation when both sides share the same 3.3 V domain.
+No level shifter is required.
 
-## PI_3V3 current-budget policy
+Exact GPIO/ball mapping is frozen in:
 
-Do not assume unlimited current simply because the header exposes 3.3 V pins.
+- `docs/27-ecp5-pin-plan-hat.md`
+- `hardware/tscircuit/pin-plan.json`
 
-Before PCB release, estimate and measure current drawn from `PI_3V3` with:
+## HAT ID EEPROM
 
-- ECP5 configured and worst-case 3.3 V I/O activity;
-- configuration flash active;
-- LCD logic active;
-- HAT EEPROM present;
-- PPS/host interface toggling.
-
-Provide:
+The HAT ID bus also runs directly from `PI_3V3` and remains isolated from ECP5:
 
 ```text
-PI_3V3 -> 0R/current-measure link -> 3V3_D_HAT
+physical 27 / ID_SD -> EEPROM SDA
+physical 28 / ID_SC -> EEPROM SCL
 ```
 
-ADC, TCXO, AFE, ECP5 core and LCD backlight are deliberately excluded from this budget.
+No receiver traffic is placed on these pins.
 
-Do not freeze a universal PI_3V3 current limit until the supported Raspberry Pi model set and power documentation are checked.
+## PI_3V3 current measurement
+
+Do not assume unlimited 3.3 V current from the Raspberry Pi header.
+
+Reference insertion point:
+
+```text
+PI_3V3
+  -> 0-ohm/current-measure link
+  -> 3V3_D
+```
+
+The measured budget includes:
+
+- ECP5 VCCIO-bank current;
+- W25Q64 configuration activity;
+- LCD logic;
+- HAT EEPROM;
+- PPS/host interface switching;
+- 2V5_AUX input power.
+
+It excludes ADC, TCXO, AFE, ECP5 core and LCD backlight.
+
+Before HAT PCB release, check this current against the supported Raspberry Pi model/PSU documentation and measure it on real hardware.
+
+## HAT local decoupling
+
+At the `PI_3V3 -> 3V3_D` entry:
+
+```text
+10 uF X7R bulk
+1 uF X7R
+100 nF X7R
+```
+
+Then use the per-bank/per-ball ECP5 decoupling frozen in `docs/28-power-passives-sequencing.md`.
+
+The entry capacitors are placed in the digital/HAT-header region, not beside the ferrite.
+
+## LCD power
+
+```text
+LCD logic     -> 3V3_D / PI_3V3
+LCD backlight -> 5V_SYS through fixed current limiting and MOSFET control
+```
+
+Do not spend about 30 mA of the Pi 3.3 V budget on the backlight.
+
+Backlight remains OFF in precision RF mode.
 
 ## Noise policy
 
-Rules:
+The HAT removes its local 3.3 V buck, but the Raspberry Pi remains an electrically noisy neighbor.
 
-- local bulk and high-frequency decoupling at the HAT 3.3 V entry;
-- short distribution to ECP5 VCCIO and flash;
-- no PI_3V3 routing through the ferrite/OPA810/LTC1562 region;
-- no use of PI_3V3 as ADC or TCXO supply;
-- Pi-facing digital return currents stay in the digital side of the board.
+Hard rules:
 
-Removing the local HAT 3.3 V buck eliminates one potential self-interference source, while the Raspberry Pi itself remains an RF-noisy neighbor that must be characterized.
+- PI_3V3 stays in the digital partition;
+- PI_5V reaches the power branch without crossing the AFE first;
+- no Pi supply trace runs through the ferrite/OPA810/LTC1562 cluster;
+- Pi-facing digital current returns remain on the digital side;
+- the only local switcher on HAT is primarily the ECP5 1.1 V core buck;
+- TCXO and ADC retain dedicated low-noise LDOs.
 
 ## Variant comparison
 
 ```text
-Standalone USB-C:
+Standalone:
 5V_SYS -> TPS628502 -> 3V3_D
 
-Raspberry Pi HAT+:
+HAT+:
 PI_3V3 ------------> 3V3_D
 ```
 
-Everything downstream of `3V3_D` remains functionally equivalent where possible.
+Everything after the logical `3V3_D` boundary remains functionally equivalent where practical.
 
 ## References
 
-- Raspberry Pi HAT+ Specification, current revision.
-- Raspberry Pi GPIO/40-pin header documentation.
-- Lattice ECP5/ECP5-5G Hardware Checklist.
+- Raspberry Pi HAT+ Specification.
+- Raspberry Pi 40-pin GPIO documentation.
+- Texas Instruments TPS22975/TPS22975N data sheet.
+- Lattice ECP5/ECP5-5G Family Data Sheet and Hardware Checklist.
