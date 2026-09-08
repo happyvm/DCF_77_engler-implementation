@@ -18,11 +18,12 @@ Antenna      TDK B82453C0275A000, X winding
 Antenna C    560 pF + 22 pF C0G/NP0, fixed
 Antenna R    330 kOhm damping, fixed
 Input buffer OPA810IDBVR
+BPF          LTC1562IG#PBF, fixed 77.5 kHz / 7.75 kHz design
+PGA          LTC6912IGN-1#PBF, gains 0/1/2/5/10/20/50/100
 FPGA         Lattice ECP5 LFE5U-45F, BG256 preferred
 ADC          LTC1407AIMSE-1#PBF
 ADC rate     930 kS/s
 ADC driver   OPA2835IDGSR candidate, validation required
-PGA          LTC6912 family, -1 still preferred unless sourcing changes
 PPS          mandatory dedicated ECP5 hardware output
 Display      transflective 20x2 LCD on both PCB variants
 1V1 core     TPS628502 candidate
@@ -33,11 +34,12 @@ Display      transflective 20x2 LCD on both PCB variants
 5V AFE       low-loss passively filtered 5V_SYS
 ```
 
-The integrated antenna network is intentionally **no-trim**. Component values are fixed from the TDK inductance tolerance, OPA810 input capacitance budget and a deliberately broadened loaded Q. Per-board capacitor selection is not part of the reference build.
+The integrated antenna and LTC1562 filter are intentionally **no-trim**. Component values are fixed from tolerance analysis and manufacturer reference designs; per-board passive selection is not part of the reference build.
+
+The PGA is also fixed at the hardware level. Gain is selected digitally by ECP5 from the LTC6912-1 table; no analog gain trim exists. The AGC controls ADC headroom and must not chase the deliberate DCF77 AM reduction.
 
 Still open before the complete `index.circuit.tsx` is frozen:
 
-- final LTC6912 OPN/package;
 - exact regulator OPN/package/passives after power simulation and sourcing re-check;
 - exact ECP5 speed/temperature OPN;
 - SPI configuration flash;
@@ -49,6 +51,8 @@ Still open before the complete `index.circuit.tsx` is frozen:
 ADC details are in [`../../docs/18-adc-selection.md`](../../docs/18-adc-selection.md).
 Power details are in [`../../docs/19-power-tree.md`](../../docs/19-power-tree.md).
 Antenna/input details are in [`../../docs/20-antenna-input.md`](../../docs/20-antenna-input.md).
+Fixed LTC1562 details are in [`../../docs/21-ltc1562-fixed-filter.md`](../../docs/21-ltc1562-fixed-filter.md).
+PGA details are in [`../../docs/22-ltc6912-pga.md`](../../docs/22-ltc6912-pga.md).
 
 ## Planned structure
 
@@ -163,7 +167,8 @@ The following are not freely placed by Quilter:
 - TDK B82453C0275A000 antenna orientation and board-edge position;
 - fixed 560 pF + 22 pF C0G tuning capacitors and 330 kOhm damping resistor;
 - OPA810 immediately beside the active X winding input node;
-- LTC1562/PGA analog chain;
+- LTC1562 and all fixed programming resistors;
+- LTC6912 and its AGND/input coupling parts;
 - ADC, LT3042, OPA2835 and the input RC network as a tight cluster;
 - TCXO and its dedicated LDO/clock escape direction;
 - switcher hot loops and inductors;
@@ -171,6 +176,8 @@ The following are not freely placed by Quilter:
 - mechanically fixed board-edge connectors.
 
 No fast clock, USB, SPI, ADC serial clock or buck switch node may run under or beside the integrated ferrite/input cluster. The unused Y/Z antenna windings remain open and must not acquire long PCB stubs.
+
+PGA SPI is sparse and low-rate; it must still be routed away from the ferrite and active-filter section nodes.
 
 Analog, ADC, clock, FPGA, LCD, USB/debug and power blocks receive placement regions/keepouts so Quilter optimizes within the intended RF floorplan rather than inventing the floorplan itself.
 
@@ -230,12 +237,28 @@ TDK B82453C0275A000 X winding
               |
               +--> OPA810 voltage follower @ 5V_AFE
                        |
-                       +--> LTC1562
+                       +--> LTC1562 fixed BPF
 ```
 
 The resonant network is centered around a quiet 2.5 V `VCM_AFE` node. The fixed values target approximately 586 pF total capacitance after the OPA810/PCB input-capacitance budget is included.
 
 There is no reference-BOM trimmer. Prototype measurements validate the calculation but do not determine per-board component values.
+
+## Filter/PGA block
+
+Reference Rev.0:
+
+```text
+LTC1562IG#PBF
+  -> fc 77.5 kHz, BW ~7.75 kHz, gain ~10
+  -> 1.0 uF AC coupling
+  -> LTC6912IGN-1#PBF channel A
+  -> digital gains 1/2/5/10/20/50/100
+```
+
+Channel B is software-shutdown by default.
+
+After second synchronization, gain changes occur only near ~995 ms after the second boundary, after the PM sequence has ended. The AGC estimates amplitude in the 250...950 ms stable-carrier region and does not respond to the 100/200 ms DCF77 AM reduction.
 
 ## ADC block
 
@@ -248,7 +271,7 @@ LTC6912 output
   -> 51 ohm + 47 pF C0G isolation
   -> LTC1407A-1 CH0
 
-optional diagnostic source
+LTC1562 diagnostic source
   -> OPA2835 channel @ 3V3_ADC_A
   -> 51 ohm + 47 pF C0G isolation
   -> LTC1407A-1 CH1
