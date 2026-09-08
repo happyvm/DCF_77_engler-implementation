@@ -70,9 +70,12 @@ Use a dedicated low-noise 3.3 V rail:
 
 ```text
 3V3_ADC_A -> LTC1407A-1 VDD
+           -> OPA2835 ADC driver
 ```
 
-The family permits 2.7 V to 3.6 V operation. Using 3.3 V simplifies the electrical interface to a 3.3 V ECP5 I/O bank while keeping the ADC on its own filtered/low-noise analog supply.
+The family permits 2.7 V to 3.6 V operation. Using 3.3 V simplifies the electrical interface to a 3.3 V ECP5 I/O bank while keeping the ADC island on its own low-noise analog supply.
+
+Rev.0 uses an LT3042-class 3.3 V regulator for this island; see [`19-power-tree.md`](19-power-tree.md).
 
 Do not power the ADC directly from the noisy FPGA 3.3 V rail merely because the nominal voltage is the same.
 
@@ -108,24 +111,23 @@ Use precision matched resistors. The midpoint is primarily a low-frequency bias 
 Preferred Rev.0 driver candidate:
 
 ```text
-Texas Instruments OPA2810IDR
+Texas Instruments OPA2835IDGSR
 2 channels
-FET input
-RRIO
-~105 MHz small-signal bandwidth
-70 MHz GBW
-~6 nV/sqrt(Hz) broadband voltage noise
-5 V analog supply
-SOIC-8
+2.5 V ... 5.5 V supply
+rail-to-rail output / negative-rail input
+~56 MHz bandwidth
+~160 V/us slew rate
+~250 uA/channel typical quiescent current
+VSSOP-10
 ```
 
-TI lists the OPA2810 as ACTIVE. Digi-Key showed roughly 900 pieces of the SOIC `OPA2810IDR` in stock in the September 2026 snapshot.
+TI lists the OPA2835 family as **ACTIVE** and positions it for low-power signal conditioning and SAR/delta-sigma ADC drive. Digi-Key showed roughly 2700 units of the VSSOP `OPA2835IDGSR` in stock in the September 2026 snapshot.
 
 This is a **rebuild choice**, not an Engeler component.
 
-The OPA2810 is attractive because it is easy to assemble, comfortably exceeds the LTC1407A input-drive bandwidth guidance, and gives two channels for the two simultaneous ADC inputs.
+The earlier OPA2810 candidate is no longer preferred because its minimum 4.75 V supply would tie ADC-driver validity to the raw 5 V system margin. The OPA2835 can instead run from the same clean `3V3_ADC_A` rail as the LTC1407A-1.
 
-Do not freeze it into the production BOM until settling, noise and RF self-interference are validated on the prototype.
+Do not freeze the OPA2835 into the final production BOM until settling, noise and RF self-interference are validated on the prototype.
 
 ## Proposed channel-0 signal interface
 
@@ -140,7 +142,7 @@ LTC6912 OUTA
      |
      +------ 100k ------ VCM_ADC
      |
- OPA2810 A
+ OPA2835 A
  voltage follower
      |
     51R
@@ -200,7 +202,7 @@ C: external analog test input
 D: quiet reference / self-noise experiment
 ```
 
-Route the selected source through the second OPA2810 channel and the same 51 ohm / 47 pF ADC input network.
+Route the selected source through the second OPA2835 channel and the same 51 ohm / 47 pF ADC input network.
 
 The default Rev.0 stuffing choice should be selected when the final analog schematic is assembled. Avoid adding long high-impedance routes merely to support every option.
 
@@ -255,7 +257,7 @@ ferrite antenna
   -> LTC1562 reference BPF
   -> LTC6912 PGA
   -> AC coupling / 1.25 V rebias
-  -> OPA2810 dual driver candidate
+  -> OPA2835 dual driver candidate @ 3V3_ADC_A
   -> 51R / 47pF input isolation
   -> LTC1407AIMSE-1#PBF @ 930 kS/s
   -> ECP5
@@ -263,7 +265,7 @@ ferrite antenna
 
 ## Validation gates before PCB release
 
-1. Measure OPA2810 output settling into the ADC network at 930 kS/s.
+1. Measure OPA2835 output settling into the ADC network at 930 kS/s.
 2. Verify no visible sampling-kickback corruption at the PGA output.
 3. Measure ADC-code noise with input shorted to `VCM_ADC`.
 4. Inject 77.5 kHz and verify phase versus amplitude/gain setting.
@@ -283,7 +285,8 @@ At every BOM release re-check:
 - Digi-Key/Mouser stock depth;
 - lead time and PCNs;
 - availability of the pin-compatible family variant;
-- status of the modern 16-bit fallback candidates.
+- status of the modern 16-bit fallback candidates;
+- OPA2835 lifecycle and stocking.
 
 If the LTC1407A family moves to NRND/LTB/EOL or sourcing depth becomes poor, reopen the 16-bit SAR migration rather than buying large quantities of obsolete stock.
 
@@ -292,5 +295,5 @@ If the LTC1407A family moves to NRND/LTB/EOL or sourcing depth becomes poor, reo
 - Analog Devices LTC1407/LTC1407A product page and data sheet.
 - Analog Devices LTC1407-1/LTC1407A-1 product page and data sheet.
 - Analog Devices DC1082A evaluation-board documentation.
-- Texas Instruments OPA2810 product page and data sheet.
+- Texas Instruments OPA2835 product page and data sheet.
 - September 2026 Digi-Key/Mouser availability snapshots used only as dated sourcing evidence.
