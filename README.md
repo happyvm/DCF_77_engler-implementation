@@ -32,20 +32,24 @@ LTC1407AIMSE-1#PBF, 14 bit @ 930 kS/s
         |
         v
 Lattice ECP5 LFE5U-45F / BG256
+        ^
+        |
+SiT5356AI-FQ-33E0-25.000000 fixed TCXO
+25 MHz / 3.3 V / ±100 ppb
         |
         +--> carrier / phase
         +--> AM
         +--> PM PRN correlation
         +--> second/minute sync
         +--> 3600 s ML decoder
-        +--> DCF77 clock discipline
+        +--> DCF77 digital clock discipline
         +--> hardware PPS
         +--> LCD
 ```
 
 The integrated antenna and LTC1562 filter are intentionally **no-trim**. Fixed values are chosen so production boards do not require hand-selected R/C values. See [`docs/20-antenna-input.md`](docs/20-antenna-input.md) and [`docs/21-ltc1562-fixed-filter.md`](docs/21-ltc1562-fixed-filter.md).
 
-The PGA is now frozen as the `LTC6912-1` gain law. Its AGC manages ADC headroom and deliberately does not chase the DCF77 100/200 ms AM reduction. Gain updates after synchronization are scheduled in the short tail after the PM sequence, around 995 ms after the second boundary. See [`docs/22-ltc6912-pga.md`](docs/22-ltc6912-pga.md).
+The PGA is frozen as the `LTC6912-1` gain law. Its AGC manages ADC headroom and deliberately does not chase the DCF77 100/200 ms AM reduction. Gain updates after synchronization are scheduled in the short tail after the PM sequence, around 995 ms after the second boundary. See [`docs/22-ltc6912-pga.md`](docs/22-ltc6912-pga.md).
 
 The LTC1407A family is still `PRODUCTION`, so Rev.0 deliberately keeps an ADC very close to the historical receiver instead of replacing it without a measured benefit. See [`docs/18-adc-selection.md`](docs/18-adc-selection.md).
 
@@ -63,7 +67,7 @@ Both PCB variants converge on one `5V_SYS` boundary and then use the same downst
   |      -> LTC1407A-1 / OPA2835
   |
   +--> TPS7A20 -> 3V3_CLK
-  |      -> fixed TCXO
+  |      -> SiT5356 fixed TCXO
   |
   +--> TPS628502 -> 3V3_D
   |      -> ECP5 I/O / flash / LCD logic
@@ -92,25 +96,22 @@ Both boards keep:
 
 The standalone board is the cleaner RF/metrology reference. The HAT+ variant is compared against it under realistic Raspberry Pi activity. See [`docs/17-pcb-variants.md`](docs/17-pcb-variants.md).
 
-## Clock source policy
+## Clock source
 
-Rev.0 baseline is a **simple fixed TCXO**. DCF77 discipline is implemented digitally in the ECP5/sample-time logic. A DCTCXO remains an optional experimental population if later holdover measurements justify it.
+Rev.0 clock source is now frozen as:
 
-Selection is driven by:
+```text
+SiTime SiT5356AI-FQ-33E0-25.000000
+25 MHz
+fixed TCXO
+3.3 V LVCMOS
+±100 ppb
+-40...+85 degC
+```
 
-1. synchronized timing target;
-2. holdover target;
-3. exact Digi-Key/Mouser availability of an orderable OPN;
-4. temperature range;
-5. oscillator stability, baseline around ±100 ppb class where sourcing permits;
-6. ECP5 PLL/sample-clock implementation;
-7. EMI relationship to 77.5 kHz.
+The 25 MHz reference feeds the ECP5 PLL and the reference plan uses a 125 MHz nominal system clock. A 40-bit fractional scheduler derives the 930 kS/s average ADC cadence and applies the DCF77 frequency correction digitally.
 
-The portable fractional sampler remains the default safety net:
-
-- [`rtl/core/sample_scheduler.sv`](rtl/core/sample_scheduler.sv)
-
-See [`docs/15-sitime-super-tcxo.md`](docs/15-sitime-super-tcxo.md).
+DCTCXO remains experimental only. See [`docs/15-sitime-super-tcxo.md`](docs/15-sitime-super-tcxo.md).
 
 ## FPGA resource compatibility rule
 
@@ -184,7 +185,7 @@ Both variants expose a **dedicated ECP5 hardware PPS**. The rising edge is the t
 - [`docs/12-ecp5-migration.md`](docs/12-ecp5-migration.md) — ECP5 platform migration.
 - [`docs/13-ecp5-clock-discipline.md`](docs/13-ecp5-clock-discipline.md) — generic clock-discipline architecture.
 - [`docs/14-hardware-cad-tscircuit.md`](docs/14-hardware-cad-tscircuit.md) — tscircuit/KiCad/Quilter workflow.
-- [`docs/15-sitime-super-tcxo.md`](docs/15-sitime-super-tcxo.md) — clock-source precision/availability study.
+- [`docs/15-sitime-super-tcxo.md`](docs/15-sitime-super-tcxo.md) — selected Rev.0 fixed 25 MHz TCXO and clock plan.
 - [`docs/16-fpga-resource-budget.md`](docs/16-fpga-resource-budget.md) — XC3S1400AN-equivalent resource ceiling.
 - [`docs/17-pcb-variants.md`](docs/17-pcb-variants.md) — Raspberry Pi HAT+ and standalone USB-C variants.
 - [`docs/18-adc-selection.md`](docs/18-adc-selection.md) — Rev.0 LTC1407A-1 ADC and OPA2835 driver plan.
