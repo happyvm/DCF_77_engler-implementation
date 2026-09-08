@@ -12,13 +12,21 @@ BUILD_DIR ?= build
 	test-second-phase test-lock-controller test-qualification-disabled \
 	lint-pps-uart lint-goertzel lint-detector lint formal synth \
 	resource-check timing test-tools test-soft-history test-ml-controller \
-	tool-versions clean
+	test-frequency-discipline tool-versions clean
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
 	test-second-phase test-lock-controller test-qualification-disabled test-tools \
-	test-soft-history test-ml-controller
+	test-soft-history test-ml-controller test-frequency-discipline
+
+test-frequency-discipline: $(BUILD_DIR)/frequency_discipline_tb.vvp
+	$(VVP) $<
+
+$(BUILD_DIR)/frequency_discipline_tb.vvp: \
+		rtl/clock_discipline/frequency_discipline.sv sim/frequency_discipline_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s frequency_discipline_tb -o $@ $^
 
 test-adc-if: $(BUILD_DIR)/adc_if_tb.vvp
 	$(VVP) $<

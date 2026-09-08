@@ -175,6 +175,33 @@ and it provides extremely fine average-rate correction. It is useful for:
 
 It is no longer the preferred production timing path because the 24.18 MHz DCTCXO permits exact integer sample timing.
 
+### Portable frequency-discipline loop
+
+The fallback scheduler can be driven by
+[`frequency_discipline.sv`](../rtl/clock_discipline/frequency_discipline.sv).
+The block deliberately has no ECP5 PLL interface: it only changes the signed
+`trim_inc` added to the scheduler accumulator, so the hardware PLL remains
+fixed.
+
+Its numeric interface is explicit and configurable:
+
+- `phase_error` is a signed fixed-point number of reference cycles.  The
+  `PHASE_FRAC_BITS` least-significant bits are the fraction; for example,
+  `0x4000` represents one quarter cycle when `PHASE_FRAC_BITS=16`.
+- `estimated_offset` and `trim_inc` are both signed accumulator-increment LSBs
+  in the units used by `sample_scheduler`.  With its 125 MHz, 930 kS/s and
+  40-bit default configuration, one LSB is approximately 0.000122 ppm.
+- `PHASE_TO_TRIM` converts one cycle of measured phase slope per observation
+  interval to accumulator-increment LSBs.  The observation interval is marked
+  by `measurement_ce`, normally once per second.
+
+Acquisition and tracking have independent proportional, integral and estimator
+coefficients.  Accepted observations are quality-gated and checked against
+absolute-phase and phase-step apertures.  The integrator uses conditional
+anti-windup, the actuator is magnitude- and slew-limited, and missing data ages
+into holdover while retaining the last `trim_inc`.  Reacquisition uses the same
+slew limiter, avoiding a discontinuous scheduler command.
+
 ## Burst-noise protection
 
 Engeler's hole-punching principle is retained regardless of clock actuator.
