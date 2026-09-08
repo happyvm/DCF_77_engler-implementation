@@ -1,0 +1,11 @@
+# Complete ECP5 release-reference synthesis (board top and clock primitive).
+read_verilog -lib -specify +/ecp5/cells_sim.v
+read_verilog -sv rtl/ecp5/clock_reset_ecp5.sv rtl/platform/*.sv \
+    rtl/goertzel/*.sv rtl/am/*.sv rtl/pm/*.sv rtl/sync/*.sv \
+    rtl/ml_decoder/*.sv rtl/control/*.sv rtl/clock_discipline/*.sv \
+    rtl/core/*.sv rtl/top/dcf77_hat_top.sv
+hierarchy -check -top dcf77_hat_top
+check
+synth_ecp5 -top dcf77_hat_top -json build/release_reference.json
+tee -o build/release_reference-stat.txt stat -top dcf77_hat_top
+check

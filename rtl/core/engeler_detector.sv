@@ -12,7 +12,11 @@ module engeler_detector #(
     parameter bit QUALIFICATION_ENABLED = 1'b0,
     parameter logic [SOFT_BITS+14:0] MINUTE_MIN_SCORE = '0,
     parameter logic [SOFT_BITS+14:0] MINUTE_MIN_GAP = '0,
-    parameter int AM_SYNC_THRESHOLD = 1
+    parameter int AM_SYNC_THRESHOLD = 1,
+    parameter int SECOND_CYCLES = 77_500,
+    parameter int SECOND_SEARCH_TOLERANCE = 1_000,
+    parameter int SECOND_TRACK_WINDOW = 2_000,
+    parameter int SECOND_ACQUIRE_HITS = 2
 ) (
     input  logic clk,
     input  logic rst,
@@ -68,7 +72,10 @@ module engeler_detector #(
     );
 
     second_phase_detector #(
-        .INPUT_BITS(OBSERVABLE_BITS), .AM_EDGE_THRESHOLD(AM_SYNC_THRESHOLD)
+        .INPUT_BITS(OBSERVABLE_BITS), .SECOND_CYCLES(SECOND_CYCLES),
+        .AM_EDGE_THRESHOLD(AM_SYNC_THRESHOLD),
+        .SEARCH_TOLERANCE(SECOND_SEARCH_TOLERANCE),
+        .TRACK_WINDOW(SECOND_TRACK_WINDOW), .ACQUIRE_HITS(SECOND_ACQUIRE_HITS)
     ) second_sync_i (
         .clk(clk), .rst(rst), .carrier_ce(observable_valid),
         .am_envelope(am_observable),
