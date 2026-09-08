@@ -193,17 +193,17 @@ The antenna block is a hard placement constraint for Quilter.
 
 Rules:
 
-- place the B82453C0275A000 at the board edge farthest from ECP5, USB, Raspberry Pi and switching regulators;
+- place the B82453C0275A000 at the board edge farthest from ECP5, Raspberry Pi and switching regulators;
 - orient the X magnetic axis according to the TDK package axis drawing and record that orientation in silkscreen/documentation;
 - keep `ANT_IN` copper extremely short;
 - place 560 pF, 22 pF and 330 kOhm immediately beside the antenna pads;
 - place OPA810 immediately beside `ANT_IN`;
 - no ground/power switching-current trace under the antenna/input cluster;
-- no FPGA clock, ADC SCK, SPI, USB or buck switch node beneath or adjacent to the ferrite;
+- no FPGA clock, ADC SCK, Pi SPI or buck switch node beneath or adjacent to the ferrite;
 - avoid large copper pours directly under the ferrite unless later electromagnetic analysis specifically justifies them;
 - unused Y/Z winding pads remain electrically open and have no long traces.
 
-The HAT+ variant needs the strictest keepout because the Raspberry Pi is a strong local interference source.
+The HAT+ board needs a strict keepout because the Raspberry Pi is a strong local interference source.
 
 ## External-antenna option
 
