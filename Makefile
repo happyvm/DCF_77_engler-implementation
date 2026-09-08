@@ -12,13 +12,26 @@ BUILD_DIR ?= build
 	test-second-phase test-lock-controller test-qualification-disabled \
 	lint-pps-uart lint-goertzel lint-detector lint formal synth \
 	resource-check timing test-tools test-soft-history test-ml-controller \
-	test-frequency-discipline tool-versions clean
+	test-frequency-discipline tool-versions clean test-integration synth-core
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
 	test-second-phase test-lock-controller test-qualification-disabled test-tools \
-	test-soft-history test-ml-controller test-frequency-discipline
+	test-soft-history test-ml-controller test-frequency-discipline test-integration
+
+test-integration: $(BUILD_DIR)/dcf77_hat_top_tb.vvp
+	$(VVP) $<
+
+TOP_RTL := rtl/ecp5/clock_reset_ecp5.sv rtl/platform/adc_if.sv \
+	rtl/platform/uart_tx.sv rtl/core/sample_scheduler.sv rtl/core/pps_generator.sv \
+	rtl/core/time_telemetry.sv rtl/core/pps_uart.sv rtl/goertzel/*.sv rtl/am/*.sv \
+	rtl/pm/*.sv rtl/sync/*.sv rtl/core/engeler_detector.sv rtl/ml_decoder/*.sv \
+	rtl/control/*.sv rtl/clock_discipline/*.sv rtl/top/dcf77_hat_top.sv
+
+$(BUILD_DIR)/dcf77_hat_top_tb.vvp: $(TOP_RTL) sim/dcf77_hat_top_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s dcf77_hat_top_tb -o $@ $^
 
 test-frequency-discipline: $(BUILD_DIR)/frequency_discipline_tb.vvp
 	$(VVP) $<
@@ -217,12 +230,17 @@ formal:
 
 synth:
 	mkdir -p $(BUILD_DIR)
+	$(YOSYS) -s synth/release_reference.ys
+
+# Keep the isolated detector build as a diagnostic target.
+synth-core:
+	mkdir -p $(BUILD_DIR)
 	$(YOSYS) -s synth/engeler_detector.ys
 
 resource-check: synth
 	mkdir -p $(BUILD_DIR)/reports
 	bash -o pipefail -c '$(PYTHON) tools/check_resource_budget.py \
-		$(BUILD_DIR)/engeler_detector.json --profile release_reference | \
+		$(BUILD_DIR)/release_reference.json --profile release_reference | \
 		tee $(BUILD_DIR)/reports/resource-budget.txt'
 
 # This is a device-level implementation used for a reproducible timing estimate.
