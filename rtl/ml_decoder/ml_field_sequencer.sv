@@ -14,10 +14,26 @@ module ml_field_sequencer #(
     parameter int EVIDENCE_BITS = 16,
     parameter int SCAN_DEPTH = 60,
     parameter bit QUALIFICATION_ENABLED = 1'b0,
-    parameter logic signed [EVIDENCE_BITS+3:0] MINUTE_MIN_SCORE = '0,
-    parameter logic [EVIDENCE_BITS+3:0] MINUTE_MIN_GAP = '0,
-    parameter logic signed [EVIDENCE_BITS+2:0] HOUR_MIN_SCORE = '0,
-    parameter logic [EVIDENCE_BITS+2:0] HOUR_MIN_GAP = '0
+    // Each of the 8 minute-field evidence values saturates at
+    // +-2^(EVIDENCE_BITS-1) (am_bit_extractor's own saturating output), so
+    // a correctly-decoded candidate where every bit agrees could in
+    // principle reach 8x that magnitude. Requiring only 1/16 of that
+    // theoretical maximum still rejects a candidate whose "win" over the
+    // other 59 is really just noise finding the least-bad match, while
+    // staying reachable by a real signal nowhere near full-scale
+    // confidence per bit. A calibration constant, not a measured one --
+    // re-validate once real receiver SNR is characterized on hardware.
+    parameter logic signed [EVIDENCE_BITS+3:0] MINUTE_MIN_SCORE =
+        (EVIDENCE_BITS > 2) ? (1 << (EVIDENCE_BITS - 2)) : 1,
+    // A quarter of the qualifying floor: flipping even one bit swings the
+    // score by 2x that bit's own evidence, so the runner-up must trail by
+    // more than a single marginal bit's worth of separation.
+    parameter logic [EVIDENCE_BITS+3:0] MINUTE_MIN_GAP = MINUTE_MIN_SCORE >> 2,
+    // Same derivation as MINUTE_MIN_SCORE, scaled for the hour field's 7
+    // evidence bits instead of the minute field's 8.
+    parameter logic signed [EVIDENCE_BITS+2:0] HOUR_MIN_SCORE =
+        (EVIDENCE_BITS > 1) ? ((7 * (1 << (EVIDENCE_BITS - 1))) >> 4) : 1,
+    parameter logic [EVIDENCE_BITS+2:0] HOUR_MIN_GAP = HOUR_MIN_SCORE >> 2
 ) (
     input  logic clk,
     input  logic rst,

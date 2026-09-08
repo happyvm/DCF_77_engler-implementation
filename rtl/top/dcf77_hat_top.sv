@@ -13,7 +13,14 @@ module dcf77_hat_top #(
     parameter int SECOND_ACQUIRE_HITS = 2,
     parameter int PPS_PULSE_CYCLES = 12_500_000,
     parameter int HISTORY_DEPTH = 3600,
-    parameter bit QUALIFICATION_ENABLED = 1'b0
+    // The release profile (this default) runs real qualification end to
+    // end: pm_minute_sync's PM-marker lock, the ML minute/hour decode
+    // confidence gates, and receiver_lock_controller's own
+    // acquire/exit-hysteresis and holdover all gate on this, each against
+    // thresholds derived (not left at an all-pass zero) in the modules
+    // they belong to. A build that must publish time unconditionally for
+    // bench debugging can still override this to 1'b0 explicitly.
+    parameter bit QUALIFICATION_ENABLED = 1'b1
 ) (
     input  logic clk_25m, input logic reset_n,
     output logic adc_conv, output logic adc_sck, input logic adc_sdo,
@@ -102,7 +109,8 @@ module dcf77_hat_top #(
     engeler_detector #(.SECOND_CYCLES(SECOND_CYCLES),
         .SECOND_SEARCH_TOLERANCE(SECOND_SEARCH_TOLERANCE),
         .SECOND_TRACK_WINDOW(SECOND_TRACK_WINDOW),
-        .SECOND_ACQUIRE_HITS(SECOND_ACQUIRE_HITS)) detector_i (
+        .SECOND_ACQUIRE_HITS(SECOND_ACQUIRE_HITS),
+        .QUALIFICATION_ENABLED(QUALIFICATION_ENABLED)) detector_i (
         .clk(clk), .rst(rst), .sample_ce(adc_valid), .sample(adc_ch0),
         .second_ce(second_ce), .second_phase_error(phase_error),
         .second_phase_quality(phase_quality), .second_measurement_outlier(phase_outlier),
@@ -170,12 +178,21 @@ module dcf77_hat_top #(
         .out_cest(fs_cest), .out_dst_announcement(fs_dst_announcement),
         .out_leap_announcement(fs_leap_announcement));
 
+    // fs_result_valid alone only means "the sequencer finished sorting one
+    // minute's worth of evidence" -- it says nothing about whether the
+    // winning minute/hour candidates actually cleared their own MIN_SCORE
+    // /MIN_GAP floors. Gating on the confidence flags too is what makes
+    // QUALIFICATION_ENABLED and those thresholds (see ml_field_sequencer)
+    // actually block a noise-driven frame from ever reaching the
+    // continuity/consistent-frame check below.
+    wire ml_frame_valid = fs_result_valid && fs_minute_confident && fs_hour_confident;
+
     ml_decoder_controller #(.HISTORY_DEPTH(HISTORY_DEPTH), .HISTORY_ADDR_BITS(HIST_AW)) ml_i (
         .clk(clk), .rst(rst), .scan_start(1'b0),
         .history_write_pointer(history_wp), .history_read_valid(1'b0),
         .history_read_enable(history_re_unused), .history_read_address(history_ra_unused),
         .scan_busy(ml_scan_busy),
-        .frame_valid(fs_result_valid), .candidate_minute(fs_minute),
+        .frame_valid(ml_frame_valid), .candidate_minute(fs_minute),
         .candidate_hour(fs_hour), .candidate_day(fs_day), .candidate_weekday(fs_weekday),
         .candidate_month(fs_month), .candidate_year(fs_year), .candidate_cest(fs_cest),
         .candidate_dst_announcement(fs_dst_announcement),

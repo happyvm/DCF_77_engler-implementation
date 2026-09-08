@@ -24,8 +24,21 @@ module engeler_detector #(
     // characterized on hardware.
     parameter int PM_MIN_PROMPT_MAGNITUDE = (SOFT_BITS > 4) ? (1 << (SOFT_BITS - 4)) : 1,
     parameter bit QUALIFICATION_ENABLED = 1'b0,
-    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_SCORE = '0,
-    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_GAP = '0,
+    // pm_minute_sync's 15-second matched filter sums signed per-second PM
+    // correlations (same pm_correlation this module also floors at
+    // PM_MIN_PROMPT_MAGNITUDE for the phase discriminator above): a real,
+    // even weak minute marker should stay coherent enough across those 15
+    // seconds to reach several multiples of that single-second floor,
+    // while a search across 60 candidate window offsets landing on pure
+    // noise regresses toward zero instead of building up. 8x the
+    // single-second floor is a calibration constant, not a measured one --
+    // re-validate once real receiver noise floor is characterized on
+    // hardware, same as PM_MIN_PROMPT_MAGNITUDE above.
+    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_SCORE =
+        (SOFT_BITS > 1) ? (1 << (SOFT_BITS - 1)) : 1,
+    // A quarter of the qualifying floor itself: the runner-up window must
+    // trail the winner by a clear margin, not just barely lose out.
+    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_GAP = MINUTE_MIN_SCORE >> 2,
     parameter int AM_SYNC_THRESHOLD = 1,
     parameter int SECOND_CYCLES = 77_500,
     parameter int SECOND_SEARCH_TOLERANCE = 1_000,
