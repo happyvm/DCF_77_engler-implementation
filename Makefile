@@ -10,7 +10,7 @@ BUILD_DIR ?= build
 	test-observables test-prn test-pm-correlator test-pm-integrator \
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
 	lint-pps-uart lint-goertzel lint-detector lint formal synth \
-	resource-check test-tools tool-versions clean
+	resource-check timing test-tools tool-versions clean
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
@@ -169,8 +169,20 @@ synth:
 	$(YOSYS) -s synth/engeler_detector.ys
 
 resource-check: synth
-	$(PYTHON) tools/check_resource_budget.py \
-		$(BUILD_DIR)/engeler_detector.json --profile release_reference
+	mkdir -p $(BUILD_DIR)/reports
+	bash -o pipefail -c '$(PYTHON) tools/check_resource_budget.py \
+		$(BUILD_DIR)/engeler_detector.json --profile release_reference | \
+		tee $(BUILD_DIR)/reports/resource-budget.txt'
+
+# This is a device-level implementation used for a reproducible timing estimate.
+# It is not a board bitstream: pin and board clock constraints are still pending.
+timing: synth
+	mkdir -p $(BUILD_DIR)/reports
+	bash -o pipefail -c 'nextpnr-ecp5 --45k --package CABGA256 --freq 48 \
+		--json $(BUILD_DIR)/engeler_detector.json \
+		--textcfg $(BUILD_DIR)/engeler_detector.config \
+		--report $(BUILD_DIR)/reports/nextpnr.json 2>&1 | \
+		tee $(BUILD_DIR)/reports/nextpnr.log'
 
 test-tools:
 	$(PYTHON) -m unittest discover -s tests -v
@@ -182,6 +194,7 @@ tool-versions:
 	nextpnr-ecp5 --version
 	ecppack --version
 	$(SBY) --version
+	boolector --version
 
 clean:
 	rm -rf $(BUILD_DIR)

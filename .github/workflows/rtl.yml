@@ -1,0 +1,93 @@
+name: RTL
+
+on:
+  pull_request:
+  push:
+    tags: ['v*']
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+env:
+  OSS_CAD_SUITE: ${{ github.workspace }}/.tools/oss-cad-suite-2025-02-13
+
+jobs:
+  quick:
+    name: Versions, Python, RTL and lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .tools/oss-cad-suite-2025-02-13
+          key: oss-cad-suite-2025-02-13-${{ runner.arch }}
+      - name: Install pinned RTL toolchain
+        run: tools/install-rtl-toolchain.sh "$OSS_CAD_SUITE"
+      - name: Add toolchain to PATH
+        run: echo "$OSS_CAD_SUITE/bin" >> "$GITHUB_PATH"
+      - name: Record explicit tool versions
+        run: mkdir -p build/reports && make tool-versions 2>&1 | tee build/reports/tool-versions.txt
+      - name: Python tests
+        run: make test-tools
+      - name: RTL tests
+        run: make test
+      - name: RTL lint
+        run: make lint
+      - name: Repository whitespace check
+        run: git diff --check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rtl-quick-reports
+          path: build/reports/
+          if-no-files-found: error
+
+  synthesis:
+    name: Yosys synthesis and resource budget
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .tools/oss-cad-suite-2025-02-13
+          key: oss-cad-suite-2025-02-13-${{ runner.arch }}
+      - run: tools/install-rtl-toolchain.sh "$OSS_CAD_SUITE"
+      - run: echo "$OSS_CAD_SUITE/bin" >> "$GITHUB_PATH"
+      - run: mkdir -p build/reports && make tool-versions 2>&1 | tee build/reports/tool-versions.txt
+      - run: make resource-check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: yosys-resource-reports
+          path: |
+            build/engeler_detector-stat.txt
+            build/engeler_detector.json
+            build/reports/
+          if-no-files-found: error
+
+  long-checks:
+    name: Timing and formal proofs
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .tools/oss-cad-suite-2025-02-13
+          key: oss-cad-suite-2025-02-13-${{ runner.arch }}
+      - run: tools/install-rtl-toolchain.sh "$OSS_CAD_SUITE"
+      - run: echo "$OSS_CAD_SUITE/bin" >> "$GITHUB_PATH"
+      - run: mkdir -p build/reports && make tool-versions 2>&1 | tee build/reports/tool-versions.txt
+      - name: Device placement and timing estimate
+        run: make timing
+      - name: Formal proofs
+        run: make formal
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nextpnr-formal-reports
+          path: |
+            build/reports/
+            build/engeler_detector.config
+            formal/pps_generator/
+          if-no-files-found: warn
