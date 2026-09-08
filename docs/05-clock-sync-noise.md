@@ -10,7 +10,7 @@ Long coherent averaging is only useful if receiver timing stays aligned with the
 
 The demonstration receiver therefore disciplines its digital clock to the received 77.5 kHz carrier.
 
-## Digital clock-correction principle
+## Digital clock-correction principle in Engeler
 
 A fast internal clock is nominally divided by **d = 8**. Occasionally one divide interval is changed to `d-1` or `d+1`. By inserting or skipping one fast-clock period every `N` cycles, the average derived frequency is nudged up or down by a tiny amount.
 
@@ -29,20 +29,52 @@ flowchart LR
     CLK --> PC
 ```
 
+## ECP5 reconstruction of the same principle
+
+The ECP5 rebuild preserves the **functional idea** but does not vary the global FPGA clock.
+
+The selected architecture is documented in [`13-ecp5-clock-discipline.md`](13-ecp5-clock-discipline.md):
+
+```text
+25 MHz XO
+   -> fixed ECP5 PLL -> 125 MHz FPGA clock
+                         |
+                         -> 40-bit fractional sample scheduler
+                              |
+                              -> ADC conversion events, average 930 kS/s
+```
+
+DCF77 carrier phase adjusts only the scheduler increment. The FPGA clock, PLL and serial/debug domains remain fixed.
+
+At the current 40-bit design point:
+
+- nominal increment: `8,180,366,511`;
+- nominal numerical rate error: about `+0.000042 ppm`;
+- correction granularity: about `0.000122 ppm` per increment LSB;
+- one ppm corresponds to about `8,180` increment counts.
+
+This is numerically finer than the correction granularity reported by Engeler, without requiring runtime PLL reconfiguration.
+
+A portable first RTL implementation is in [`../rtl/core/sample_scheduler.sv`](../rtl/core/sample_scheduler.sv), and the calculations can be reproduced with [`../tools/clock_plan.py`](../tools/clock_plan.py).
+
 ## Burst-noise “hole punching”
 
 Atmospheric lightning and local impulsive interference can create isolated large phase errors. The clock loop should not chase these impulses. Engeler's clock-correction path therefore **mutes excessively large phase deviations** before they enter the slow frequency-control search.
 
 This protection is especially important in the clock loop because a wrong frequency correction corrupts many later seconds. The main time decoder can tolerate an occasional damaged second by virtue of the one-hour ML history.
 
+The ECP5 reconstruction retains this requirement before the phase-slope/frequency estimator.
+
 ## Clock-induced ADC jitter/distortion
 
-The digital divide adjustment makes sample timing non-uniform at a very small level. The paper estimates the resulting limitations as approximately:
+The digital divide adjustment in Engeler makes sample timing non-uniform at a very small level. The paper estimates the resulting limitations as approximately:
 
 - SNR ceiling around **50 dB**;
 - PM timing disturbance up to roughly **0.1%**.
 
 Both are considered negligible relative to the receiver's operating noise floor.
+
+The ECP5 fractional scheduler similarly quantizes conversion times onto the fixed system-clock grid. At 125 MHz the grid is 8 ns. A simple uniform quantisation model gives about 2.31 ns RMS timing uncertainty and a theoretical jitter-limited SNR around 59 dB at 77.5 kHz. This is a design estimate, not a substitute for hardware measurement.
 
 ## Clock leakage into the antenna
 
@@ -67,6 +99,8 @@ For a modern recreation, also plan for:
 - controlled slew rates where possible;
 - physical distance between ferrite antenna and FPGA/USB/DC-DC converters;
 - a linear bench supply during RF bring-up.
+
+The ECP5 design deliberately uses a standard 25 MHz reference rather than a clock that is itself an exact DCF77 harmonic. Nevertheless the conversion schedule and DSP activity remain correlated with DCF77, so randomised processing and board-level spectral measurements remain mandatory.
 
 These layout recommendations are engineering additions; the randomised-processing technique is the specific mitigation documented in the paper.
 
