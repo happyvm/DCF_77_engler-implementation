@@ -24,55 +24,64 @@ SPI flash    W25Q64JVSSIQ, 64 Mbit, SOIC-8
 Display      NHD-C0220BIZ-FSW-FBW-3V3M, 20x2 I2C FSTN LCD
 PPS          mandatory dedicated ECP5 hardware output
 
-Standalone USB-C:
-connector    GCT USB4105-GF-A
-CC logic     TUSB320LAIRWBR, fixed UFP/sink
-power path   TPS259470ARPWR eFuse
+Core buck    TPS628502DRLR -> 1V1_CORE
+ADC LDO      LT3042EMSE#PBF -> 3V3_ADC_A
+Clock LDO    TPS7A2033PDQNR -> 3V3_CLK
+Aux LDO      TPS7A2025PDQNR -> 2V5_AUX
+
+Standalone 3V3_D:
+             TPS628502DRLR
+USB-C:       USB4105-GF-A / TUSB320LAIRWBR / TPS259470ARPWR
+
+HAT 5V path: TPS22975NDSGR
+HAT 3V3_D:   direct PI_3V3 through current-measure link
 ```
 
-Reference analog hardware is intentionally no-trim. Production boards must not require hand-selected antenna/filter R/C values.
+Reference analog and power hardware is intentionally **no-trim/no-selection**. Production boards must not require hand-selected antenna/filter/power R/C values.
 
 The physical ECP5-45F provides development headroom, but `release_reference` RTL must satisfy the historical XC3S1400AN limits in `rtl/resource_budget.json`.
 
-## Machine-readable ECP5 pin plan
+## Machine-readable design plans
 
-The Rev.0 FPGA/HAT assignment is frozen in:
+Two machine-readable inputs are now frozen:
 
 ```text
 hardware/tscircuit/pin-plan.json
+hardware/tscircuit/power-plan.json
 ```
 
-Human-readable rationale and Raspberry Pi physical-pin mapping:
+`pin-plan.json` defines ECP5 balls, bank assignments and Raspberry Pi GPIO mapping.
+
+`power-plan.json` defines rail sources by variant, regulator OPNs, fixed regulator passives, switcher policy, HAT power switching, sequencing and ECP5 decoupling.
+
+The eventual TSX wrappers and generated FPGA constraints must be checked against these files so implementation cannot silently diverge from the reviewed plans.
+
+Human-readable references:
 
 ```text
 docs/27-ecp5-pin-plan-hat.md
+docs/28-power-passives-sequencing.md
 ```
 
-### VCCIO policy
+## ECP5 VCCIO / bank plan
 
-All populated ECP5 I/O banks use the same logical 3.3 V rail:
-
-```text
-VCCIO0/1/2/3/6/7/8 = 3V3_D
-```
-
-Source differs by board:
-
-```text
-standalone: 5V_SYS -> local buck -> 3V3_D
-HAT+:       PI_3V3 -------------> 3V3_D
-```
-
-### Bank roles
+All populated ECP5 user-I/O banks use `3V3_D`:
 
 ```text
 Bank 0  spare / standalone low-rate control
-Bank 1  SiT5356 TCXO + Raspberry Pi HAT+ host interface
-Bank 2  LTC1407A ADC + LTC6912 PGA control
+Bank 1  SiT5356 TCXO + Raspberry Pi HAT+ host
+Bank 2  LTC1407A ADC + LTC6912 control
 Bank 3  reference PPS + LCD + diagnostics
 Bank 6  reserved/quiet near AFE
 Bank 7  reserved/quiet near AFE
 Bank 8  SPI flash + sysCONFIG + JTAG
+```
+
+Source of `3V3_D`:
+
+```text
+standalone: 5V_SYS -> TPS628502 -> 3V3_D
+HAT+:       PI_3V3 -------------> 3V3_D
 ```
 
 ### Common signal balls
@@ -104,7 +113,7 @@ Pi physical 18 / GPIO24 RSTn -> ECP5 B12
 Pi physical 7  / GPIO4  PPS  <- ECP5 A11
 ```
 
-`ID_SD` and `ID_SC` on physical pins 27/28 connect only to the HAT+ ID EEPROM and never to ECP5.
+`ID_SD` and `ID_SC` on physical pins 27/28 connect only to the HAT+ ID EEPROM.
 
 ### Bank-8 boot balls
 
@@ -125,104 +134,117 @@ TDI        R11
 TMS        T11
 ```
 
-See [`../../docs/23-ecp5-boot-config.md`](../../docs/23-ecp5-boot-config.md).
+## Frozen power implementation
 
-## Variant power architecture
-
-The precision/analog rails remain locally generated on both boards, but the digital 3.3 V source differs intentionally.
-
-### Standalone USB-C
+### Fixed AFE branch
 
 ```text
-USB-C 5 V -> protected 5V_SYS
+5V_SYS -> 0.10 ohm, 1% -> 5V_AFE
+5V_AFE -> 100 uF + 1 uF + 100 nF to GND
+```
 
+No ferrite-bead or resistor-value selection is part of the reference BOM.
+
+### TPS628502 common implementation
+
+```text
+TPS628502DRLR
+L       = DFE252012PD-R47M=P2, 0.47 uH
+FSET    = 5.76 kOhm -> ~3.125 MHz nominal
+SSC     = off
+MODE    = forced PWM
+CIN     = 10 uF + 100 nF
+COUT    = 2 x 10 uF
+```
+
+The internal 2.25 MHz default is not used; `29 * 77.5 kHz = 2.2475 MHz`, an unattractive nominal relationship for a weak-signal DCF77 receiver.
+
+Core feedback:
+
+```text
+39.2 k / 47.0 k / 10 pF -> ~1.100 V
+```
+
+Standalone 3V3_D feedback:
+
+```text
+88.7 k / 19.6 k / 10 pF -> ~3.316 V
+```
+
+### ADC rail
+
+```text
+LT3042EMSE#PBF
+RSET 33.2 k
+CSET 4.7 uF
+CIN  10 uF
+COUT 10 uF
+```
+
+### Clock rail
+
+```text
+TPS7A2033PDQNR
+CIN/COUT = 2.2 uF
+100 nF local at SiT5356
+```
+
+### ECP5 auxiliary rail
+
+```text
+TPS7A2025PDQNR
+input = 3V3_D
+CIN/COUT = 2.2 uF
+```
+
+### HAT input
+
+```text
+PI_5V -> TPS22975NDSGR -> 5V_SYS
+ON = PI_3V3 with 100 k pulldown
+CT = 1.0 nF >=30 V
+
+PI_3V3 -> current-measure/0R -> 3V3_D
+```
+
+## Variant sequencing
+
+Standalone:
+
+```text
 5V_SYS
-  +--> filtered 5V_AFE
-  +--> LT3042 -> 3V3_ADC_A
-  +--> TPS7A20 -> 3V3_CLK
-  +--> TPS628502 -> 3V3_D
-  +--> TPS628502 -> 1V1_CORE
-
-3V3_D -> TPS7A20 -> 2V5_AUX
+ -> 3V3_D / VCCIO8 / W25Q64
+ -> 2V5_AUX
+ -> PG_3V3_D enables 1V1_CORE
 ```
 
-### Raspberry Pi HAT+
+HAT+:
 
 ```text
-PI_5V
-  -> protected/gated 5V_SYS
-       +--> filtered 5V_AFE
-       +--> LT3042 -> 3V3_ADC_A
-       +--> TPS7A20 -> 3V3_CLK
-       +--> TPS628502 -> 1V1_CORE
-       +--> LCD backlight path
-
 PI_3V3
-  -> current-measure / 0R link
-  -> 3V3_D
-       +--> all ECP5 VCCIO banks / VCCIO8
-       +--> W25Q64JV
-       +--> HAT ID EEPROM
-       +--> LCD logic
-       +--> PPS / Pi host-I/O domain
-       +--> TPS7A20 -> 2V5_AUX under controlled enable
+ -> 3V3_D / VCCIO8 / W25Q64 / 2V5_AUX
+ -> enable TPS22975N
+ -> 5V_SYS
+ -> 1V1_CORE + analog/ADC/clock rails
 ```
 
-The HAT does not populate the standalone board's 3.3 V buck.
-
-`PI_3V3` never powers ADC/OPA2835, TCXO, AFE, ECP5 core or LCD backlight.
-
-See [`../../docs/26-hat-power.md`](../../docs/26-hat-power.md).
-
-## HAT+ STANDBY policy
-
-```text
-PI_3V3 present -> 3V3_D valid -> enable 5V_SYS/local rails
-PI_3V3 absent  -> 3V3_D off   -> disable 5V_SYS/local rails
-```
-
-No alternate source may back-power `3V3_D` while Pi 3.3 V is absent.
-
-## FPGA boot/configuration
-
-```text
-LFE5U-45F-7BG256I
-W25Q64JVSSIQ, 64 Mbit
-Master SPI serial
-CFG[2:0] = 010
-```
-
-JTAG is mandatory on both variants. `PROGRAMN`, `INITN` and `DONE` remain accessible.
+ECP5 internal POR remains responsible for release from reset after `VCC`, `VCCAUX` and `VCCIO8` are valid. `PROGRAMN` remains available for manual/open-drain reconfiguration; no arbitrary-delay analog supervisor is added solely for normal boot.
 
 ## Display
 
-Both variants use:
-
 ```text
 NHD-C0220BIZ-FSW-FBW-3V3M
-20 x 2
-FSTN transflective
+20 x 2 FSTN transflective
 3.3 V I2C
 ```
 
-LCD logic uses `3V3_D`. Backlight is separately switched and normally OFF during precision RF measurements. On the HAT, backlight current comes from `5V_SYS`, not `PI_3V3`.
-
-## Standalone USB-C
-
-```text
-USB4105-GF-A
-  -> TUSB320LAIRWBR UFP/sink
-  -> TPS259470ARPWR controlled power path
-  -> 5V_SYS
-```
-
-No USB-PD is required. USB 2.0 D+/D- remain optional for a future debug/data path.
+LCD logic uses `3V3_D`. Backlight is separately switched and normally OFF during precision RF measurements. On HAT+, backlight current comes from `5V_SYS`, not `PI_3V3`.
 
 ## CAD / layout workflow
 
 ```text
 tscircuit
-  -> KiCad export
+  -> Circuit JSON / KiCad export
   -> hard RF/mechanical constraints
   -> Quilter placement/routing
   -> native KiCad review
@@ -235,10 +257,11 @@ Quilter is not allowed to freely place/reroute:
 - ferrite / tuning / OPA810 cluster;
 - LTC1562 programming network;
 - ADC/LT3042/OPA2835 cluster;
-- TCXO/clock escape to ECP5 `C9`;
+- TCXO/TPS7A2033/clock escape to ECP5 `C9`;
 - ECP5/flash Bank-8 boot cluster;
 - external PPS path from `R12`;
-- power-converter hot loops;
+- TPS628502 hot loops/inductors;
+- 5V_AFE branch entrance/filter;
 - mechanically fixed LCD/connectors/holes.
 
 No fast digital trace or switch node may run beneath or beside the ferrite/input network.
@@ -248,6 +271,9 @@ No fast digital trace or switch node may run beneath or beside the ferrite/input
 ```text
 hardware/tscircuit/
   pin-plan.json
+  power-plan.json
+  package.json
+  tsconfig.json
   src/
     core/
       receiver_core.tsx
@@ -275,13 +301,13 @@ hardware/tscircuit/
       quilter.ts
 ```
 
-## Remaining schematic-freeze items
+## Remaining schematic-freeze work
 
-The pin plan and HAT GPIO allocation are no longer open. Remaining work:
+Pin mapping and power passive selection are no longer open. Remaining work is now implementation-level:
 
-- freeze regulator feedback/passives/decoupling from final power estimate;
-- freeze HAT `PI_3V3` current/protection/decoupling implementation;
-- decide whether standalone Rev.0 populates a USB 2.0 bridge;
-- freeze ESD/TVS and connector-shield strategy;
-- freeze LCD backlight current-limit components;
-- build and verify the first pin-accurate tscircuit ECP5/AFE/power schematic.
+- create verified tscircuit part wrappers/footprints from manufacturer pinouts;
+- calculate final LCD backlight current resistor/MOSFET values;
+- freeze ESD/TVS and connector-shield components;
+- decide whether standalone Rev.0 populates USB 2.0 data hardware;
+- generate the first complete pin-accurate common-core TSX;
+- run ERC/DRC and PDN/power-estimator checks before routing.
