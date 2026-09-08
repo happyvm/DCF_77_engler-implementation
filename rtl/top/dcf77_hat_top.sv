@@ -62,6 +62,28 @@ module dcf77_hat_top #(
     logic telemetry_busy, telemetry_done;
     logic [5:0] second_number;
 
+    // One coherent AM+PM soft-evidence record per elapsed second, and its
+    // field-extraction/time-shared ML decode (see second_evidence_aggregator
+    // and ml_field_sequencer for why am_valid/pm_valid cannot drive
+    // soft_history directly).
+    logic evidence_write_valid, evidence_sample_valid;
+    logic signed [15:0] evidence_am, evidence_pm;
+    logic [7:0] evidence_quality;
+    logic [5:0] evidence_second_position;
+
+    logic fs_busy, fs_result_valid;
+    logic [5:0] fs_minute; logic fs_minute_confident;
+    logic signed [19:0] fs_minute_best_score; logic [19:0] fs_minute_gap;
+    logic [4:0] fs_hour; logic fs_hour_confident;
+    logic [5:0] fs_day; logic [2:0] fs_weekday;
+    logic [3:0] fs_month; logic [7:0] fs_year;
+    logic fs_cest, fs_dst_announcement, fs_leap_announcement;
+    // ml_decoder_controller's own history scan interface is not driven
+    // by real soft_history data (ml_field_sequencer is its sole reader);
+    // these two catch its otherwise-dangling scan address/enable outputs.
+    logic history_re_unused;
+    logic [HIST_AW-1:0] history_ra_unused;
+
     clock_reset_ecp5 #(.SIM_BYPASS(SIM_CLOCK_BYPASS), .RESET_CYCLES(RESET_CYCLES)) clocks_i (
         .clk_25mhz(clk_25m), .ext_reset_n(reset_n & hat_reset_n),
         .clk_125mhz(clk), .rst(rst));
@@ -104,26 +126,67 @@ module dcf77_hat_top #(
         if (rst) second_number <= 0;
         else if (second_ce) second_number <= second_number == 59 ? 0 : second_number + 1'b1;
     end
+    // am_bit_valid and pm_correlation_valid never pulse on the same
+    // carrier cycle (AM resolves ~300 ms into the second, PM near its
+    // end): aggregate both into one coherent per-second record before
+    // it ever reaches soft_history.
+    second_evidence_aggregator evidence_i (
+        .clk(clk), .rst(rst), .second_ce(second_ce),
+        .second_position(second_number),
+        .am_valid(am_valid), .am_evidence_in(am_soft[31:16]),
+        .pm_valid(pm_valid), .pm_evidence_in(pm_soft[41:26]),
+        .quality_in(phase_quality),
+        .write_valid(evidence_write_valid), .am_evidence(evidence_am),
+        .pm_evidence(evidence_pm), .sample_valid(evidence_sample_valid),
+        .quality(evidence_quality), .second_position_out(evidence_second_position));
+
     soft_history #(.DEPTH(HISTORY_DEPTH), .EVIDENCE_BITS(16), .ADDR_BITS(HIST_AW)) history_i (
-        .clk(clk), .rst(rst), .write_valid(am_valid), .am_evidence(am_soft[31:16]),
-        .pm_evidence(pm_soft[41:26]), .sample_valid(am_valid && pm_valid),
-        .quality(phase_quality), .second_position(second_number),
+        .clk(clk), .rst(rst), .write_valid(evidence_write_valid), .am_evidence(evidence_am),
+        .pm_evidence(evidence_pm), .sample_valid(evidence_sample_valid),
+        .quality(evidence_quality), .second_position(evidence_second_position),
         .write_pointer(history_wp), .history_full(history_full),
         .read_enable(history_re), .read_address(history_ra), .read_valid(history_rv),
         .read_am_evidence(history_am), .read_pm_evidence(history_pm),
         .read_sample_valid(history_sample_valid), .read_quality(history_quality),
         .read_second_position(history_second));
 
+    // Sole reader of soft_history: sorts one minute's worth of AM
+    // evidence into its DCF77 telegram fields and time-shares the three
+    // ML search engines across all of them. ml_decoder_controller's own
+    // scan interface below is therefore left unconnected to real history
+    // data (see its history_read_valid tie-off).
+    ml_field_sequencer #(.HISTORY_DEPTH(HISTORY_DEPTH), .HISTORY_ADDR_BITS(HIST_AW),
+        .QUALIFICATION_ENABLED(QUALIFICATION_ENABLED)) field_seq_i (
+        .clk(clk), .rst(rst), .start(minute_result_valid), .busy(fs_busy),
+        .history_write_pointer(history_wp), .history_read_enable(history_re),
+        .history_read_address(history_ra), .history_read_valid(history_rv),
+        .history_am_evidence(history_am), .history_sample_valid(history_sample_valid),
+        .history_second_position(history_second),
+        .result_valid(fs_result_valid), .out_minute(fs_minute),
+        .out_minute_confident(fs_minute_confident),
+        .out_minute_best_score(fs_minute_best_score), .out_minute_quality_gap(fs_minute_gap),
+        .out_hour(fs_hour), .out_hour_confident(fs_hour_confident),
+        .out_day(fs_day), .out_weekday(fs_weekday), .out_month(fs_month), .out_year(fs_year),
+        .out_cest(fs_cest), .out_dst_announcement(fs_dst_announcement),
+        .out_leap_announcement(fs_leap_announcement));
+
     ml_decoder_controller #(.HISTORY_DEPTH(HISTORY_DEPTH), .HISTORY_ADDR_BITS(HIST_AW)) ml_i (
-        .clk(clk), .rst(rst), .scan_start(minute_result_valid),
-        .history_write_pointer(history_wp), .history_read_valid(history_rv),
-        .history_read_enable(history_re), .history_read_address(history_ra), .scan_busy(ml_scan_busy),
-        .frame_valid(minute_result_valid), .candidate_minute(minute_window_end),
-        .candidate_hour(5'd0), .candidate_day(6'd1), .candidate_weekday(3'd1),
-        .candidate_month(4'd1), .candidate_year(8'd24), .candidate_cest(1'b0),
-        .candidate_dst_announcement(1'b0), .candidate_leap_announcement(1'b0),
-        .candidate_leap_second(1'b0), .level_best_score(minute_best[19:0]),
-        .level_second_score(minute_best[19:0]-minute_gap[19:0]),
+        .clk(clk), .rst(rst), .scan_start(1'b0),
+        .history_write_pointer(history_wp), .history_read_valid(1'b0),
+        .history_read_enable(history_re_unused), .history_read_address(history_ra_unused),
+        .scan_busy(ml_scan_busy),
+        .frame_valid(fs_result_valid), .candidate_minute(fs_minute),
+        .candidate_hour(fs_hour), .candidate_day(fs_day), .candidate_weekday(fs_weekday),
+        .candidate_month(fs_month), .candidate_year(fs_year), .candidate_cest(fs_cest),
+        .candidate_dst_announcement(fs_dst_announcement),
+        .candidate_leap_announcement(fs_leap_announcement),
+        // Leap-second insertion is signalled by A2 for a full hour before
+        // the event but detected by observing a 61-second minute; no
+        // block currently tracks minute length to confirm the insertion
+        // itself, so this stays a known, documented gap rather than a
+        // silently wrong guess.
+        .candidate_leap_second(1'b0), .level_best_score(fs_minute_best_score),
+        .level_second_score(fs_minute_best_score - $signed(fs_minute_gap)),
         .publish_valid(ml_publish), .minute(decoded_minute), .hour(decoded_hour),
         .day(decoded_day), .weekday(decoded_weekday), .month(decoded_month),
         .year(decoded_year), .cest(decoded_cest), .dst_announcement(decoded_dst),
@@ -158,10 +221,16 @@ module dcf77_hat_top #(
     assign diag_sample_ce = sample_ce; assign diag_sample_valid = adc_valid;
     assign diag_second_ce = second_ce;
     assign diag_ch1_activity = |adc_ch1;
+    // minute_best/minute_gap are pm_minute_sync's second/minute-boundary
+    // sync confidence (distinct from fs_minute_best_score/fs_minute_gap,
+    // the decoded minute *value*'s own confidence, which is what
+    // ml_decoder_controller actually needs) -- kept available here for
+    // future diagnostics rather than driving anything today.
     wire unused_inputs = hat_spi_sclk ^ hat_uart_rx ^ adc_busy ^ history_full ^
                          discipline_rejected ^ discipline_age[0] ^ sample_phase[0] ^
                          detector_measurement_age[0] ^ pm_inverted ^ carrier_real[0] ^
-                         carrier_imag[0] ^ history_am[0] ^ history_pm[0] ^
-                         history_sample_valid ^ history_quality[0] ^ history_second[0] ^
-                         ml_scan_busy ^ telemetry_done;
+                         carrier_imag[0] ^ history_pm[0] ^ history_quality[0] ^
+                         ml_scan_busy ^ telemetry_done ^ fs_busy ^
+                         minute_best[0] ^ minute_gap[0] ^
+                         history_re_unused ^ history_ra_unused[0];
 endmodule
