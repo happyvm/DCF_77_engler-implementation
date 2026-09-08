@@ -1,0 +1,29 @@
+{
+  "reference_device": "XC3S1400AN",
+  "policy": "release_reference must not exceed the historical FPGA resource envelope",
+  "limits": {
+    "lut4_equivalent": 22528,
+    "flip_flops": 22528,
+    "distributed_ram_kib": 176,
+    "ebr18_blocks": 32,
+    "block_ram_kib": 576,
+    "mult18x18": 32,
+    "clock_managers": 8
+  },
+  "profiles": {
+    "release_reference": {
+      "enforce_limits": true,
+      "development_instrumentation_allowed_over_budget": false
+    },
+    "lab_debug": {
+      "enforce_limits": false,
+      "development_instrumentation_allowed_over_budget": true
+    }
+  },
+  "ecp5_mapping": {
+    "lut4_equivalent": "LUT4",
+    "flip_flops": "TRELLIS_FF or synthesized FF total",
+    "ebr18_blocks": "DP16KD",
+    "mult18x18": "MULT18X18D"
+  }
+}
