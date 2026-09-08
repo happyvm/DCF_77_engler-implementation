@@ -1,6 +1,6 @@
 # Gaps and open questions
 
-The Engeler paper contains enough information to reproduce the receiver **architecture**, but not enough to clone the original PCB verbatim. This document now distinguishes unresolved questions from items that have been recovered from external primary/manufacturer sources.
+The Engeler paper contains enough information to reproduce the receiver **architecture**, but not enough to clone the original PCB verbatim. This document now distinguishes unresolved questions from items that have been recovered from external primary/manufacturer sources or resolved by explicit rebuild choices.
 
 ## Resolved since the initial documentation pass
 
@@ -34,6 +34,38 @@ See [`11-analog-reference-design.md`](11-analog-reference-design.md).
 
 The paper labels the part “LTC1407, 14 bit”. Manufacturer data establishes that the 14-bit versions are LTC1407A-family parts. The exact original suffix (`A` versus `A-1`) is still unknown.
 
+### Rebuild FPGA family — RESOLVED AS A DESIGN CHOICE
+
+The new implementation targets:
+
+```text
+Lattice ECP5 LFE5U-45F
+BG256 / caBGA256
+```
+
+The historical XC3S1400AN remains relevant only as a reference to the original receiver.
+
+See [`12-ecp5-migration.md`](12-ecp5-migration.md).
+
+### Rebuild clock architecture — RESOLVED AT ARCHITECTURE LEVEL
+
+The exact original Xilinx oscillator/DCM implementation is still historically unknown, but the **new ECP5 implementation** is now defined:
+
+```text
+25 MHz standard XO
+ -> fixed ECP5 PLL
+ -> 125 MHz system clock
+ -> 40-bit fractional ADC sample scheduler
+ -> average 930 kS/s
+ -> slow trim from DCF77 carrier phase
+```
+
+The first scheduler RTL is in [`../rtl/core/sample_scheduler.sv`](../rtl/core/sample_scheduler.sv). Calculations are reproducible with [`../tools/clock_plan.py`](../tools/clock_plan.py).
+
+See [`13-ecp5-clock-discipline.md`](13-ecp5-clock-discipline.md).
+
+This resolves the implementation architecture, **not** the exact loop coefficients or final oscillator manufacturer OPN.
+
 ## Missing historical hardware details
 
 Still not published/recovered:
@@ -48,11 +80,13 @@ Still not published/recovered:
 - analog inter-stage level plan;
 - ADC driver details, if any separate driver was used;
 - regulator part numbers and power-tree details;
-- oscillator part number/frequency before the FPGA clock manager;
+- original oscillator part number/frequency before the Xilinx clock manager;
 - USB interface device and protocol;
 - LCD type/interface;
 - DAC use and channel mapping;
 - connector pinout and debug-header definition.
+
+These remain historical unknowns even where the rebuild deliberately chooses a modern replacement architecture.
 
 ## Missing DSP/FPGA constants
 
@@ -72,11 +106,19 @@ Not published explicitly:
 
 These can be reconstructed by simulation and regression against stored RF captures, but they should be documented as new implementation choices.
 
-## Original clock-tree ambiguity
+## Rebuild clock items still open
 
-The paper illustrates a fast clock around 300 MHz and a corrected derived clock around the high-30-MHz range, with a nominal divide factor `d = 8`. The functional correction method is clear, but the exact oscillator/PLL/DCM frequencies and implementation details are not completely specified in text.
+The ECP5 architecture is fixed, but several implementation details still require validation:
 
-A modern recreation should preserve the **fractional correction principle and final ppm performance**, not blindly copy a rounded frequency label from the figure.
+- select at least two lifecycle-safe 25 MHz oscillator OPNs;
+- generate and verify the final ECP5 PLL primitive parameters with the selected toolchain;
+- select acquisition/tracking loop coefficients;
+- select phase-outlier/hole-punch thresholds;
+- establish holdover/reacquisition confidence rules;
+- measure actual ADC `CONV` timing quantisation/jitter;
+- measure self-interference caused by 25 MHz, 125 MHz and the fractional conversion pattern.
+
+These are tuning/validation tasks, not reasons to reopen the basic fixed-PLL/fractional-scheduler architecture unless measurements show a concrete failure.
 
 ## Antenna identification and characterization
 
@@ -117,17 +159,18 @@ The paper gives a target wrong-decode probability but not the thresholds that pr
 ## Questions to resolve during implementation
 
 1. Can an authentic HKW FTD02011R be obtained and measured?
-2. Is the goal a historically faithful parts build, or an architecture-faithful modern board?
-3. Which FPGA family will be used for the first functioning prototype?
-4. Which LTC6912 variant should be frozen in the BOM?
-5. Which LTC1407A variant best matches the original electrical interface?
+2. Which modern high-impedance input stage should replace the obsolete BF245A in the sustainable BOM?
+3. Which LTC6912 variant, or replacement PGA, should be frozen in the BOM?
+4. Which ADC should be frozen for the rebuild and what driver/common-mode circuit does it require?
+5. Which two approved 25 MHz XO sources will be used for lifecycle resilience?
 6. What absolute timing target will define success: ~1 ms, <100 µs, or carrier-cycle-level timing?
 7. How will ferrite-antenna group delay be calibrated?
 8. How will FPGA/USB/display self-interference be measured before enclosure design?
 9. What raw DCF77 capture corpus will be stored for DSP regression testing?
 10. How will ML false-lock probability be measured and documented?
+11. What clock-loop coefficients provide fast acquisition without following impulsive phase noise?
 
-These questions should become GitHub issues once component sourcing and FPGA choice begin.
+These questions should become GitHub issues as component sourcing, board design and RTL validation progress.
 
 ## Principle for future documentation
 
