@@ -2,7 +2,7 @@
 
 This directory is the authoritative source for the DCF77 receiver schematic and PCB design intent.
 
-Rev.0 now has **one board only**:
+Rev.0 has **one board only**:
 
 ```text
 Raspberry Pi Standard HAT+
@@ -26,6 +26,7 @@ FPGA         LFE5U-45F-7BG256I
 SPI flash    W25Q64JVSSIQ, 64 Mbit, SOIC-8
 Display      NHD-C0220BIZ-FSW-FBW-3V3M, 20x2 I2C FSTN LCD
 PPS          mandatory dedicated ECP5 hardware output
+UART         115200 8N1 date/time/status telemetry to Raspberry Pi
 
 HAT 5V path  TPS22975NDSGR
 HAT 3V3_D    direct PI_3V3 through current-measure link
@@ -46,7 +47,7 @@ hardware/tscircuit/pin-plan.json
 hardware/tscircuit/power-plan.json
 ```
 
-`pin-plan.json` defines ECP5 balls, bank assignments and Raspberry Pi GPIO mapping.
+`pin-plan.json` defines ECP5 balls, bank assignments, Raspberry Pi GPIO mapping and the fixed UART electrical/protocol policy.
 
 `power-plan.json` defines the HAT-only rail sources, regulator OPNs, passives, switching policy, sequencing and ECP5 decoupling.
 
@@ -64,7 +65,7 @@ Bank roles:
 
 ```text
 Bank 0  spare / future low-rate control
-Bank 1  SiT5356 TCXO + Raspberry Pi HAT+ host
+Bank 1  SiT5356 TCXO + Raspberry Pi SPI/UART/PPS host
 Bank 2  LTC1407A ADC + LTC6912 control
 Bank 3  reference PPS + LCD + diagnostics
 Bank 6  reserved/quiet near AFE
@@ -99,7 +100,22 @@ Pi physical 24 / GPIO8  CE0  -> ECP5 E11
 Pi physical 22 / GPIO25 IRQ  <- ECP5 C12
 Pi physical 18 / GPIO24 RSTn -> ECP5 B12
 Pi physical 7  / GPIO4  PPS  <- ECP5 A11
+
+Pi physical 10 / GPIO15 RXD  <- ECP5 A13 / PT83A   [HAT_UART_TX]
+Pi physical 8  / GPIO14 TXD  -> ECP5 A14 / PT83B   [HAT_UART_RX]
 ```
+
+UART reference electrical population:
+
+```text
+33 ohm source-series resistor on each line
+47 kOhm pull-up to 3V3_D on each line
+115200 baud, 8N1, no flow control
+```
+
+Normal date/time transmission is once per second and is scheduled in the approximately `993...999 ms` tail after the DCF77 PM sequence. Keep the reference frame at or below 64 bytes.
+
+`A12 / PT71B` remains spare between the HAT PPS pair and UART pair.
 
 `ID_SD` and `ID_SC` on physical pins 27/28 connect only to the HAT+ ID EEPROM.
 
@@ -201,9 +217,9 @@ Quilter may not freely place/reroute:
 - external PPS path from `R12`;
 - TPS628502 core hot loop;
 - 5V_AFE branch entrance;
-- Raspberry Pi header, LCD, holes and other mechanical constraints.
+- Raspberry Pi header, UART, LCD, holes and other mechanical constraints.
 
-No fast digital trace or switch node may run beneath or beside the ferrite/input network.
+No fast digital trace or switch node may run beneath or beside the ferrite/input network. SPI and UART routing stays in the HAT/digital region.
 
 ## Planned source tree
 
@@ -230,16 +246,26 @@ hardware/tscircuit/
       quilter.ts
     host/
       rpi_spi.tsx
+      rpi_uart.tsx
     power/
       hat_5v_input.tsx
     parts/
   scripts/
 ```
 
+Platform RTL now also includes:
+
+```text
+rtl/platform/uart_tx.sv
+```
+
+The byte-level UART transmitter is intentionally separate from the future date/time formatter so calendar decoding remains owned by the receiver core.
+
 ## Remaining schematic-freeze work
 
 - create verified tscircuit part wrappers/footprints from manufacturer pinouts;
 - validate BGA256 pad identity through KiCad export;
+- add the physical UART 33R/47k networks to the HAT TSX;
 - calculate final LCD backlight current resistor/MOSFET values;
 - freeze HAT connector ESD/protection where needed;
 - generate the first complete pin-accurate HAT TSX;
@@ -252,4 +278,5 @@ Supporting docs:
 - `docs/23-ecp5-boot-config.md` — ECP5 boot/JTAG;
 - `docs/26-hat-power.md` — Pi rail split;
 - `docs/27-ecp5-pin-plan-hat.md` — pin planning;
-- `docs/28-power-passives-sequencing.md` — exact power values.
+- `docs/28-power-passives-sequencing.md` — exact power values;
+- `docs/29-hat-uart-time.md` — UART date/time/status telemetry.
