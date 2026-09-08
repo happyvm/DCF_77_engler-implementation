@@ -1,0 +1,20 @@
+# Portable core synthesis for the Lattice ECP5 reference target.
+read_verilog -sv \
+    rtl/goertzel/goertzel_resonator.sv \
+    rtl/goertzel/engeler_goertzel_bank.sv \
+    rtl/goertzel/goertzel_complex_12.sv \
+    rtl/goertzel/engeler_observables.sv \
+    rtl/am/am_bit_extractor.sv \
+    rtl/pm/pm_chip_integrator.sv \
+    rtl/pm/dcf77_prn_generator.sv \
+    rtl/pm/pm_prn_correlator.sv \
+    rtl/pm/engeler_pm_correlator.sv \
+    rtl/pm/engeler_pm_pipeline.sv \
+    rtl/sync/pm_minute_sync.sv \
+    rtl/core/engeler_detector.sv
+
+hierarchy -check -top engeler_detector
+check
+synth_ecp5 -top engeler_detector -json build/engeler_detector.json
+tee -o build/engeler_detector-stat.txt stat -top engeler_detector
+check
