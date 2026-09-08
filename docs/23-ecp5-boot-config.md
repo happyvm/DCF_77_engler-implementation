@@ -2,173 +2,153 @@
 
 ## Decision
 
-Rev.0 freezes the physical FPGA as:
+Rev.0 physical FPGA:
 
 ```text
 Lattice LFE5U-45F-7BG256I
-ECP5, plain LFE5U (no SERDES)
-44k logic-cell class
-BG256 / caBGA256
-14 x 14 mm
-0.8 mm pitch
-industrial grade
+plain ECP5 / no SERDES
+BG256 caBGA, 14 x 14 mm, 0.8 mm pitch
+industrial temperature grade
 speed grade -7
 ```
 
-This device is intentionally larger than the historical XC3S1400AN in physical capacity, but the `release_reference` build remains constrained by `rtl/resource_budget.json` to the historical resource envelope.
+The physical 45F gives development headroom, but `release_reference` remains constrained by `rtl/resource_budget.json` to the historical XC3S1400AN resource envelope.
 
-The -7 speed grade is sufficient for the 25 MHz -> 125 MHz reference clock plan. Rev.0 does not depend on -8 timing and therefore does not make the faster, less available speed grade a BOM requirement.
-
-The exact FPGA OPN must still be rechecked for distributor stock at procurement time because ECP5 BG256 supply is materially tighter than most of the analog BOM.
+The complete user-I/O pin allocation is now frozen separately in [`27-ecp5-pin-plan-hat.md`](27-ecp5-pin-plan-hat.md) and mirrored in `hardware/tscircuit/pin-plan.json`.
 
 ## Configuration flash
 
-Preferred Rev.0 SPI NOR:
+Reference SPI NOR:
 
 ```text
 Winbond W25Q64JVSSIQ
 64 Mbit
 2.7 ... 3.6 V
-SPI / Dual / Quad capable
-133 MHz maximum device clock
--40 ... +85 degC
 SOIC-8 208 mil
+-40 ... +85 degC
 ```
 
-The reference PCB uses it as a conventional 3.3 V serial SPI configuration memory.
+64 Mbit gives enough room for a golden/recovery image plus an update image without relying on bitstream compression.
 
-Reasons for 64 Mbit rather than minimum capacity:
+## Boot mode
 
-- the LFE5U-45F maximum uncompressed image including initialized EBR is about 9.74 Mbit;
-- Lattice recommends at least 16 Mbit for one maximum-size 45-class image;
-- Lattice gives 32 Mbit as the minimum flash density for dual boot on a 45-class ECP5;
-- 64 Mbit therefore gives generous margin for a golden image plus an update image without relying on compression;
-- the SOIC-8 package is easy to inspect, rework and probe;
-- the device is inexpensive and widely stocked.
-
-The extra flash capacity is not part of the FPGA runtime resource budget.
-
-## Boot policy
-
-Reference boot mode:
+Reference boot:
 
 ```text
 ECP5 Master SPI
-single-bit SPI boot is sufficient
+single-bit serial mode
+CFGMDN[2:0] = 010
 ```
 
-Quad-SPI boot is not required for Rev.0. Configuration speed is not performance-critical for a DCF77 receiver, while a conventional single-bit boot is simpler to validate and reduces dependence on flash status-register / quad-enable behavior.
+Quad-SPI is not required for Rev.0. Configuration time is not performance-critical for a DCF77 receiver, while serial Master SPI is simpler and easier to recover/debug.
 
-The board may preserve D2/D3 routing options if pin planning makes that convenient, but the reference boot path must succeed using only:
+## Exact BG256 Bank-8 ball map
+
+For `LFE5U-45F-7BG256I`:
 
 ```text
-MCLK
-CSSPIN
-D0 / MOSI
-D1 / MISO
+D7/IO7                    T6
+D6/IO6                    R6
+D5/MISO2/IO5              R7
+D4/MOSI2/IO4              P7
+D3/IO3                    N7
+D2/IO2                    M7
+D1/MISO/IO1               T7
+D0/MOSI/IO0               T8
+CSN/SN                    R8
+CS1N                      P8
+HOLDN/DI/BUSY/CSSPIN/CEN  N8
+DOUT/CSON                 M8
+WRITEN                    M9
+MCLK/CCLK/SCK             N9
+INITN                     T9
+PROGRAMN                  R9
+DONE                      P9
+CFG1                      P10
+CFG2                      R10
+CFG0                      N10
+TDO                       M10
+TCK                       T10
+TDI                       R11
+TMS                       T11
+VCCIO8                    L6
 ```
+
+These names/balls are checked against the exact-device BG256 pin map. The tscircuit symbol must still be compared mechanically against the current Lattice `FPGA-SC-02034` CSV before fabrication.
+
+## Single-bit Master-SPI wiring
+
+Reference connection:
+
+```text
+ECP5 N8  CSSPIN   ------> W25Q64 /CS
+ECP5 N9  MCLK     ------> W25Q64 CLK
+ECP5 T8  D0/MOSI  ------> W25Q64 DI / IO0
+ECP5 T7  D1/MISO  <------ W25Q64 DO / IO1
+```
+
+Flash-side pins not used for serial boot:
+
+```text
+W25Q64 /WP   -> 10 kOhm pull-up to 3V3_D
+W25Q64 /HOLD -> 10 kOhm pull-up to 3V3_D
+```
+
+ECP5 Master-SPI pull policy from the current Lattice sysCONFIG guidance:
+
+```text
+MOSI T8   -> 10 kOhm pull-up to VCCIO8
+MISO T7   -> 10 kOhm pull-up to VCCIO8
+CSSPIN N8 -> 4.7 kOhm pull-up to VCCIO8
+MCLK N9   -> 1 kOhm pull-up to VCCIO8
+```
+
+`D2/D3` are not required for the single-bit reference path and are not routed to the flash in Rev.0.
+
+`DOUT/CSON` is not required to boot a single FPGA from the local flash; keep it available only as required by the final symbol/configuration rules and do not create a long unused trace.
 
 ## Configuration mode straps
 
-Lattice defines Master SPI with:
+Hard strap Master SPI:
 
 ```text
-CFGMDN[2:0] = 0 1 0
+CFG2 R10 -> GND
+CFG1 P10 -> 4.7 kOhm -> VCCIO8
+CFG0 N10 -> GND
 ```
 
-Rev.0 hard-straps the mode rather than using a DIP switch:
+There is no user DIP switch for configuration mode.
+
+## Configuration control/status
+
+Use:
 
 ```text
-CFG2 -> GND
-CFG1 -> 4.7 kOhm -> VCCIO8
-CFG0 -> GND
+PROGRAMN R9 -> 4.7 kOhm pull-up to VCCIO8
+INITN    T9 -> 4.7 kOhm pull-up to VCCIO8
+DONE     P9 -> 4.7 kOhm pull-up to VCCIO8
 ```
 
-Use fixed resistors because the receiver does not need user-selectable configuration modes in normal operation.
+Expose `PROGRAMN`, `INITN` and `DONE` as probe-accessible test points.
 
-JTAG remains available independently for development/recovery.
+Provide a local pushbutton or test pad capable of asserting `PROGRAMN` low. Any host-controlled reset/reconfigure transistor must be open-drain/open-collector.
 
-## Configuration status/control pins
-
-Use the current Lattice hardware-checklist recommendations:
-
-```text
-PROGRAMN -> 4.7 kOhm pull-up to VCCIO8
-INITN    -> 4.7 kOhm pull-up to VCCIO8
-DONE     -> 4.7 kOhm pull-up to VCCIO8
-CSSPIN   -> 4.7 kOhm pull-up to VCCIO8
-MCLK     -> 1 kOhm pull-up to VCCIO8
-```
-
-`PROGRAMN`, `INITN` and `DONE` must also be accessible at test points.
-
-Provide a local pushbutton or clearly accessible test pad that can assert `PROGRAMN` low for manual reconfiguration. If a host-controlled transistor is later added, it must be open-drain/open-collector so it cannot drive against the FPGA pull-up domain.
-
-`DONE` is the definitive indication that the FPGA has entered user mode. Do not use an arbitrary delay after power-on as a substitute for checking configuration completion.
-
-## SPI flash wiring
-
-Reference topology:
-
-```text
-3V3_D / VCCIO8
-    |
-    +---- W25Q64JV VCC
-    |
-   100 nF
-    |
-   GND
-
-ECP5 MCLK --------> W25Q64 CLK
-ECP5 CSSPIN ------> W25Q64 /CS
-ECP5 D0/MOSI -----> W25Q64 DI / IO0
-ECP5 D1/MISO <----- W25Q64 DO / IO1
-```
-
-The flash must be physically close to ECP5 bank 8.
-
-Use short traces and avoid routing configuration clocks toward the ferrite/AFE region.
-
-Add footprints for small series damping resistors on MCLK and MOSI if signal-integrity review indicates they are useful. Reference initial population can be 0 ohm; the values are not RF tuning components and do not affect the no-trim analog policy.
-
-## Flash WP/HOLD pins
-
-For the SOIC-8 W25Q64JV:
-
-```text
-/IO2/WP
-/IO3/HOLD
-```
-
-are not required in single-bit reference boot mode.
-
-Tie them to 3.3 V with individual 10 kOhm pull-ups so the flash stays in the normal serial-SPI state and is not accidentally write-protected or held.
-
-Do not leave these pins floating.
-
-## Dual-boot policy
-
-The 64 Mbit flash is intentionally large enough for dual boot.
-
-Reference flash map concept:
-
-```text
-0x000000 ...  golden/recovery image
-next region ... release/update image
-remaining     reserved
-```
-
-The first manufactured boards may initially program only one image while the dual-boot/update flow is being verified.
-
-A future field-update mechanism must never erase the golden recovery image as part of an ordinary update.
-
-Dual boot is a reliability feature, not a license to use extra ECP5 runtime resources; both images must still satisfy the appropriate FPGA resource profile.
+`DONE` is the definitive configuration-complete indication; do not substitute an arbitrary startup delay.
 
 ## JTAG recovery
 
-JTAG is mandatory on both PCB variants even though normal boot comes from SPI flash.
+JTAG remains mandatory on both PCB variants.
 
-Lattice's current recommendations are:
+Exact balls:
+
+```text
+TDO M10
+TCK T10
+TDI R11
+TMS T11
+```
+
+Reference pulls:
 
 ```text
 TDI -> 4.7 kOhm pull-up to VCCIO8
@@ -177,7 +157,7 @@ TDO -> 4.7 kOhm pull-up to VCCIO8
 TCK -> 4.7 kOhm pull-down to GND
 ```
 
-Expose at least:
+Expose:
 
 ```text
 TCK
@@ -186,109 +166,77 @@ TDI
 TDO
 VCCIO8 reference
 GND
+PROGRAMN preferred
 ```
 
-on a compact keyed debug connector or Tag-Connect-compatible footprint.
+on the same keyed debug/Tag-Connect-compatible interface for both boards.
 
-The same interface must be present on HAT+ and standalone variants so neither board can become unrecoverable because its host interface is unavailable.
-
-## Power sequencing
-
-The current Lattice hardware checklist recommends powering VCCIO supplies before or together with VCC and VCCAUX.
-
-The existing Rev.0 architecture therefore remains appropriate:
-
-```text
-5V_SYS
-  |
-  +--> 3V3_D first
-  |      -> VCCIO8
-  |      -> W25Q64JV flash
-  |      -> configuration pull-ups
-  |
-  +--> after 3V3_D power-good
-         +--> 1V1_CORE / VCC
-         +--> 2V5_AUX / VCCAUX
-```
-
-The ECP5 POR monitors VCC, VCCAUX and VCCIO8 and waits until all monitored rails have crossed their thresholds before initialization proceeds.
-
-All rails must ramp monotonically.
-
-The board must not intentionally pulse PROGRAMN low while the FPGA is still in the initialization phase.
-
-## VCCIO bank policy
-
-Use:
+## Bank-8 power source
 
 ```text
 VCCIO8 = 3V3_D
 ```
 
-because bank 8 contains configuration/JTAG functions and the selected flash is a 3.3 V device.
-
-Other ECP5 I/O banks are assigned according to interfaces:
-
-- ADC serial interface: 3.3 V-compatible bank unless later level constraints require otherwise;
-- TCXO input: 3.3 V LVCMOS-capable bank;
-- LCD / host SPI / PPS: prefer 3.3 V banks for interface simplicity;
-- no SERDES supplies are required because the selected device is plain `LFE5U`.
-
-The final bank assignment is frozen only after the authoritative Lattice `LFE5U-45` BG256 pinout is imported into the tscircuit part wrapper.
-
-## Decoupling policy
-
-Follow the ECP5 hardware checklist and selected regulator transient analysis rather than using one capacitor value everywhere.
-
-At minimum the schematic must provide distributed local decoupling for:
+Source differs by variant:
 
 ```text
-1V1_CORE / VCC
-2V5_AUX  / VCCAUX
-3V3_D     / VCCIO banks
+standalone: 5V_SYS -> local 3.3 V buck -> 3V3_D
+HAT+:       PI_3V3 --------------------> 3V3_D
 ```
 
-with bulk capacitance near each rail source and small MLCCs distributed around the BGA power pins.
+The W25Q64 and configuration pull-ups use the same rail, so no level translation exists inside the boot island.
 
-The exact capacitor count/values will be frozen with the BG256 power-pin map and PDN review before routing.
+## Power sequencing
 
-## Placement constraints for Quilter
-
-Hard constraints:
-
-- ECP5 and W25Q64JV form one compact digital cluster;
-- flash is adjacent to the relevant bank-8 configuration pins;
-- MCLK/CSSPIN/MOSI/MISO remain short and do not cross the analog partition;
-- JTAG header/test footprint stays reachable at the board edge;
-- PROGRAMN/INITN/DONE test points remain probe-accessible;
-- no ECP5/flash fast trace passes under the ferrite or OPA810 input network;
-- buck converter hot loops remain on the opposite/noisy side of the ECP5 from the AFE where possible.
-
-## Sourcing snapshot
-
-September 2026 snapshot:
+Reference sequence:
 
 ```text
-LFE5U-45F-7BG256I
-  active
-  industrial
-  immediate stock small / long factory lead time
-
-W25Q64JVSSIQ
-  active at Digi-Key
-  >10k immediate Digi-Key stock observed
+3V3_D valid first
+   -> VCCIO8 valid
+   -> W25Q64 valid
+   -> configuration pulls valid
+   -> enable 1V1_CORE and 2V5_AUX
+   -> ECP5 POR completes
+   -> Master SPI boot
 ```
 
-The FPGA is currently one of the tighter-supply parts in the whole BOM, so procurement availability must be checked early rather than after layout release.
+On the HAT+, `3V3_D` is Pi 3.3 V and naturally disappears in HAT+ STANDBY. The remaining local receiver rails are disabled when Pi 3.3 V is absent, preventing GPIO back-powering.
 
-If `-7BG256I` becomes unavailable, a pin-compatible BG256 speed-grade substitution may be considered only after timing and temperature-grade review. Do not silently change to a commercial-temperature device.
+All ECP5 rails must ramp monotonically.
+
+## Dual-boot policy
+
+Reference flash-map concept:
+
+```text
+low address      golden/recovery image
+next region      release/update image
+remaining space  reserved
+```
+
+The first manufactured boards may initially program only one image while update/recovery logic is verified.
+
+Normal field updates must never erase the golden image.
+
+Both golden and release receiver builds remain subject to their appropriate FPGA resource profile; extra flash capacity does not relax the historical runtime resource budget.
+
+## Placement constraints
+
+The ECP5 + W25Q64 + JTAG/configuration block is one compact digital cluster.
+
+Hard rules:
+
+- flash adjacent to Bank 8;
+- `MCLK/CSSPIN/MOSI/MISO` short and local;
+- no configuration clock route toward the ferrite/OPA810/LTC1562 region;
+- JTAG footprint reachable from board edge;
+- `PROGRAMN/INITN/DONE` probe-accessible;
+- no decorative routing on unused Bank-8 configuration pins.
 
 ## References
 
-- Lattice ECP5/ECP5-5G Family Data Sheet.
-- Lattice ECP5/ECP5-5G Hardware Checklist, FPGA-TN-02038.
-- Lattice ECP5/ECP5-5G sysCONFIG User Guide, FPGA-TN-02039.
+- Lattice ECP5U-45 Pinout, `FPGA-SC-02034`.
+- Lattice ECP5/ECP5-5G sysCONFIG User Guide, `FPGA-TN-02039`.
+- Lattice ECP5/ECP5-5G Hardware Checklist, `FPGA-TN-02038`.
 - Lattice Dual Boot and Multiple Boot technical note.
-- Lattice LFE5U-45 BG256 official pinout/migration files.
-- Winbond W25Q64JV product documentation.
-- September 2026 Digi-Key/Mouser availability snapshots.
+- Winbond W25Q64JV documentation.
