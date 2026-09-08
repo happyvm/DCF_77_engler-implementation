@@ -1,5 +1,9 @@
 # Complete ECP5 release-reference synthesis (board top and clock primitive).
+# cells_bb.v declares hard-macro black boxes such as EHXPLLL (the PLL
+# clock_reset_ecp5 instantiates); cells_sim.v supplies LUT/FF simulation
+# models. hierarchy needs both loaded before it can resolve the top.
 read_verilog -lib -specify +/ecp5/cells_sim.v
+read_verilog -lib +/ecp5/cells_bb.v
 read_verilog -sv rtl/ecp5/clock_reset_ecp5.sv rtl/platform/*.sv \
     rtl/goertzel/*.sv rtl/am/*.sv rtl/pm/*.sv rtl/sync/*.sv \
     rtl/ml_decoder/*.sv rtl/control/*.sv rtl/clock_discipline/*.sv \

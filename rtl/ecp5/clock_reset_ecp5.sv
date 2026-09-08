@@ -22,10 +22,19 @@ module clock_reset_ecp5 #(
         end
     end else begin : ecp5_pll
         wire clkfb;
+        // Divider ratios and CLKOP_CPHASE generated and validated with
+        // Project Trellis's ecppll (`ecppll -i 25 -o 125
+        // --internal_feedback`), per this module's own EHXPLLL parameter
+        // list: CLKI_DIV=1, CLKFB_DIV=5, CLKOP_DIV=5 gives
+        // CLKOP = 25 MHz * CLKFB_DIV / CLKI_DIV = 125 MHz, at a VCO of
+        // CLKOP * CLKOP_DIV = 625 MHz. CLKI_FREQ/CLKOP_FREQ are not real
+        // EHXPLLL parameters (nextpnr instead reads the FREQUENCY_PIN_*
+        // attributes below for timing analysis).
+        (* FREQUENCY_PIN_CLKI = "25.000000" *)
+        (* FREQUENCY_PIN_CLKOP = "125.000000" *)
         EHXPLLL #(
-            .CLKI_DIV(1), .CLKFB_DIV(5), .CLKOP_DIV(5),
-            .CLKOP_ENABLE("ENABLED"), .FEEDBK_PATH("INT_OP"),
-            .CLKI_FREQ("25.000000"), .CLKOP_FREQ("125.000000")
+            .CLKI_DIV(1), .CLKFB_DIV(5), .CLKOP_DIV(5), .CLKOP_CPHASE(2),
+            .CLKOP_ENABLE("ENABLED"), .FEEDBK_PATH("INT_OP")
         ) pll_i (
             .CLKI(clk_25mhz), .CLKFB(clkfb), .CLKINTFB(clkfb),
             .CLKOP(pll_clock), .LOCK(pll_locked),
