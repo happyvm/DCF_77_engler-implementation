@@ -145,3 +145,6 @@ software/
 ```
 
 Keep the software model as the golden reference for every RTL block. This is particularly important because the paper does not provide the original FPGA source.
+
+The implementation order, RTL contracts, verification gates and complete tool
+inventory are maintained in [`30-rtl-development-guide.md`](30-rtl-development-guide.md).

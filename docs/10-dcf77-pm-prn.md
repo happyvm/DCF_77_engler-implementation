@@ -28,6 +28,9 @@ An equivalent right-shifting Galois implementation uses mask:
 
 A small executable reference implementation is stored in [`../tools/dcf77_prn.py`](../tools/dcf77_prn.py).
 
+The corresponding generator and soft correlator RTL are described in
+[`32-pm-prn-rtl.md`](32-pm-prn-rtl.md).
+
 ## Known sequence prefix and invariants
 
 The generated sequence begins with:

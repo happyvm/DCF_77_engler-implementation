@@ -1,0 +1,14 @@
+[options]
+mode prove
+depth 16
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv rtl/core/pps_generator.sv formal/pps_generator_formal.sv
+prep -top pps_generator_formal
+
+[files]
+rtl/core/pps_generator.sv
+formal/pps_generator_formal.sv
