@@ -50,11 +50,19 @@ module second_phase_detector #(
     logic signed [1:0] slew;
     logic signed [POS_BITS:0] am_error;
 
+    // Sign extension/negation relies on ordinary Verilog signed-context
+    // widening rather than an explicit {sig[msb], sig} replication: this
+    // project's pinned Icarus Verilog release (oss-cad-suite 2025-02-13,
+    // "sorry: constant selects in always_* processes are not currently
+    // supported") can silently substitute the whole parent vector for a
+    // replicated bit-select mixed with a plain operand inside
+    // always_comb/always_ff, corrupting the arithmetic while only
+    // warning about it. Plain signed widening needs no bit-select.
     always_comb begin
         if (am_envelope[INPUT_BITS-1])
-            envelope_magnitude = -$signed({am_envelope[INPUT_BITS-1], am_envelope});
+            envelope_magnitude = -am_envelope;
         else
-            envelope_magnitude = $signed({1'b0, am_envelope});
+            envelope_magnitude = am_envelope;
         am_edge = carrier_ce &&
                   (previous_magnitude > envelope_magnitude) &&
                   ((previous_magnitude - envelope_magnitude) >= AM_EDGE_THRESHOLD);
