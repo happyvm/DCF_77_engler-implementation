@@ -1,6 +1,7 @@
 {
   "device": "LFE5U-45F-7BG256I",
   "package": "BG256",
+  "board": "raspberry_pi_hatplus",
   "iovoltage_policy": {
     "VCCIO0": "3V3_D",
     "VCCIO1": "3V3_D",
@@ -22,7 +23,7 @@
     "VCCIO8": ["L6"]
   },
   "bank_roles": {
-    "0": "spare / standalone low-rate control",
+    "0": "spare / low-rate future control",
     "1": "25 MHz TCXO + Raspberry Pi HAT+ host interface",
     "2": "LTC1407A ADC + LTC6912 PGA control",
     "3": "reference PPS + LCD + diagnostics",
