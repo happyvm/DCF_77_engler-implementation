@@ -12,13 +12,15 @@ BUILD_DIR ?= build
 	test-second-phase test-lock-controller test-qualification-disabled \
 	lint-pps-uart lint-goertzel lint-detector lint formal synth \
 	resource-check timing test-tools test-soft-history test-ml-controller \
-	test-frequency-discipline tool-versions clean test-integration synth-core
+	test-frequency-discipline tool-versions clean test-integration synth-core \
+	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
 	test-second-phase test-lock-controller test-qualification-disabled test-tools \
-	test-soft-history test-ml-controller test-frequency-discipline test-integration
+	test-soft-history test-ml-controller test-frequency-discipline test-integration \
+	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator
 
 test-integration: $(BUILD_DIR)/dcf77_hat_top_tb.vvp
 	$(VVP) $<
@@ -190,6 +192,38 @@ $(BUILD_DIR)/ml_decoder_controller_tb.vvp: rtl/ml_decoder/dcf77_calendar_pkg.sv 
 	mkdir -p $(BUILD_DIR)
 	$(IVERILOG) -g2012 -Wall -s ml_decoder_controller_tb -o $@ $^
 
+test-evidence-aggregator: $(BUILD_DIR)/second_evidence_aggregator_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/second_evidence_aggregator_tb.vvp: \
+		rtl/ml_decoder/second_evidence_aggregator.sv sim/second_evidence_aggregator_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s second_evidence_aggregator_tb -o $@ $^
+
+test-calendar-ml: $(BUILD_DIR)/calendar_candidate_search_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/calendar_candidate_search_tb.vvp: \
+		rtl/ml_decoder/calendar_candidate_search.sv sim/calendar_candidate_search_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s calendar_candidate_search_tb -o $@ $^
+
+test-field-sequencer: $(BUILD_DIR)/ml_field_sequencer_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/ml_field_sequencer_tb.vvp: \
+		rtl/ml_decoder/minute_candidate_search.sv rtl/ml_decoder/hour_candidate_search.sv \
+		rtl/ml_decoder/calendar_candidate_search.sv rtl/ml_decoder/ml_field_sequencer.sv \
+		sim/ml_field_sequencer_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s ml_field_sequencer_tb -o $@ $^
+
+test-pm-discriminator: $(BUILD_DIR)/pm_phase_discriminator_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/pm_phase_discriminator_tb.vvp: \
+		rtl/pm/pm_chip_integrator.sv rtl/pm/dcf77_prn_generator.sv rtl/pm/pm_prn_correlator.sv \
+		rtl/pm/engeler_pm_correlator.sv rtl/pm/engeler_pm_pipeline.sv \
+		rtl/pm/pm_phase_discriminator.sv sim/pm_phase_discriminator_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s pm_phase_discriminator_tb -o $@ $^
+
 test-lock-controller: $(BUILD_DIR)/receiver_lock_controller_tb.vvp
 	$(VVP) $<
 
@@ -244,12 +278,19 @@ resource-check: synth
 		tee $(BUILD_DIR)/reports/resource-budget.txt'
 
 # This is a device-level implementation used for a reproducible timing estimate.
-# It is not a board bitstream: pin and board clock constraints are still pending.
+# It is not a board bitstream: pin locations are still pending (see
+# docs/27-ecp5-pin-plan-hat.md). synth/dcf77_hat_top.lpf supplies the two
+# constraints that do not depend on a physical pin-out: the real 125 MHz
+# system clock (matching sample_scheduler and clock_reset_ecp5's PLL, not
+# an arbitrary probe frequency) and BLOCK ASYNCPATHS, so genuinely
+# asynchronous ports (reset_n/hat_reset_n feed clock_reset_ecp5's async
+# FF reset directly) are not folded into the synchronous Fmax figure.
 timing: synth
 	mkdir -p $(BUILD_DIR)/reports
-	bash -o pipefail -c 'nextpnr-ecp5 --45k --package CABGA256 --freq 48 \
-		--json $(BUILD_DIR)/engeler_detector.json \
-		--textcfg $(BUILD_DIR)/engeler_detector.config \
+	bash -o pipefail -c 'nextpnr-ecp5 --45k --package CABGA256 --freq 125 \
+		--lpf synth/dcf77_hat_top.lpf --lpf-allow-unconstrained \
+		--json $(BUILD_DIR)/release_reference.json \
+		--textcfg $(BUILD_DIR)/release_reference.config \
 		--report $(BUILD_DIR)/reports/nextpnr.json 2>&1 | \
 		tee $(BUILD_DIR)/reports/nextpnr.log'
 

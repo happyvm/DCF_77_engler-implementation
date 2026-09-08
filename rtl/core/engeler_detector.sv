@@ -9,9 +9,36 @@ module engeler_detector #(
     parameter int SOFT_BITS = 32,
     parameter int AM_OUTPUT_SHIFT = 20,
     parameter int PM_OUTPUT_SHIFT = 24,
+    // Floor below which the PM early/late/prompt correlation triple is too
+    // weak to carry real sub-chip timing information (pure noise, or PM
+    // dropout) and must not be forwarded to frequency discipline at all.
+    // Chip-level soft values saturate at +-2^(SOFT_BITS-1) regardless of
+    // analog front-end gain (pm_chip_integrator's own saturating output),
+    // so the threshold is expressed relative to SOFT_BITS rather than as
+    // an absolute constant: a real (even weak) carrier reaching just
+    // 1/16 of one chip's full range, integrated coherently over the
+    // 512-chip PRN, sits far above the sqrt(512)-scaled random walk that
+    // equivalent-amplitude noise would produce with no fixed phase
+    // relationship to chip boundaries. Still a calibration constant, not
+    // a measured one -- re-validate once real receiver noise floor is
+    // characterized on hardware.
+    parameter int PM_MIN_PROMPT_MAGNITUDE = (SOFT_BITS > 4) ? (1 << (SOFT_BITS - 4)) : 1,
     parameter bit QUALIFICATION_ENABLED = 1'b0,
-    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_SCORE = '0,
-    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_GAP = '0,
+    // pm_minute_sync's 15-second matched filter sums signed per-second PM
+    // correlations (same pm_correlation this module also floors at
+    // PM_MIN_PROMPT_MAGNITUDE for the phase discriminator above): a real,
+    // even weak minute marker should stay coherent enough across those 15
+    // seconds to reach several multiples of that single-second floor,
+    // while a search across 60 candidate window offsets landing on pure
+    // noise regresses toward zero instead of building up. 8x the
+    // single-second floor is a calibration constant, not a measured one --
+    // re-validate once real receiver noise floor is characterized on
+    // hardware, same as PM_MIN_PROMPT_MAGNITUDE above.
+    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_SCORE =
+        (SOFT_BITS > 1) ? (1 << (SOFT_BITS - 1)) : 1,
+    // A quarter of the qualifying floor itself: the runner-up window must
+    // trail the winner by a clear margin, not just barely lose out.
+    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_GAP = MINUTE_MIN_SCORE >> 2,
     parameter int AM_SYNC_THRESHOLD = 1,
     parameter int SECOND_CYCLES = 77_500,
     parameter int SECOND_SEARCH_TOLERANCE = 1_000,
@@ -51,10 +78,10 @@ module engeler_detector #(
     logic unused_prn_active;
     logic unused_prn_done;
     logic [16:0] unused_am_position;
-    logic signed [17:0] zero_pm_error;
+    logic signed [17:0] pm_phase_error_cycles;
+    logic pm_phase_error_valid;
     logic [7:0] pm_timing_quality;
 
-    assign zero_pm_error = '0;
     always_comb begin
         if (pm_correlation[SOFT_BITS+9])
             pm_timing_quality = (~pm_correlation[SOFT_BITS+8 -: 8]);
@@ -79,8 +106,8 @@ module engeler_detector #(
     ) second_sync_i (
         .clk(clk), .rst(rst), .carrier_ce(observable_valid),
         .am_envelope(am_observable),
-        .pm_measurement_valid(pm_correlation_valid),
-        .pm_phase_error_cycles(zero_pm_error), .pm_quality(pm_timing_quality),
+        .pm_measurement_valid(pm_phase_error_valid),
+        .pm_phase_error_cycles(pm_phase_error_cycles), .pm_quality(pm_timing_quality),
         .second_ce(second_ce), .phase_error_cycles(second_phase_error),
         .quality(second_phase_quality),
         .measurement_outlier(second_measurement_outlier),
@@ -106,6 +133,24 @@ module engeler_detector #(
         .correlation(pm_correlation),
         .correlation_valid(pm_correlation_valid),
         .prn_active(unused_prn_active), .prn_done(unused_prn_done)
+    );
+
+    // Closes the PM/PZF second-phase loop: derives a signed sub-chip
+    // timing error from early/late correlator taps around the same PRN
+    // start the prompt tap above uses, feeding second_phase_detector so
+    // frequency_discipline can actually discipline from PM structure
+    // instead of the former always-zero stub.
+    pm_phase_discriminator #(
+        .OBSERVABLE_BITS(OBSERVABLE_BITS), .CHIP_SOFT_BITS(SOFT_BITS),
+        .OUTPUT_SHIFT(PM_OUTPUT_SHIFT),
+        .MIN_PROMPT_MAGNITUDE(PM_MIN_PROMPT_MAGNITUDE)
+    ) pm_phase_i (
+        .clk(clk), .rst(rst), .second_ce(second_ce),
+        .carrier_ce(observable_valid), .pm_observable(pm_observable),
+        .prompt_correlation(pm_correlation),
+        .prompt_correlation_valid(pm_correlation_valid),
+        .pm_phase_error_cycles(pm_phase_error_cycles),
+        .phase_error_valid(pm_phase_error_valid)
     );
 
     pm_minute_sync #(

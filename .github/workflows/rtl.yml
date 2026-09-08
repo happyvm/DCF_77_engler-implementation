@@ -60,8 +60,8 @@ jobs:
         with:
           name: yosys-resource-reports
           path: |
-            build/engeler_detector-stat.txt
-            build/engeler_detector.json
+            build/release_reference-stat.txt
+            build/release_reference.json
             build/reports/
           if-no-files-found: error
 
@@ -88,6 +88,6 @@ jobs:
           name: nextpnr-formal-reports
           path: |
             build/reports/
-            build/engeler_detector.config
+            build/release_reference.config
             formal/pps_generator/
           if-no-files-found: warn

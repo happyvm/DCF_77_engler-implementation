@@ -1,10 +1,37 @@
 // SPDX-License-Identifier: MIT
 //
-// LTC1407A dual-channel serial capture interface.
+// LTC1407A / LTC1407A-1 dual-channel serial capture interface.
 //
-// The converter returns two 14-bit samples in one 32-clock frame:
-//   { channel 0, 2 padding bits, channel 1, 2 padding bits }
-// Data are shifted MSB first and sampled on the rising edge of adc_sck.
+// Protocol, per the primary LTC1407-1/LTC1407A-1 data sheet (Analog
+// Devices/Linear Technology 14071fb, "Serial Data Output" and pin
+// function descriptions for CONV/SCK/SDO):
+//
+//   * CONV is active high: its rising edge samples both analog inputs
+//     and starts a conversion. This module drives it high for
+//     CONV_CYCLES clk cycles, comfortably above the data sheet's
+//     nominal CONV pulse width and CONV-to-SCK setup time.
+//   * SCK is host-generated (this module drives it, idle low). The ADC
+//     "sequences the output data on the rising edge" of SCK, i.e. SDO
+//     changes shortly after each rising edge; the host must therefore
+//     latch SDO on the following falling edge, not the rising edge
+//     that produced it.
+//   * A complete frame is exactly 32 SCK cycles: SDO is undefined for
+//     the first two edges, then channel 0's 14 bits (D13..D0, MSB
+//     first), then two more high-impedance edges separating the two
+//     words, then channel 1's 14 bits (D13..D0, MSB first). This
+//     module discards the four undefined/hi-Z edges and keeps only the
+//     28 data bits.
+//   * The data sheet's PIN FUNCTIONS table notes SDO "represent[s] the
+//     two analog input channels at the start of the previous
+//     conversion": the chip pipelines by exactly one conversion. That
+//     latency is a fixed, deterministic one-sample group delay (the
+//     very first frame after reset reflects an undefined pre-power-up
+//     conversion); it needs no compensation here and is accounted for
+//     by downstream timing, not this interface.
+//   * Output coding is two's complement on the bipolar LTC1407A-1; the
+//     pin-compatible unipolar LTC1407A instead outputs offset binary
+//     (natural binary with an inverted MSB), handled below by
+//     BIPOLAR_OUTPUT.
 
 module adc_if #(
     parameter integer CONV_CYCLES     = 2,
@@ -34,6 +61,13 @@ module adc_if #(
     localparam integer CONV_COUNT_W = (CONV_CYCLES <= 1) ? 1 : $clog2(CONV_CYCLES);
     localparam integer SCK_COUNT_W =
         (SCK_HALF_CYCLES <= 1) ? 1 : $clog2(SCK_HALF_CYCLES);
+
+    // Frame layout: 2 undefined lead-in edges, 14 bits of channel 0,
+    // 2 hi-Z separator edges, 14 bits of channel 1.
+    localparam integer LEAD_BITS  = 2;
+    localparam integer DATA_BITS  = 14;
+    localparam integer GAP_BITS   = 2;
+    localparam integer FRAME_BITS = LEAD_BITS + DATA_BITS + GAP_BITS + DATA_BITS;
 
     localparam [1:0] IDLE = 2'd0;
     localparam [1:0] CONVERT = 2'd1;
@@ -101,15 +135,19 @@ module adc_if #(
                         sck_count <= {SCK_COUNT_W{1'b0}};
                         adc_sck   <= ~adc_sck;
 
-                        if (!adc_sck) begin
-                            // adc_sck is about to rise: capture one input bit.
+                        if (adc_sck) begin
+                            // adc_sck is about to fall: the ADC updated
+                            // SDO on the rising edge that just occurred,
+                            // so it is now stable to latch.
                             shift_reg <= {shift_reg[30:0], adc_sdo};
                             bit_count <= bit_count + 1'b1;
-                        end else if (bit_count == 6'd32) begin
-                            // The final sampled bit is already present because
-                            // this is the following falling edge.
-                            ch0_sample   <= normalize_sample(shift_reg[31:18]);
-                            ch1_sample   <= normalize_sample(shift_reg[15:2]);
+                        end else if (bit_count == FRAME_BITS[5:0]) begin
+                            // One half-cycle after the 32nd falling-edge
+                            // capture: shift_reg holds the complete frame,
+                            // lead-in and hi-Z separator bits included.
+                            ch0_sample   <= normalize_sample(
+                                shift_reg[FRAME_BITS-1-LEAD_BITS -: DATA_BITS]);
+                            ch1_sample   <= normalize_sample(shift_reg[DATA_BITS-1:0]);
                             sample_valid <= 1'b1;
                             adc_sck      <= 1'b0;
                             state        <= IDLE;

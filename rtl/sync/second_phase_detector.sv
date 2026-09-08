@@ -50,18 +50,27 @@ module second_phase_detector #(
     logic signed [1:0] slew;
     logic signed [POS_BITS:0] am_error;
 
+    // Sign extension/negation relies on ordinary Verilog signed-context
+    // widening rather than an explicit {sig[msb], sig} replication: this
+    // project's pinned Icarus Verilog release (oss-cad-suite 2025-02-13,
+    // "sorry: constant selects in always_* processes are not currently
+    // supported") can silently substitute the whole parent vector for a
+    // replicated bit-select mixed with a plain operand inside
+    // always_comb/always_ff, corrupting the arithmetic while only
+    // warning about it. Plain signed widening needs no bit-select.
     always_comb begin
         if (am_envelope[INPUT_BITS-1])
-            envelope_magnitude = -$signed({am_envelope[INPUT_BITS-1], am_envelope});
+            envelope_magnitude = -((INPUT_BITS + 1)'(am_envelope));
         else
-            envelope_magnitude = $signed({1'b0, am_envelope});
+            envelope_magnitude = (INPUT_BITS + 1)'(am_envelope);
         am_edge = carrier_ce &&
                   (previous_magnitude > envelope_magnitude) &&
-                  ((previous_magnitude - envelope_magnitude) >= AM_EDGE_THRESHOLD);
-        if (position <= TRACK_WINDOW)
+                  ((previous_magnitude - envelope_magnitude) >=
+                   (INPUT_BITS + 1)'(AM_EDGE_THRESHOLD));
+        if (position <= POS_BITS'(TRACK_WINDOW))
             am_error = $signed({1'b0, position});
         else
-            am_error = $signed({1'b0, position}) - SECOND_CYCLES;
+            am_error = $signed({1'b0, position}) - (POS_BITS + 1)'(SECOND_CYCLES);
     end
 
     always_ff @(posedge clk) begin
@@ -86,10 +95,10 @@ module second_phase_detector #(
                         first_edge <= 1'b1;
                         search_spacing <= '0;
                         search_hits <= 1;
-                    end else if ((search_spacing >= SECOND_CYCLES-SEARCH_TOLERANCE) &&
-                                 (search_spacing <= SECOND_CYCLES+SEARCH_TOLERANCE)) begin
+                    end else if ((search_spacing >= POS_BITS'(SECOND_CYCLES-SEARCH_TOLERANCE)) &&
+                                 (search_spacing <= POS_BITS'(SECOND_CYCLES+SEARCH_TOLERANCE))) begin
                         search_spacing <= '0;
-                        if (search_hits >= ACQUIRE_HITS-1) begin
+                        if (search_hits >= HIT_BITS'(ACQUIRE_HITS-1)) begin
                             state <= TRACK; position <= '0; second_ce <= 1'b1;
                             measurement_age <= '0; quality <= {{(QUALITY_BITS-1){1'b0}},1'b1};
                             phase_measurement_seen <= 1'b1; missed_seconds <= '0;
@@ -100,22 +109,23 @@ module second_phase_detector #(
                 end
             end else if (carrier_ce) begin
                 // One-cycle period modulation is the only permitted phase step.
-                if ((slew < 0 && position == SECOND_CYCLES-2) ||
-                    (slew == 0 && position == SECOND_CYCLES-1) ||
-                    (slew > 0 && position == SECOND_CYCLES)) begin
+                if ((slew < 0 && position == POS_BITS'(SECOND_CYCLES-2)) ||
+                    (slew == 0 && position == POS_BITS'(SECOND_CYCLES-1)) ||
+                    (slew > 0 && position == POS_BITS'(SECOND_CYCLES))) begin
                     position <= '0; second_ce <= 1'b1; slew <= '0;
                     if (measurement_age != {AGE_BITS{1'b1}})
                         measurement_age <= measurement_age + 1'b1;
                     if (!phase_measurement_seen) begin
-                        if (missed_seconds < HOLDOVER_AFTER) missed_seconds <= missed_seconds + 1'b1;
-                        if (missed_seconds >= HOLDOVER_AFTER-1) state <= HOLDOVER;
+                        if (missed_seconds < MISS_BITS'(HOLDOVER_AFTER)) missed_seconds <= missed_seconds + 1'b1;
+                        if (missed_seconds >= MISS_BITS'(HOLDOVER_AFTER-1)) state <= HOLDOVER;
                         if (quality != 0) quality <= quality - 1'b1;
                     end else missed_seconds <= '0;
                     phase_measurement_seen <= 1'b0;
                 end else position <= position + 1'b1;
 
                 if (am_edge) begin
-                    if ((position <= TRACK_WINDOW) || (position >= SECOND_CYCLES-TRACK_WINDOW)) begin
+                    if ((position <= POS_BITS'(TRACK_WINDOW)) ||
+                        (position >= POS_BITS'(SECOND_CYCLES-TRACK_WINDOW))) begin
                         phase_error_cycles <= am_error;
                         measurement_age <= '0; phase_measurement_seen <= 1'b1;
                         if (am_error > 0) slew <= 1;
@@ -129,8 +139,8 @@ module second_phase_detector #(
             // PM/PZF refines AM only after coarse acquisition.  It is bounded
             // by the same tracking aperture and cannot reset the epoch counter.
             if ((state != SEARCH) && pm_measurement_valid) begin
-                if (($signed(pm_phase_error_cycles) <= TRACK_WINDOW) &&
-                    ($signed(pm_phase_error_cycles) >= -TRACK_WINDOW)) begin
+                if (($signed(pm_phase_error_cycles) <= (POS_BITS + 1)'(TRACK_WINDOW)) &&
+                    ($signed(pm_phase_error_cycles) >= -((POS_BITS + 1)'(TRACK_WINDOW)))) begin
                     phase_error_cycles <= pm_phase_error_cycles;
                     measurement_age <= '0; phase_measurement_seen <= 1'b1;
                     quality <= pm_quality;

@@ -22,9 +22,15 @@ module pps_generator_formal;
 
         if (past_valid) begin
             assert(pps == (expected_remaining != 0));
-            if ($past(!time_valid))
+            // These two spot checks restate the general property above
+            // for the specific "just went invalid" / "just requested a
+            // pulse" transitions; both must also exclude a previous
+            // reset cycle, during which the DUT's rst branch overrides
+            // second_ce regardless of time_valid (matching
+            // expected_remaining's own rst-aware update above).
+            if ($past(!rst) && $past(!time_valid))
                 assert(!pps);
-            if ($past(time_valid && second_ce))
+            if ($past(!rst) && $past(time_valid && second_ce))
                 assert(pps);
         end
     end

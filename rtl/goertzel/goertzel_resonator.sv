@@ -53,14 +53,24 @@ module goertzel_resonator #(
     logic scale_overflow_1;
     logic scale_overflow_2;
 
+    // Sign extension relies on ordinary Verilog signed-context widening
+    // (assigning/comparing a narrower signed value against a wider signed
+    // one) rather than an explicit {{N{x[msb]}}, x} replication: this
+    // project's pinned Icarus Verilog release (oss-cad-suite 2025-02-13,
+    // "sorry: constant selects in always_* processes are not currently
+    // supported") silently substitutes the whole parent vector for such a
+    // replicated bit-select inside always_comb/always_ff when it is mixed
+    // with a plain (non-select) operand, corrupting the arithmetic result
+    // even though it only warns. Plain signed widening needs no bit-select
+    // at all, so it never hits that fallback.
     function automatic logic signed [STATE_BITS-1:0] saturate(
         input logic signed [PRODUCT_BITS:0] value
     );
         logic signed [PRODUCT_BITS:0] maximum;
         logic signed [PRODUCT_BITS:0] minimum;
         begin
-            maximum = {{(PRODUCT_BITS + 1 - STATE_BITS){1'b0}}, STATE_MAX};
-            minimum = {{(PRODUCT_BITS + 1 - STATE_BITS){1'b1}}, STATE_MIN};
+            maximum = (PRODUCT_BITS + 1)'(STATE_MAX);
+            minimum = (PRODUCT_BITS + 1)'(STATE_MIN);
             if (value > maximum)
                 saturate = STATE_MAX;
             else if (value < minimum)
@@ -72,24 +82,20 @@ module goertzel_resonator #(
 
     always_comb begin
         feedback_product = state_1 * RESONATOR_COEFF;
-        recurrence_wide =
-            {{(PRODUCT_BITS + 1 - SAMPLE_BITS){sample[SAMPLE_BITS-1]}}, sample}
-            + (feedback_product >>> COEFF_FRAC)
-            - {{(PRODUCT_BITS + 1 - STATE_BITS){state_2[STATE_BITS-1]}}, state_2};
+        recurrence_wide = (PRODUCT_BITS + 1)'(sample)
+                         + ((PRODUCT_BITS + 1)'(feedback_product) >>> COEFF_FRAC)
+                         - (PRODUCT_BITS + 1)'(state_2);
         recurrence_sat = saturate(recurrence_wide);
-        recurrence_overflow = (recurrence_wide !=
-            {{(PRODUCT_BITS + 1 - STATE_BITS){recurrence_sat[STATE_BITS-1]}}, recurrence_sat});
+        recurrence_overflow = (recurrence_wide != (PRODUCT_BITS + 1)'(recurrence_sat));
 
         scale_product_1 = recurrence_sat * SCALE_COEFF;
         scale_product_2 = state_1 * SCALE_COEFF;
-        scaled_wide_1 = scale_product_1 >>> COEFF_FRAC;
-        scaled_wide_2 = scale_product_2 >>> COEFF_FRAC;
+        scaled_wide_1 = (PRODUCT_BITS + 1)'(scale_product_1) >>> COEFF_FRAC;
+        scaled_wide_2 = (PRODUCT_BITS + 1)'(scale_product_2) >>> COEFF_FRAC;
         scaled_sat_1 = saturate(scaled_wide_1);
         scaled_sat_2 = saturate(scaled_wide_2);
-        scale_overflow_1 = (scaled_wide_1 !=
-            {{(PRODUCT_BITS + 1 - STATE_BITS){scaled_sat_1[STATE_BITS-1]}}, scaled_sat_1});
-        scale_overflow_2 = (scaled_wide_2 !=
-            {{(PRODUCT_BITS + 1 - STATE_BITS){scaled_sat_2[STATE_BITS-1]}}, scaled_sat_2});
+        scale_overflow_1 = (scaled_wide_1 != (PRODUCT_BITS + 1)'(scaled_sat_1));
+        scale_overflow_2 = (scaled_wide_2 != (PRODUCT_BITS + 1)'(scaled_sat_2));
     end
 
     always_ff @(posedge clk) begin
@@ -103,7 +109,7 @@ module goertzel_resonator #(
             cycle_valid <= 1'b0;
             if (sample_ce) begin
                 overflow <= overflow | recurrence_overflow;
-                if (cycle_count == CYCLE_SAMPLES - 1) begin
+                if (cycle_count == CYCLE_COUNT_W'(CYCLE_SAMPLES - 1)) begin
                     state_1     <= scaled_sat_1;
                     state_2     <= scaled_sat_2;
                     cycle_count <= '0;

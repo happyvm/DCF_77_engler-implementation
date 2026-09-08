@@ -6,7 +6,10 @@ depth 16
 smtbmc boolector
 
 [script]
-read -formal -sv rtl/core/pps_generator.sv formal/pps_generator_formal.sv
+# sby copies [files] entries flat into its own src/ directory (see the
+# "Copy ... to .../src/pps_generator.sv" log line), so the script must
+# read them by basename, not by their original project-relative path.
+read -formal -sv pps_generator.sv pps_generator_formal.sv
 prep -top pps_generator_formal
 
 [files]

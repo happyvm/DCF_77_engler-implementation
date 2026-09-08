@@ -36,7 +36,10 @@ module time_telemetry_tb;
     end
 
     initial begin
-        expected = "$DCF77,20260908,181234,+0200,L,087*3D\r\n";
+        // Built with explicit CR/LF bytes: this Icarus Verilog release does
+        // not recognize the "\r" string escape (it degrades to a literal
+        // 'r'), so embedding it in the literal would corrupt byte 37.
+        expected = {"$DCF77,20260908,181234,+0200,L,087*3D", 8'h0d, 8'h0a};
         repeat (2) @(posedge clk);
         rst <= 0;
         @(posedge clk);
@@ -55,7 +58,11 @@ module time_telemetry_tb;
             if (received[i] !== expected[(FRAME_BYTES-i)*8-1 -: 8])
                 $fatal(1, "byte %0d mismatch: got %02x", i, received[i]);
 
+        // Let the DUT's nonblocking assignments settle before sampling: a
+        // bare @(posedge clk) here would race the same edge that clears
+        // frame_done and read its pre-update value.
         @(posedge clk);
+        #1;
         if (frame_done || busy || tx_valid)
             $fatal(1, "formatter did not return idle cleanly");
 

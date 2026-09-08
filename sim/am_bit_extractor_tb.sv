@@ -2,14 +2,17 @@
 module am_bit_extractor_tb;
     logic clk = 0, rst = 1, second_ce = 0, carrier_ce = 0;
     logic signed [15:0] am_observable = 0;
-    logic signed [23:0] am_soft_bit;
+    // OUTPUT_BITS must not exceed the module's internal SUM_BITS
+    // (INPUT_BITS + clog2(WINDOW_CYCLES) + 2 = 16 + 1 + 2 = 19 here); 16
+    // keeps plenty of headroom for this test's +-60 evidence values.
+    logic signed [15:0] am_soft_bit;
     logic bit_valid;
     logic [3:0] carrier_position;
-    logic signed [23:0] results [0:1];
+    logic signed [15:0] results [0:1];
     integer cycle, result_count = 0;
 
     am_bit_extractor #(
-        .INPUT_BITS(16), .OUTPUT_BITS(24), .OUTPUT_SHIFT(0),
+        .INPUT_BITS(16), .OUTPUT_BITS(16), .OUTPUT_SHIFT(0),
         .SECOND_CYCLES(10), .DATA_START_CYCLE(2),
         .REFERENCE_START_CYCLE(4), .WINDOW_CYCLES(2)
     ) dut (.*);
@@ -45,7 +48,7 @@ module am_bit_extractor_tb;
         #1;
         if (result_count != 2)
             $fatal(1, "bit_valid count mismatch: %0d", result_count);
-        if (results[0] !== -24'sd60 || results[1] !== 24'sd60)
+        if (results[0] !== -16'sd60 || results[1] !== 16'sd60)
             $fatal(1, "AM evidence mismatch: %0d %0d", results[0], results[1]);
         $display("am_bit_extractor_tb: PASS");
         $finish;

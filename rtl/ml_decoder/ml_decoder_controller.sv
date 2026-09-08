@@ -41,7 +41,11 @@ module ml_decoder_controller #(
     output logic [SCORE_BITS-1:0] score_gap,
     output logic [$clog2(CONSISTENT_FRAMES+1)-1:0] consistent_count
 );
-    import dcf77_calendar_pkg::*;
+    // Calendar helpers are called with an explicit dcf77_calendar_pkg::
+    // qualifier rather than "import dcf77_calendar_pkg::*": this
+    // project's pinned Yosys (0.50+1) accepts scoped package function
+    // calls but its Verilog-2005-based frontend does not parse the
+    // "import pkg::*;" declaration ("unexpected TOK_PACKAGESEP").
     logic [5:0] exp_minute, exp_day;
     logic [4:0] exp_hour;
     logic [2:0] exp_weekday;
@@ -65,7 +69,7 @@ module ml_decoder_controller #(
                 exp_hour = 2; // 02:59 CEST -> 02:00 CET
             else if (hour == 23) begin
                 exp_hour = 0;
-                if (day == month_length(year, month)) begin
+                if (day == dcf77_calendar_pkg::month_length(year, month)) begin
                     exp_day = 1;
                     if (month == 12) begin exp_month = 1; exp_year = year + 1'b1; end
                     else exp_month = month + 1'b1;
@@ -76,7 +80,7 @@ module ml_decoder_controller #(
         continuity = candidate_minute == exp_minute && candidate_hour == exp_hour &&
                      candidate_day == exp_day && candidate_weekday == exp_weekday &&
                      candidate_month == exp_month && candidate_year == exp_year &&
-                     valid_date(candidate_year, candidate_month, candidate_day) &&
+                     dcf77_calendar_pkg::valid_date(candidate_year, candidate_month, candidate_day) &&
                      (cest == candidate_cest || dst_announcement);
     end
 
@@ -109,7 +113,7 @@ module ml_decoder_controller #(
                     history_read_enable <= 1;
                 end
             end
-            if (frame_valid && valid_date(candidate_year,candidate_month,candidate_day)) begin
+            if (frame_valid && dcf77_calendar_pkg::valid_date(candidate_year,candidate_month,candidate_day)) begin
                 if (consistent_count == 0 || !continuity) consistent_count <= 1;
                 else if (consistent_count < CONSISTENT_FRAMES)
                     consistent_count <= consistent_count + 1'b1;

@@ -31,6 +31,7 @@ module am_bit_extractor #(
     // Two guard bits cover reference + reduced - 2*data for full-scale
     // signed inputs; the three-term discriminator must not wrap.
     localparam int SUM_BITS = INPUT_BITS + $clog2(WINDOW_CYCLES) + 2;
+    localparam int POS_BITS = $clog2(SECOND_CYCLES);
     localparam logic signed [OUTPUT_BITS-1:0] OUTPUT_MAX =
         {1'b0, {(OUTPUT_BITS-1){1'b1}}};
     localparam logic signed [OUTPUT_BITS-1:0] OUTPUT_MIN =
@@ -88,23 +89,28 @@ module am_bit_extractor #(
                 reduced_sum       <= '0;
                 reference_sum     <= '0;
             end else if (carrier_ce) begin
-                if (carrier_position == SECOND_CYCLES - 1)
+                if (carrier_position == POS_BITS'(SECOND_CYCLES - 1))
                     carrier_position <= '0;
                 else
                     carrier_position <= carrier_position + 1'b1;
 
-                if ((carrier_position >= REDUCED_START_CYCLE) &&
-                    (carrier_position < REDUCED_START_CYCLE + WINDOW_CYCLES))
+                // REDUCED_START_CYCLE defaults to 0, making the lower
+                // bound below trivially true for an unsigned counter;
+                // kept for generality (a nonzero start remains valid).
+                /* verilator lint_off UNSIGNED */
+                if ((carrier_position >= POS_BITS'(REDUCED_START_CYCLE)) &&
+                    (carrier_position < POS_BITS'(REDUCED_START_CYCLE + WINDOW_CYCLES)))
                     reduced_sum <= next_reduced_sum;
+                /* verilator lint_on UNSIGNED */
 
-                if ((carrier_position >= DATA_START_CYCLE) &&
-                    (carrier_position < DATA_START_CYCLE + WINDOW_CYCLES))
+                if ((carrier_position >= POS_BITS'(DATA_START_CYCLE)) &&
+                    (carrier_position < POS_BITS'(DATA_START_CYCLE + WINDOW_CYCLES)))
                     data_sum <= next_data_sum;
 
-                if ((carrier_position >= REFERENCE_START_CYCLE) &&
-                    (carrier_position < REFERENCE_START_CYCLE + WINDOW_CYCLES)) begin
+                if ((carrier_position >= POS_BITS'(REFERENCE_START_CYCLE)) &&
+                    (carrier_position < POS_BITS'(REFERENCE_START_CYCLE + WINDOW_CYCLES))) begin
                     reference_sum <= next_reference_sum;
-                    if (carrier_position == REFERENCE_START_CYCLE + WINDOW_CYCLES - 1) begin
+                    if (carrier_position == POS_BITS'(REFERENCE_START_CYCLE + WINDOW_CYCLES - 1)) begin
                         am_soft_bit <= saturate_output(evidence_shifted);
                         bit_valid   <= 1'b1;
                     end

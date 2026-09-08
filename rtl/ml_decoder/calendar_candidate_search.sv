@@ -18,7 +18,6 @@ module calendar_candidate_search #(
     logic [7:0] candidate, last, first, best_value_q;
     logic [8:0] bits; logic [3:0] units, tens;
     logic signed [SCORE_BITS-1:0] score, best_q, second_q, nb, ns;
-    integer i;
     always_comb begin
         case(field)
           0: begin first=1; last=31; end
@@ -27,7 +26,7 @@ module calendar_candidate_search #(
           3: begin first=0; last=99; end
           default: begin first=0; last=7; end // zone: CET, CEST and two announcements
         endcase
-        units = candidate % 10; tens = candidate / 10;
+        units = 4'(candidate % 8'd10); tens = 4'(candidate / 8'd10);
         bits='0;
         if (field == 1) bits[2:0]=candidate[2:0];
         else if (field == 4) begin
@@ -40,14 +39,15 @@ module calendar_candidate_search #(
             bits[8]=^bits[7:0]; // local parity contribution
         end
         score='0;
-        for(i=0;i<9;i=i+1) score = bits[i] ? score+evidence[i] : score-evidence[i];
+        for(int i=0;i<9;i=i+1)
+            score = bits[i] ? score+SCORE_BITS'(evidence[i]) : score-SCORE_BITS'(evidence[i]);
         nb=best_q; ns=second_q;
         if(score>best_q) begin nb=score; ns=best_q; end
         else if(score>second_q) ns=score;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            for(i=0;i<9;i=i+1) evidence[i]<='0;
+            for(int i=0;i<9;i=i+1) evidence[i]<='0;
             candidate<=0; busy<=0; result_valid<=0; best_value<=0;
             best_value_q<=0; best_q<={1'b1,{(SCORE_BITS-1){1'b0}}};
             second_q<={1'b1,{(SCORE_BITS-1){1'b0}}}; best_score<=0; second_score<=0; quality_gap<=0;
