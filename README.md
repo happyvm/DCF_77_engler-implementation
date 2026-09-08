@@ -4,7 +4,15 @@ Reconstruction of the high-performance DCF77 receiver/decoder described by Danie
 
 The original paper is archived under [`archive/papers/Engeler_DCF77.pdf`](archive/papers/Engeler_DCF77.pdf).
 
-## Current Rev.0 direction
+## Rev.0 board
+
+Rev.0 now has **one PCB only**:
+
+> Raspberry Pi Standard HAT+
+
+The previously planned standalone USB-C board has been removed. There is no Type-C power path, standalone eFuse, standalone 3.3 V buck or standalone-specific host/debug path in the reference design.
+
+## Current Rev.0 signal chain
 
 ```text
 TDK B82453C0275A000 ferrite, X winding
@@ -43,82 +51,67 @@ SiT5356AI-FQ-33E0-25.000000 fixed TCXO
         +--> second/minute sync
         +--> 3600 s ML decoder
         +--> DCF77 digital clock discipline
-        +--> hardware PPS
-        +--> LCD
+        +--> dedicated hardware PPS
+        +--> Raspberry Pi SPI host
+        +--> local LCD
 ```
 
 The antenna, LTC1562 filter and power network are intentionally **no-trim/no-selection**. Reference boards do not require hand-selected R/C values.
 
-## Two PCB variants, one receiver core
+## HAT+ power architecture
 
-The project produces:
-
-1. **Raspberry Pi Standard HAT+**;
-2. **standalone USB-C receiver**.
-
-Both keep the same AFE/ADC/ECP5/clock/PPS/LCD architecture and the same FPGA RTL.
-
-### HAT+ power
-
-The HAT intentionally consumes both Raspberry Pi header rails:
+The HAT deliberately consumes both Raspberry Pi header rails:
 
 ```text
 PI_5V  -> TPS22975NDSGR -> 5V_SYS
-PI_3V3 -> current-measure link -> 3V3_D
+PI_3V3 -> current-measure / 0R link -> 3V3_D
 ```
 
-`PI_3V3` powers the digital I/O/configuration domain only. ADC, TCXO, AFE, ECP5 core and LCD backlight remain locally powered from the Pi 5 V path.
+`PI_3V3` powers only the digital I/O/configuration domain. ADC, TCXO, AFE, ECP5 core and LCD backlight remain locally powered from the Pi 5 V path.
 
-This removes the local 3.3 V switching converter from the HAT and naturally follows HAT+ STANDBY behavior.
-
-See [`docs/17-pcb-variants.md`](docs/17-pcb-variants.md) and [`docs/26-hat-power.md`](docs/26-hat-power.md).
-
-### Standalone USB-C
+Reference tree:
 
 ```text
-USB4105-GF-A
-  -> TUSB320LAIRWBR UFP/sink
-  -> TPS259470ARPWR eFuse
+PI_5V
+  -> TPS22975NDSGR
   -> 5V_SYS
+       +--> 0.10 ohm fixed branch -> 5V_AFE
+       |      -> OPA810 / LTC1562 / LTC6912
+       |
+       +--> LT3042EMSE#PBF -> 3V3_ADC_A
+       |      -> LTC1407A-1 / OPA2835
+       |
+       +--> TPS7A2033PDQNR -> 3V3_CLK
+       |      -> SiT5356
+       |
+       +--> TPS628502DRLR -> 1V1_CORE
+              -> ECP5 VCC
+
+PI_3V3
+  -> current-measure / 0R
+  -> 3V3_D
+       +--> ECP5 VCCIO / VCCIO8
+       +--> W25Q64JV
+       +--> HAT ID EEPROM
+       +--> LCD logic
+       +--> PPS / Pi host I/O
+       +--> TPS7A2025PDQNR -> 2V5_AUX
 ```
 
-No USB-PD is required for Rev.0. USB 2.0 data remains optional.
-
-See [`docs/25-standalone-usbc-power.md`](docs/25-standalone-usbc-power.md).
-
-## Frozen Rev.0 power tree
-
-Common precision/analog rails:
+The sole local buck is the 1.1 V ECP5 core converter. It runs forced PWM with SSC disabled and a nominal switching frequency around 3.125 MHz. The internal 2.25 MHz nominal setting is deliberately avoided because:
 
 ```text
-5V_SYS
-  +--> 0.10 ohm fixed RC branch -> 5V_AFE
-  +--> LT3042EMSE#PBF -> 3V3_ADC_A
-  +--> TPS7A2033PDQNR -> 3V3_CLK
-  +--> TPS628502DRLR -> 1V1_CORE
-
-3V3_D
-  +--> TPS7A2025PDQNR -> 2V5_AUX
+29 * 77.5 kHz = 2.2475 MHz
 ```
 
-Digital 3.3 V source:
-
-```text
-standalone: 5V_SYS -> TPS628502DRLR -> 3V3_D
-HAT+:       PI_3V3 -----------------> 3V3_D
-```
-
-The TPS628502 reference implementation uses forced PWM, SSC off and a nominal switching frequency around 3.125 MHz. The internal 2.25 MHz default is deliberately avoided because `29 × 77.5 kHz = 2.2475 MHz`.
-
-Exact passives, sequencing and ECP5 decoupling are frozen in:
+Exact power values and sequencing are frozen in:
 
 - [`docs/19-power-tree.md`](docs/19-power-tree.md)
+- [`docs/26-hat-power.md`](docs/26-hat-power.md)
 - [`docs/28-power-passives-sequencing.md`](docs/28-power-passives-sequencing.md)
 - [`hardware/tscircuit/power-plan.json`](hardware/tscircuit/power-plan.json)
 
 ## Clock source
-
-Reference TCXO:
 
 ```text
 SiTime SiT5356AI-FQ-33E0-25.000000
@@ -135,7 +128,7 @@ DCTCXO remains experimental only.
 
 See [`docs/15-sitime-super-tcxo.md`](docs/15-sitime-super-tcxo.md).
 
-## FPGA, flash and pin plan
+## FPGA, flash and HAT pin plan
 
 Reference FPGA:
 
@@ -154,13 +147,36 @@ W25Q64JVSSIQ
 Master SPI
 ```
 
-64 Mbit permits a future golden/recovery image plus update image without depending on bitstream compression. JTAG is mandatory on both variants.
+The flash supports a future golden/recovery image plus update image. JTAG remains mandatory on the HAT.
 
-The ECP5 bank/ball plan and HAT GPIO assignments are frozen in:
+Pin planning is frozen in:
 
 - [`docs/23-ecp5-boot-config.md`](docs/23-ecp5-boot-config.md)
 - [`docs/27-ecp5-pin-plan-hat.md`](docs/27-ecp5-pin-plan-hat.md)
 - [`hardware/tscircuit/pin-plan.json`](hardware/tscircuit/pin-plan.json)
+
+HAT runtime interface:
+
+```text
+SPI0 MOSI/MISO/SCLK/CE0
+IRQ / DATA_READY
+RESET/control
+PPS copy to GPIO4
+```
+
+The dedicated external PPS path is separate from the Pi GPIO copy and remains the timing/metrology reference.
+
+## Display
+
+```text
+NHD-C0220BIZ-FSW-FBW-3V3M
+20 x 2 FSTN transflective LCD
+3.3 V I2C
+```
+
+LCD logic uses Pi-derived `3V3_D`. Backlight is powered from `5V_SYS`, switched separately and normally OFF in precision RF mode.
+
+See [`docs/24-lcd-display.md`](docs/24-lcd-display.md).
 
 ## FPGA resource compatibility rule
 
@@ -179,29 +195,11 @@ Machine-readable policy:
 
 Development-only instrumentation may use spare ECP5-45F resources in a separate `lab_debug` profile. Performance claims must also be reproduced by `release_reference` inside the historical envelope.
 
-See [`docs/16-fpga-resource-budget.md`](docs/16-fpga-resource-budget.md).
-
-## Display and timing outputs
-
-Both boards use:
-
-```text
-NHD-C0220BIZ-FSW-FBW-3V3M
-20 x 2 FSTN transflective LCD
-3.3 V I2C
-```
-
-The backlight is separately switched and normally OFF in precision RF mode.
-
-Both boards expose a **dedicated ECP5 hardware PPS**. The rising edge is the metrology reference for GNSS/GPS comparison; the HAT also routes a secondary PPS copy to a Raspberry Pi GPIO.
-
-See [`docs/24-lcd-display.md`](docs/24-lcd-display.md) and [`docs/17-pcb-variants.md`](docs/17-pcb-variants.md).
-
 ## Hardware CAD policy
 
 The schematic and PCB are authored in **tscircuit**. TSX/Circuit JSON is the editable design source of truth.
 
-Current machine-readable design inputs:
+Machine-readable design inputs:
 
 ```text
 hardware/tscircuit/pin-plan.json
@@ -211,20 +209,18 @@ hardware/tscircuit/power-plan.json
 Release flow:
 
 ```text
-tscircuit
+tscircuit HAT design
   -> Circuit JSON / KiCad
-  -> hard RF/mechanical constraints
+  -> HAT+ RF/mechanical constraints
   -> Quilter placement/routing
   -> native KiCad review
   -> ERC/DRC + RF/EMI inspection
   -> Gerbers/fabrication
 ```
 
-Quilter does not have unrestricted authority over the ferrite/input network, filter/PGA, ADC island, TCXO, FPGA/flash boot cluster, power hot loops or mechanically fixed components.
+Quilter does not have unrestricted authority over the ferrite/input network, filter/PGA, ADC island, TCXO, FPGA/flash boot cluster, 1.1 V buck, PPS path or mechanically fixed HAT/LCD components.
 
-Hardware workspace:
-
-- [`hardware/tscircuit/`](hardware/tscircuit/)
+See [`docs/14-hardware-cad-tscircuit.md`](docs/14-hardware-cad-tscircuit.md) and [`hardware/tscircuit/`](hardware/tscircuit/).
 
 ## Documentation
 
@@ -241,21 +237,20 @@ Hardware workspace:
 - [`docs/11-analog-reference-design.md`](docs/11-analog-reference-design.md) — analog reconstruction basis.
 - [`docs/12-ecp5-migration.md`](docs/12-ecp5-migration.md) — ECP5 migration.
 - [`docs/13-ecp5-clock-discipline.md`](docs/13-ecp5-clock-discipline.md) — fractional timing architecture.
-- [`docs/14-hardware-cad-tscircuit.md`](docs/14-hardware-cad-tscircuit.md) — tscircuit/KiCad/Quilter workflow.
+- [`docs/14-hardware-cad-tscircuit.md`](docs/14-hardware-cad-tscircuit.md) — HAT-only tscircuit/KiCad/Quilter workflow.
 - [`docs/15-sitime-super-tcxo.md`](docs/15-sitime-super-tcxo.md) — fixed SiT5356 clock selection.
 - [`docs/16-fpga-resource-budget.md`](docs/16-fpga-resource-budget.md) — historical FPGA ceiling.
-- [`docs/17-pcb-variants.md`](docs/17-pcb-variants.md) — HAT+ / standalone variants and PPS.
+- [`docs/17-pcb-variants.md`](docs/17-pcb-variants.md) — single Raspberry Pi HAT+ board architecture.
 - [`docs/18-adc-selection.md`](docs/18-adc-selection.md) — LTC1407A-1 ADC and driver.
-- [`docs/19-power-tree.md`](docs/19-power-tree.md) — current power architecture.
+- [`docs/19-power-tree.md`](docs/19-power-tree.md) — HAT power architecture.
 - [`docs/20-antenna-input.md`](docs/20-antenna-input.md) — fixed TDK ferrite/input network.
 - [`docs/21-ltc1562-fixed-filter.md`](docs/21-ltc1562-fixed-filter.md) — fixed LTC1562 BPF.
 - [`docs/22-ltc6912-pga.md`](docs/22-ltc6912-pga.md) — LTC6912-1 PGA and AGC policy.
 - [`docs/23-ecp5-boot-config.md`](docs/23-ecp5-boot-config.md) — ECP5/flash/JTAG boot.
-- [`docs/24-lcd-display.md`](docs/24-lcd-display.md) — LCD selection.
-- [`docs/25-standalone-usbc-power.md`](docs/25-standalone-usbc-power.md) — standalone Type-C input.
-- [`docs/26-hat-power.md`](docs/26-hat-power.md) — Pi 5 V + 3.3 V HAT power split.
+- [`docs/24-lcd-display.md`](docs/24-lcd-display.md) — HAT LCD selection.
+- [`docs/26-hat-power.md`](docs/26-hat-power.md) — Pi 5 V + 3.3 V power split.
 - [`docs/27-ecp5-pin-plan-hat.md`](docs/27-ecp5-pin-plan-hat.md) — BG256/HAT pin plan.
-- [`docs/28-power-passives-sequencing.md`](docs/28-power-passives-sequencing.md) — exact power passives and sequencing.
+- [`docs/28-power-passives-sequencing.md`](docs/28-power-passives-sequencing.md) — exact HAT power passives/sequencing.
 - [`docs/references.md`](docs/references.md) — primary/manufacturer references.
 
 ## Reconstruction policy
