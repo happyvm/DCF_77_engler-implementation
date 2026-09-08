@@ -244,12 +244,19 @@ resource-check: synth
 		tee $(BUILD_DIR)/reports/resource-budget.txt'
 
 # This is a device-level implementation used for a reproducible timing estimate.
-# It is not a board bitstream: pin and board clock constraints are still pending.
+# It is not a board bitstream: pin locations are still pending (see
+# docs/27-ecp5-pin-plan-hat.md). synth/dcf77_hat_top.lpf supplies the two
+# constraints that do not depend on a physical pin-out: the real 125 MHz
+# system clock (matching sample_scheduler and clock_reset_ecp5's PLL, not
+# an arbitrary probe frequency) and BLOCK ASYNCPATHS, so genuinely
+# asynchronous ports (reset_n/hat_reset_n feed clock_reset_ecp5's async
+# FF reset directly) are not folded into the synchronous Fmax figure.
 timing: synth
 	mkdir -p $(BUILD_DIR)/reports
-	bash -o pipefail -c 'nextpnr-ecp5 --45k --package CABGA256 --freq 48 \
-		--json $(BUILD_DIR)/engeler_detector.json \
-		--textcfg $(BUILD_DIR)/engeler_detector.config \
+	bash -o pipefail -c 'nextpnr-ecp5 --45k --package CABGA256 --freq 125 \
+		--lpf synth/dcf77_hat_top.lpf --lpf-allow-unconstrained \
+		--json $(BUILD_DIR)/release_reference.json \
+		--textcfg $(BUILD_DIR)/release_reference.config \
 		--report $(BUILD_DIR)/reports/nextpnr.json 2>&1 | \
 		tee $(BUILD_DIR)/reports/nextpnr.log'
 
