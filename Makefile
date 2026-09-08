@@ -12,13 +12,15 @@ BUILD_DIR ?= build
 	test-second-phase test-lock-controller test-qualification-disabled \
 	lint-pps-uart lint-goertzel lint-detector lint formal synth \
 	resource-check timing test-tools test-soft-history test-ml-controller \
-	test-frequency-discipline tool-versions clean test-integration synth-core
+	test-frequency-discipline tool-versions clean test-integration synth-core \
+	test-evidence-aggregator test-calendar-ml test-field-sequencer
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
 	test-second-phase test-lock-controller test-qualification-disabled test-tools \
-	test-soft-history test-ml-controller test-frequency-discipline test-integration
+	test-soft-history test-ml-controller test-frequency-discipline test-integration \
+	test-evidence-aggregator test-calendar-ml test-field-sequencer
 
 test-integration: $(BUILD_DIR)/dcf77_hat_top_tb.vvp
 	$(VVP) $<
@@ -189,6 +191,29 @@ $(BUILD_DIR)/ml_decoder_controller_tb.vvp: rtl/ml_decoder/dcf77_calendar_pkg.sv 
 		rtl/ml_decoder/ml_decoder_controller.sv sim/ml_decoder_controller_tb.sv
 	mkdir -p $(BUILD_DIR)
 	$(IVERILOG) -g2012 -Wall -s ml_decoder_controller_tb -o $@ $^
+
+test-evidence-aggregator: $(BUILD_DIR)/second_evidence_aggregator_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/second_evidence_aggregator_tb.vvp: \
+		rtl/ml_decoder/second_evidence_aggregator.sv sim/second_evidence_aggregator_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s second_evidence_aggregator_tb -o $@ $^
+
+test-calendar-ml: $(BUILD_DIR)/calendar_candidate_search_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/calendar_candidate_search_tb.vvp: \
+		rtl/ml_decoder/calendar_candidate_search.sv sim/calendar_candidate_search_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s calendar_candidate_search_tb -o $@ $^
+
+test-field-sequencer: $(BUILD_DIR)/ml_field_sequencer_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/ml_field_sequencer_tb.vvp: \
+		rtl/ml_decoder/minute_candidate_search.sv rtl/ml_decoder/hour_candidate_search.sv \
+		rtl/ml_decoder/calendar_candidate_search.sv rtl/ml_decoder/ml_field_sequencer.sv \
+		sim/ml_field_sequencer_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s ml_field_sequencer_tb -o $@ $^
 
 test-lock-controller: $(BUILD_DIR)/receiver_lock_controller_tb.vvp
 	$(VVP) $<
