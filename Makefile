@@ -13,14 +13,14 @@ BUILD_DIR ?= build
 	lint-pps-uart lint-goertzel lint-detector lint formal synth \
 	resource-check timing test-tools test-soft-history test-ml-controller \
 	test-frequency-discipline tool-versions clean test-integration synth-core \
-	test-evidence-aggregator test-calendar-ml test-field-sequencer
+	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
 	test-second-phase test-lock-controller test-qualification-disabled test-tools \
 	test-soft-history test-ml-controller test-frequency-discipline test-integration \
-	test-evidence-aggregator test-calendar-ml test-field-sequencer
+	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator
 
 test-integration: $(BUILD_DIR)/dcf77_hat_top_tb.vvp
 	$(VVP) $<
@@ -214,6 +214,15 @@ $(BUILD_DIR)/ml_field_sequencer_tb.vvp: \
 		sim/ml_field_sequencer_tb.sv
 	mkdir -p $(BUILD_DIR)
 	$(IVERILOG) -g2012 -Wall -s ml_field_sequencer_tb -o $@ $^
+
+test-pm-discriminator: $(BUILD_DIR)/pm_phase_discriminator_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/pm_phase_discriminator_tb.vvp: \
+		rtl/pm/pm_chip_integrator.sv rtl/pm/dcf77_prn_generator.sv rtl/pm/pm_prn_correlator.sv \
+		rtl/pm/engeler_pm_correlator.sv rtl/pm/engeler_pm_pipeline.sv \
+		rtl/pm/pm_phase_discriminator.sv sim/pm_phase_discriminator_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s pm_phase_discriminator_tb -o $@ $^
 
 test-lock-controller: $(BUILD_DIR)/receiver_lock_controller_tb.vvp
 	$(VVP) $<
