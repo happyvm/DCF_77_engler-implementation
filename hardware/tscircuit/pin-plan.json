@@ -24,7 +24,7 @@
   },
   "bank_roles": {
     "0": "spare / low-rate future control",
-    "1": "25 MHz TCXO + Raspberry Pi HAT+ host interface",
+    "1": "25 MHz TCXO + Raspberry Pi HAT+ SPI/UART/PPS host interface",
     "2": "LTC1407A ADC + LTC6912 PGA control",
     "3": "reference PPS + LCD + diagnostics",
     "6": "reserved/quiet near AFE",
@@ -59,7 +59,21 @@
       "HAT_SPI_CS_N": {"pi_gpio": 8, "pi_physical": 24, "ball": "E11", "bank": 1, "pin_name": "PT69B", "dir": "pi_to_ecp5"},
       "HAT_IRQ": {"pi_gpio": 25, "pi_physical": 22, "ball": "C12", "bank": 1, "pin_name": "PT74B", "dir": "ecp5_to_pi"},
       "HAT_RESET_N": {"pi_gpio": 24, "pi_physical": 18, "ball": "B12", "bank": 1, "pin_name": "PT74A", "dir": "pi_to_ecp5"},
-      "HAT_PPS": {"pi_gpio": 4, "pi_physical": 7, "ball": "A11", "bank": 1, "pin_name": "PT71A", "dir": "ecp5_to_pi"}
+      "HAT_PPS": {"pi_gpio": 4, "pi_physical": 7, "ball": "A11", "bank": 1, "pin_name": "PT71A", "dir": "ecp5_to_pi"},
+      "HAT_UART_TX": {"pi_gpio": 15, "pi_physical": 10, "pi_function": "RXD", "ball": "A13", "bank": 1, "pin_name": "PT83A", "dir": "ecp5_to_pi"},
+      "HAT_UART_RX": {"pi_gpio": 14, "pi_physical": 8, "pi_function": "TXD", "ball": "A14", "bank": 1, "pin_name": "PT83B", "dir": "pi_to_ecp5"}
+    },
+    "uart": {
+      "baud": 115200,
+      "data_bits": 8,
+      "parity": "none",
+      "stop_bits": 1,
+      "flow_control": "none",
+      "primary_use": "DCF77 date/time telemetry FPGA to Raspberry Pi",
+      "max_frame_bytes": 64,
+      "preferred_tx_window_ms": [993.0, 999.0],
+      "series_resistor_ohm": 33,
+      "idle_pullup_ohm": 47000
     },
     "id_eeprom": {
       "class": "Standard HAT+",
@@ -106,6 +120,7 @@
   },
   "reserved": {
     "external_clock_optional": {"ball": "B9", "bank": 1, "pin_name": "PT47A/GR_PCLK1_0"},
+    "host_cluster_spare": {"ball": "A12", "bank": 1, "pin_name": "PT71B"},
     "adc_cluster_spare": {"ball": "K15", "bank": 2, "pin_name": "PR32D/PCLKC2_0"}
   },
   "source_policy": "Check this file against current Lattice FPGA-SC-02034 and the current Raspberry Pi HAT+ specification before fabrication."
