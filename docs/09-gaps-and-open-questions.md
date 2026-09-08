@@ -37,29 +37,9 @@ See [`16-fpga-resource-budget.md`](16-fpga-resource-budget.md) and [`../rtl/reso
 
 The schematic/PCB source of truth is tscircuit, with KiCad export and independent release review. See [`14-hardware-cad-tscircuit.md`](14-hardware-cad-tscircuit.md).
 
-## Clock-source selection — OPEN BY DESIGN
+### Rev.0 board format
 
-The clock-control architecture is understood, but **no SiTime OPN or nominal frequency is frozen**.
-
-The earlier SiT5348 at 24.18 MHz proposal is now only an arithmetic/architecture study.
-
-Selection must be based on:
-
-- synchronized timing target;
-- holdover duration/error;
-- exact Digi-Key/Mouser/manufacturer availability;
-- temperature range;
-- DCTCXO pull range and control method;
-- ECP5 PLL legality;
-- sample-clock implementation;
-- EMI/self-interference around 77.5 kHz;
-- lifecycle and cost.
-
-Current baseline: evaluate stocked SiTime DCTCXO parts around the ±100 ppb class at standard catalogue frequencies, notably 10, 25 and 26 MHz. See [`15-sitime-super-tcxo.md`](15-sitime-super-tcxo.md).
-
-The generic fractional scheduler remains valid regardless of the chosen frequency:
-
-- [`../rtl/core/sample_scheduler.sv`](../rtl/core/sample_scheduler.sv)
+Rev.0 is now a single **Raspberry Pi Standard HAT+**. The previously planned standalone USB-C board is removed. See [`17-pcb-variants.md`](17-pcb-variants.md).
 
 ## Missing historical hardware details
 
@@ -74,20 +54,23 @@ Still not recovered:
 - LTC1407A suffix and ADC-driver details;
 - original regulator tree;
 - original Xilinx oscillator/clock-tree parts;
-- USB/display/DAC connector details.
+- original USB/display/DAC connector details.
 
-These remain historical unknowns even where the rebuild deliberately uses replacements.
+The USB item above is a **historical unknown from Engeler's demonstrator**, not a Rev.0 board feature.
 
-## Rebuild hardware choices still open
+## Current reconstruction choices already frozen
 
-1. sustainable high-impedance input stage replacing BF245A;
-2. final analog-filter implementation: LTC1562 reference path versus modern op-amp equivalent;
-3. PGA selection;
-4. final SAR ADC and driver/common-mode stage;
-5. final DCTCXO OPN and frequency;
-6. ECP5 configuration flash;
-7. low-noise power tree;
-8. ferrite antenna part and mechanical arrangement.
+- integrated TDK ferrite with fixed no-trim network;
+- OPA810 input buffer;
+- LTC1562 fixed 77.5 kHz filter;
+- LTC6912-1 PGA;
+- LTC1407A-1 ADC with OPA2835 driver candidate;
+- ECP5 `LFE5U-45F-7BG256I`;
+- W25Q64JV flash;
+- SiT5356 25 MHz fixed TCXO;
+- Raspberry Pi HAT+ power split using both Pi 5 V and 3.3 V;
+- dedicated external hardware PPS;
+- local 20x2 transflective LCD.
 
 ## Missing DSP constants
 
@@ -108,16 +91,17 @@ These must be solved by simulation plus regression against stored DCF77 captures
 
 ## Measurement questions
 
-Before schematic/PCB Rev.0 is considered frozen, establish:
+Before PCB Rev.0 is considered frozen for fabrication, establish:
 
-- actual antenna L/Q/bandwidth/group delay;
+- actual integrated-antenna L/Q/bandwidth/group delay;
 - analog BPF center frequency, bandwidth and group delay;
-- FPGA/clock/USB self-interference at 77.5 kHz;
+- Raspberry Pi / FPGA / clock self-interference at 77.5 kHz;
 - ADC conversion jitter and analog noise floor;
 - desired final absolute timing target;
 - required holdover duration and allowed error;
 - clock-loop acquisition/tracking coefficients;
-- false-lock probability of the ML decoder.
+- false-lock probability of the ML decoder;
+- PI_3V3 current and HAT+ STANDBY behavior.
 
 ## Principle
 
