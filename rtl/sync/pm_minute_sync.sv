@@ -42,16 +42,19 @@ module pm_minute_sync #(
     logic [SCORE_BITS-1:0] updated_best, updated_second;
     logic [5:0] updated_index;
     logic updated_polarity;
-    integer i;
 
     always_comb begin
         candidate_score = '0;
         // Existing entries are the previous 14 samples, oldest first.
-        for (i = 0; i < 10; i = i + 1)
-            candidate_score = candidate_score - history[i];
-        for (i = 10; i < 14; i = i + 1)
-            candidate_score = candidate_score + history[i];
-        candidate_score = candidate_score + pm_second_soft;
+        // Each loop uses its own scoped index: sharing one module-level
+        // variable between this always_comb and the always_ff below
+        // would violate single-driver expectations for a combinational
+        // process (IEEE 1800-2023 9.2.2.2).
+        for (int i = 0; i < 10; i = i + 1)
+            candidate_score = candidate_score - SCORE_BITS'(history[i]);
+        for (int i = 10; i < 14; i = i + 1)
+            candidate_score = candidate_score + SCORE_BITS'(history[i]);
+        candidate_score = candidate_score + SCORE_BITS'(pm_second_soft);
         candidate_magnitude = candidate_score[SCORE_BITS-1]
                             ? (~candidate_score + 1'b1) : candidate_score;
 
@@ -71,7 +74,7 @@ module pm_minute_sync #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            for (i = 0; i < 14; i = i + 1)
+            for (int i = 0; i < 14; i = i + 1)
                 history[i] <= '0;
             history_count        <= '0;
             search_index         <= '0;
@@ -88,7 +91,7 @@ module pm_minute_sync #(
         end else begin
             result_valid <= 1'b0;
             if (pm_second_valid) begin
-                for (i = 0; i < 13; i = i + 1)
+                for (int i = 0; i < 13; i = i + 1)
                     history[i] <= history[i+1];
                 history[13] <= pm_second_soft;
 

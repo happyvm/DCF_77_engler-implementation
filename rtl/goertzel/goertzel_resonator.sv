@@ -69,8 +69,8 @@ module goertzel_resonator #(
         logic signed [PRODUCT_BITS:0] maximum;
         logic signed [PRODUCT_BITS:0] minimum;
         begin
-            maximum = STATE_MAX;
-            minimum = STATE_MIN;
+            maximum = (PRODUCT_BITS + 1)'(STATE_MAX);
+            minimum = (PRODUCT_BITS + 1)'(STATE_MIN);
             if (value > maximum)
                 saturate = STATE_MAX;
             else if (value < minimum)
@@ -82,18 +82,20 @@ module goertzel_resonator #(
 
     always_comb begin
         feedback_product = state_1 * RESONATOR_COEFF;
-        recurrence_wide = sample + (feedback_product >>> COEFF_FRAC) - state_2;
+        recurrence_wide = (PRODUCT_BITS + 1)'(sample)
+                         + ((PRODUCT_BITS + 1)'(feedback_product) >>> COEFF_FRAC)
+                         - (PRODUCT_BITS + 1)'(state_2);
         recurrence_sat = saturate(recurrence_wide);
-        recurrence_overflow = (recurrence_wide != recurrence_sat);
+        recurrence_overflow = (recurrence_wide != (PRODUCT_BITS + 1)'(recurrence_sat));
 
         scale_product_1 = recurrence_sat * SCALE_COEFF;
         scale_product_2 = state_1 * SCALE_COEFF;
-        scaled_wide_1 = scale_product_1 >>> COEFF_FRAC;
-        scaled_wide_2 = scale_product_2 >>> COEFF_FRAC;
+        scaled_wide_1 = (PRODUCT_BITS + 1)'(scale_product_1) >>> COEFF_FRAC;
+        scaled_wide_2 = (PRODUCT_BITS + 1)'(scale_product_2) >>> COEFF_FRAC;
         scaled_sat_1 = saturate(scaled_wide_1);
         scaled_sat_2 = saturate(scaled_wide_2);
-        scale_overflow_1 = (scaled_wide_1 != scaled_sat_1);
-        scale_overflow_2 = (scaled_wide_2 != scaled_sat_2);
+        scale_overflow_1 = (scaled_wide_1 != (PRODUCT_BITS + 1)'(scaled_sat_1));
+        scale_overflow_2 = (scaled_wide_2 != (PRODUCT_BITS + 1)'(scaled_sat_2));
     end
 
     always_ff @(posedge clk) begin
@@ -107,7 +109,7 @@ module goertzel_resonator #(
             cycle_valid <= 1'b0;
             if (sample_ce) begin
                 overflow <= overflow | recurrence_overflow;
-                if (cycle_count == CYCLE_SAMPLES - 1) begin
+                if (cycle_count == CYCLE_COUNT_W'(CYCLE_SAMPLES - 1)) begin
                     state_1     <= scaled_sat_1;
                     state_2     <= scaled_sat_2;
                     cycle_count <= '0;

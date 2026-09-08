@@ -96,24 +96,24 @@ module pm_chip_integrator #(
                 prn_active       <= 1'b0;
                 prn_cycle_reset  <= 1'b1;
             end else if (carrier_ce) begin
-                if (carrier_position == SECOND_CYCLES - 1)
+                if (carrier_position == $clog2(SECOND_CYCLES)'(SECOND_CYCLES - 1))
                     carrier_position <= '0;
                 else
                     carrier_position <= carrier_position + 1'b1;
 
                 if (!prn_active) begin
-                    if (carrier_position == PRN_START_CYCLE - 1) begin
+                    if (carrier_position == $clog2(SECOND_CYCLES)'(PRN_START_CYCLE - 1)) begin
                         prn_active       <= 1'b1;
                         chip_cycle_count <= '0;
                         chip_index_count <= '0;
                         chip_accumulator <= '0;
                     end
-                end else if (chip_cycle_count == CYCLES_PER_CHIP - 1) begin
+                end else if (chip_cycle_count == CHIP_CYCLE_W'(CYCLES_PER_CHIP - 1)) begin
                     chip_soft        <= saturate_output(shifted_sum);
                     chip_valid       <= 1'b1;
                     chip_cycle_count <= '0;
                     chip_accumulator <= '0;
-                    if (chip_index_count == CHIP_COUNT - 1) begin
+                    if (chip_index_count == CHIP_INDEX_W'(CHIP_COUNT - 1)) begin
                         chip_index_count <= '0;
                         prn_active       <= 1'b0;
                         prn_done         <= 1'b1;

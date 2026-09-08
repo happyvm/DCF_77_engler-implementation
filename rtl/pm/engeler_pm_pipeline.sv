@@ -20,7 +20,7 @@ module engeler_pm_pipeline #(
     logic signed [CHIP_SOFT_BITS-1:0] chip_soft;
     logic chip_valid;
     logic prn_reset;
-    logic [8:0] chip_index;
+    logic [8:0] unused_chip_index;
     logic [16:0] unused_carrier_position;
 
     pm_chip_integrator #(
@@ -39,7 +39,7 @@ module engeler_pm_pipeline #(
     ) correlator_i (
         .clk(clk), .rst(rst), .reset_cycle(prn_reset), .chip_ce(chip_valid),
         .pm_soft(chip_soft), .correlation(correlation),
-        .correlation_valid(correlation_valid), .chip_index(chip_index)
+        .correlation_valid(correlation_valid), .chip_index(unused_chip_index)
     );
 
 endmodule

@@ -24,18 +24,19 @@ module goertzel_complex_12 #(
 
     logic signed [PRODUCT_BITS-1:0] cos_product;
     logic signed [PRODUCT_BITS-1:0] sin_product;
-    logic signed [PRODUCT_BITS-1:0] cos_scaled;
-    logic signed [PRODUCT_BITS-1:0] sin_scaled;
 
     always_comb begin
         cos_product = state_2 * COS_COEFF;
         sin_product = state_2 * SIN_COEFF;
-        cos_scaled = cos_product >>> COEFF_FRAC;
-        sin_scaled = sin_product >>> COEFF_FRAC;
 
-        bin_real = {state_1[STATE_BITS-1], state_1}
-                 - cos_scaled[STATE_BITS:0];
-        bin_imag = sin_scaled[STATE_BITS:0];
+        // COS_COEFF/SIN_COEFF are Q1.17 magnitudes below 1 (cos/sin of
+        // 30 degrees), so each scaled product's magnitude stays within
+        // state_2's own STATE_BITS range: the truncating cast below
+        // only discards guard bits that a bounded coefficient
+        // guarantees are redundant sign extension, not real precision.
+        bin_real = (STATE_BITS + 1)'(state_1)
+                 - (STATE_BITS + 1)'(cos_product >>> COEFF_FRAC);
+        bin_imag = (STATE_BITS + 1)'(sin_product >>> COEFF_FRAC);
     end
 
     initial begin
