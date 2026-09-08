@@ -1,133 +1,106 @@
-# Clock-source selection: precision, availability and frequency
+# Rev.0 fixed TCXO selection and clock architecture
 
-## Status
+## Decision
 
-No oscillator OPN or exact nominal frequency is frozen yet.
-
-The Rev.0 baseline is now a **simple fixed TCXO**. DCF77 carrier discipline remains digital inside the ECP5/sample-time architecture.
-
-A DCTCXO is retained only as an optional experimental path if measurements later show a worthwhile holdover or phase-noise benefit.
-
-The earlier `SiT5348 @ 24.180000 MHz` proposal is retained only as an arithmetic study. It is not a production decision.
-
-## Why fixed TCXO is the default
-
-A digitally controlled TCXO would let DCF77 physically steer the oscillator, but that is not required to reproduce Engeler's receiver behaviour.
-
-With a fixed TCXO:
+Rev.0 now freezes the clock source as a **simple fixed TCXO**:
 
 ```text
-TCXO
-  -> fixed ECP5 PLL
-  -> fractional sample scheduler / disciplined timebase
-  -> 930 kS/s average sample rate
+SiTime SiT5356AI-FQ-33E0-25.000000
+25.000000 MHz
+TCXO, fixed frequency
+3.3 V
+LVCMOS
+±100 ppb frequency stability
+-40 ... +85 degC
+5.0 x 3.2 mm, 10-CQFN
 ```
 
-The FPGA can retain the last trusted frequency correction during carrier loss, so useful holdover correction is still available without requiring an I2C-controlled oscillator.
+Digi-Key listed this exact 25 MHz / 3.3 V / ±100 ppb TCXO as an active catalogue part in the September 2026 sourcing check, with approximately 3500 factory/value-added units shown.
 
-Benefits of the fixed-TCXO baseline:
+This is now the Rev.0 reference OPN, subject only to the normal BOM-release rule that distributor availability must be rechecked immediately before procurement.
 
-- simpler clock block;
-- no oscillator-control protocol dependency;
-- easier substitution across oscillator vendors/families;
-- fewer failure modes;
-- less RTL/firmware tied to a particular timing vendor;
-- closer in spirit to Engeler's digitally corrected local oscillator;
-- no need to perturb the physical FPGA clock when tracking DCF77.
+DCF77 discipline remains digital inside the ECP5/sample-time architecture. A DCTCXO is not required for the reference receiver.
 
-## Precision requirement
+## Why this exact part
 
-Engeler reports a disciplined local-clock target around `0.1 ppm`, or about `100 ppb`.
+The selected part satisfies the project selection order:
 
-Useful holdover intuition:
+1. stability is already in the same 100 ppb class as Engeler's final disciplined-clock target;
+2. exact OPN is orderable through a major distributor rather than being only a factory-programming concept;
+3. 25 MHz is a standard frequency;
+4. 3.3 V LVCMOS fits the dedicated `3V3_CLK` rail and ECP5 clock input;
+5. -40...+85 degC is suitable for the intended industrial-temperature Rev.0 design;
+6. the frequency is not an integer harmonic of the 77.5 kHz wanted carrier;
+7. the existing 125 MHz ECP5 clock/scheduler study already works naturally from a 25 MHz reference.
 
-| oscillator stability | worst-case drift per second | worst-case drift per day |
-|---:|---:|---:|
-| ±500 ppb | ±500 ns/s | ±43.2 ms/day |
-| ±250 ppb | ±250 ns/s | ±21.6 ms/day |
-| ±100 ppb | ±100 ns/s | ±8.64 ms/day |
-| ±50 ppb | ±50 ns/s | ±4.32 ms/day |
-| ±20 ppb | ±20 ns/s | ±1.728 ms/day |
+The selected fixed TCXO and the previously considered DCTCXO are in a similar high-precision cost class, but the fixed part avoids a control protocol and makes the reference architecture simpler and more vendor-independent at the RTL level.
 
-The synchronized PPS accuracy is not determined by the TCXO alone. Propagation, ferrite phase/group delay, analog-filter group delay, carrier phase estimation, calibration and RF noise eventually dominate.
+## Why 25 MHz instead of 24.18 MHz
 
-Current design rule:
-
-```text
-baseline target: around ±100 ppb class if real stock/cost permit
-better than ±100 ppb: buy only when justified by holdover/error budget
-```
-
-## Availability is part of the specification
-
-Do not select a custom oscillator frequency first and then ask whether it can be bought.
-
-Selection order:
-
-1. define synchronized timing and holdover requirement;
-2. find exact orderable TCXO OPNs at Digi-Key/Mouser or equivalent authorized distributors;
-3. prefer standard catalogue frequencies and meaningful stock depth;
-4. check operating temperature and supply/output compatibility;
-5. verify ECP5 PLL legality;
-6. calculate fractional 930 kS/s scheduling resolution;
-7. evaluate EMI relationships to 77.5 kHz;
-8. choose the OPN/frequency only after the complete comparison.
-
-Stock numbers are dated observations, not permanent component properties. Re-check immediately before BOM release.
-
-## SiTime remains a preferred vendor, not a mandatory one
-
-SiTime Super-TCXO families are attractive because of stability under temperature/airflow/vibration and broad programmable-frequency offerings.
-
-A manufacturer example such as a 25 MHz SiT5346 configuration can provide around ±0.1 ppm class stability over an extended temperature range, but an example configuration is not automatically an acceptable BOM part.
-
-The actual selected part must also be available at the distributor and in the required voltage/package/temperature configuration.
-
-Other oscillator vendors remain valid if they satisfy the same electrical, lifecycle and sourcing requirements.
-
-## DCTCXO option
-
-Do not delete the possibility of DCTCXO experimentation.
-
-Where practical, a selected family/footprint may expose or reserve the extra control pins needed by a digitally tunable variant, but the reference board must work correctly with a fixed-frequency population.
-
-A DCTCXO becomes justified if measurements show a material advantage in one or more of:
-
-- long carrier-loss holdover;
-- PPS phase noise;
-- sample-timing jitter;
-- startup acquisition;
-- temperature transients.
-
-It should not be selected merely because its digital tuning resolution looks impressive on a data sheet.
-
-## Frequency-selection policy
-
-The clock frequency is no longer chosen for exact arithmetic with 77.5 kHz.
-
-The 24.18 MHz study had:
+The old arithmetic study used:
 
 ```text
 24.18 MHz = 312 * 77.5 kHz
 ```
 
-This produces beautiful integer ratios but also makes the board clock exactly harmonically related to the extremely weak wanted carrier.
+which made integer clock ratios attractive but also made the board clock exactly harmonically related to the extremely weak RF carrier.
 
-That relationship may increase deterministic self-interference risk.
-
-Therefore standard frequencies such as 10, 20, 24, 25, 26 MHz or other well-stocked catalogue values should be compared on availability and EMI before any custom value is requested.
-
-## Fractional sample scheduling is acceptable
-
-For a fixed TCXO system clock:
+The selected clock instead has:
 
 ```text
-f_sample = f_system * INC / 2^N
+25 MHz / 77.5 kHz ~= 322.580645...
 ```
 
-The existing 40-bit implementation already provides much finer numerical correction than the ~3 ppb step reported for Engeler's clock-correction mechanism.
+There is no exact integer relationship.
 
-The bounded event-grid timing quantization is acceptable as the current baseline and must be validated by measurement rather than eliminated at the cost of poor component sourcing.
+That is preferable for a weak-signal receiver because deterministic clock leakage is less likely to sit coherently on the wanted carrier simply by construction.
+
+## System-clock plan
+
+Reference digital clock plan:
+
+```text
+SiT5356 TCXO
+25 MHz
+   |
+   v
+ECP5 sysCLOCK PLL
+   |
+   v
+125 MHz nominal system clock
+```
+
+The final EHXPLLL divider/phase configuration must be generated and checked with the pinned ECP5 toolchain, but 25 MHz is the reference input frequency for all Rev.0 clock planning.
+
+The ECP5-45 device provides four general-purpose PLLs; the receiver reference build uses only the resources needed to stay inside the historical clock-manager policy.
+
+## ADC sample scheduler
+
+The ADC does not require a physical 930 kHz clock from the TCXO.
+
+At a 125 MHz system clock, the existing 40-bit fractional event scheduler produces the average target:
+
+```text
+Fs = 930,000 samples/s
+```
+
+Reference nominal accumulator increment:
+
+```text
+PHASE_BITS = 40
+INC_NOMINAL = 8,180,366,511
+```
+
+The ideal number of 125 MHz clocks per sample is:
+
+```text
+125,000,000 / 930,000
+= 134.4086021505...
+```
+
+so the scheduler naturally alternates bounded 134/135-clock sample intervals while maintaining the correct long-term average.
+
+The numerical increment quantization is far finer than the receiver's required frequency correction and is not the limiting timing error.
 
 Reference implementation:
 
@@ -135,43 +108,139 @@ Reference implementation:
 rtl/core/sample_scheduler.sv
 ```
 
-## Holdover behaviour
+## Digital DCF77 discipline
 
-When DCF77 carrier lock is lost:
+The physical TCXO remains fixed.
+
+The carrier-tracking loop estimates the local fractional frequency error and applies it to the digital time/sample scheduler:
+
+```text
+25 MHz fixed TCXO
+     |
+     v
+125 MHz fixed nominal clock
+     |
+     v
+fractional scheduler + digital frequency trim
+     |
+     +--> ADC CONV timing
+     +--> receiver second timebase
+     +--> PPS timebase
+```
+
+This follows the same broad philosophy as Engeler: the receiver estimates clock error from DCF77 and corrects its digital timebase rather than requiring an ovenized or physically steered local oscillator.
+
+## Holdover
+
+The TCXO specification gives a useful conservative bound before any learned correction is considered.
+
+For `100 ppb`:
+
+```text
+100 ns / second
+360 us / hour
+8.64 ms / day
+```
+
+When carrier lock is lost:
 
 1. freeze the last trusted digital frequency-correction estimate;
 2. continue from the fixed TCXO;
-3. increase a holdover-age/uncertainty metric;
+3. increase holdover age/uncertainty;
 4. keep PPS monotonic;
 5. reacquire carrier phase without an abrupt time jump;
 6. resume tracking only after confidence checks pass.
 
-This allows a good TCXO plus learned correction to provide substantially better holdover than an uncorrected inexpensive quartz oscillator.
+The actual holdover after prior DCF77 calibration can be materially better than the raw ±100 ppb worst-case number, but that improvement must be measured rather than assumed.
 
-## Decision gate before schematic freeze
+## Dedicated power rail
 
-Do not place the final oscillator OPN until these values are explicit:
-
-```text
-absolute synchronized PPS target
-required holdover duration
-allowed holdover time error
-board operating-temperature range
-acceptable supply rail(s)
-required logic output standard
-minimum distributor/factory stock depth
-maximum oscillator BOM cost
-acceptable package/footprint
-```
-
-Current baseline:
+The selected TCXO is powered only from:
 
 ```text
-fixed TCXO
-standard stocked frequency
-LVCMOS
-industrial temperature preferred
-~±100 ppb class target where availability/cost justify it
-DCF77 discipline performed digitally in ECP5
-DCTCXO optional for experiments
+5V_SYS
+  -> TPS7A20 3.3 V low-noise LDO
+  -> 3V3_CLK
+  -> SiT5356AI-FQ-33E0-25.000000
 ```
+
+Do not share the final clock regulator with the ADC.
+
+Clock output edge currents and ADC sampling currents should have separate local supply/return paths.
+
+## Output routing
+
+Use one dedicated ECP5 clock-capable input pin.
+
+Placement/routing rules:
+
+- TCXO and TPS7A20 form one compact timing island;
+- keep the 25 MHz trace short and referenced to continuous ground;
+- no 25 MHz trace under or adjacent to the integrated ferrite/input node;
+- no clock trace through the LTC1562/PGA region;
+- place a source-series damping footprint close to the TCXO output if required by the selected drive-strength configuration;
+- do not route the clock to unused connectors or test headers as a long stub.
+
+A local high-impedance test point may be included only if its stub is extremely short and accounted for in the layout.
+
+## Enable behavior
+
+The exact feature-pin strapping follows the selected SiTime ordering code and data sheet.
+
+Reference policy:
+
+```text
+TCXO enabled whenever 3V3_CLK is valid
+```
+
+The receiver should not repeatedly gate the master TCXO during normal operation.
+
+## DCTCXO status
+
+DCTCXO is now **experimental only**.
+
+The previously researched SiT5356 DCTCXO variants remain useful for a future comparison board because the package family is similar, but the reference receiver has no need for digital oscillator steering.
+
+A DCTCXO should only be promoted into the reference BOM if measured data shows a material improvement in:
+
+- long holdover;
+- PPS phase noise;
+- temperature transient recovery;
+- sample-timing quality;
+- or another system-level metric.
+
+## Validation gates
+
+The OPN and nominal frequency are fixed; measurements validate the design rather than choose a different frequency per board.
+
+Measure:
+
+1. 25 MHz frequency at room temperature before DCF77 correction;
+2. warm-up behavior after power-on;
+3. PPS drift during 1 h carrier-loss holdover;
+4. short-term phase noise/jitter contribution to ADC timing;
+5. conducted noise on `3V3_CLK`;
+6. ferrite spectrum with the TCXO enabled and disabled;
+7. 25 MHz / PLL-related spurs around 77.5 kHz;
+8. 125 MHz PLL lock/relock behavior across repeated power cycles.
+
+A failed EMI validation should be solved by placement, edge control, shielding/return geometry or clock-plan implementation before reopening the oscillator frequency itself.
+
+## Current reference clock chain
+
+```text
+SiT5356AI-FQ-33E0-25.000000
+25 MHz, 3.3 V, ±100 ppb
+  -> ECP5 PLL
+  -> 125 MHz nominal system clock
+  -> 40-bit fractional sample/time scheduler
+  -> DCF77 digital frequency correction
+  -> hardware PPS
+```
+
+## Sources
+
+- SiTime SiT5356 family/current ordering information.
+- Digi-Key September 2026 exact-OPN sourcing snapshot.
+- Lattice ECP5/ECP5-5G sysCLOCK PLL/DLL design guide.
+- Engeler DCF77 receiver paper archived in this repository.
