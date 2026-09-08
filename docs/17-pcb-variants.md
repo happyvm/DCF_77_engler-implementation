@@ -1,252 +1,215 @@
-# PCB variants: Raspberry Pi HAT+ and standalone USB-C
+# Raspberry Pi HAT+ receiver board
 
 ## Decision
 
-The receiver is built as two PCB variants sharing one receiver architecture:
+Rev.0 now has **one PCB only**: a Raspberry Pi Standard HAT+.
 
-1. **Raspberry Pi HAT+**;
-2. **standalone USB-C**.
+The previously planned standalone USB-C board has been removed from the project. USB-C power, Type-C CC logic, standalone eFuse, standalone 3.3 V buck and standalone-specific host/debug paths are no longer part of the reference design or BOM.
 
-The AFE, ADC, ECP5, clocking, display behavior, PPS generation and RTL remain common wherever practical.
+The receiver architecture is therefore:
 
 ```text
+Raspberry Pi HAT+
+    |
+    +--> PI_5V / PI_3V3 power
+    +--> SPI host/control
+    +--> optional PPS copy to Pi GPIO
+    |
+    v
 antenna -> AFE -> PGA -> ADC -> ECP5 -> timing/decoder
                                   |
                                   +-> fixed TCXO discipline
-                                  +-> LCD
-                                  +-> hardware PPS
-                                  +-> host/debug
+                                  +-> local 20x2 LCD
+                                  +-> dedicated external hardware PPS
 ```
-
-# Mandatory PPS and LCD
-
-Both variants expose a dedicated ECP5-generated hardware PPS. The rising edge is the metrology reference and must remain measurable independently of Linux or USB.
-
-Both variants use the same Rev.0 transflective 20x2 LCD. The display is never required for timing operation and its backlight is disabled during precision RF measurements.
-
-# Variant A — Raspberry Pi HAT+
 
 ## Standard
 
-Follow the current Raspberry Pi HAT+ specification, not the deprecated original HAT specification.
+Follow the current Raspberry Pi **HAT+** specification, not the deprecated original HAT specification.
 
-The board is a **Standard HAT+**. It consumes power from the Raspberry Pi and never sources power back into it.
+The board is a Standard HAT+:
 
-## HAT+ uses both Pi power rails
+- it consumes power from the Raspberry Pi;
+- it never sources 5 V or 3.3 V back into the Pi;
+- it reserves the HAT+ ID EEPROM pins;
+- it handles Raspberry Pi STANDBY correctly;
+- its runtime interface is intentionally narrow.
 
-Rev.0 deliberately consumes both header rails:
+## Power architecture
+
+Rev.0 deliberately consumes both Raspberry Pi header rails:
 
 ```text
-PI_5V  -> protected/gated path -> 5V_SYS
-PI_3V3 -> HAT digital rail     -> 3V3_D
+PI_5V  -> TPS22975NDSGR -> 5V_SYS
+PI_3V3 -> current-measure / 0R link -> 3V3_D
 ```
-
-This replaces the earlier all-from-5V HAT concept.
 
 ### PI_5V domain
 
-`PI_5V` powers the receiver functions that need local regulation or low-noise isolation:
-
 ```text
 PI_5V
+  -> TPS22975NDSGR
   -> 5V_SYS
-       -> filtered 5V_AFE
+       -> fixed 5V_AFE branch
        -> LT3042 -> 3V3_ADC_A
-       -> TPS7A20 -> 3V3_CLK
+       -> TPS7A2033 -> 3V3_CLK
        -> TPS628502 -> 1V1_CORE
        -> LCD backlight path
 ```
 
 ### PI_3V3 domain
 
-`PI_3V3` directly supplies the HAT digital 3.3 V domain:
-
 ```text
 PI_3V3
   -> current-measure / 0R link
   -> 3V3_D
-       -> ECP5 VCCIO / VCCIO8
+       -> ECP5 VCCIO banks / VCCIO8
        -> W25Q64JV configuration flash
        -> HAT+ ID EEPROM
        -> LCD logic
-       -> PPS / Pi-host I/O domain
-       -> controlled TPS7A20 -> 2V5_AUX
+       -> PPS / host-I/O domain
+       -> TPS7A2025 -> 2V5_AUX
 ```
 
-The HAT therefore does not need the standalone board's 3.3 V buck converter.
+`PI_3V3` is digital-only. It must not power the ADC, ADC driver, TCXO, AFE, ECP5 1.1 V core or LCD backlight.
 
-`PI_3V3` is digital-only and must not power the ADC, ADC driver, TCXO, AFE, ECP5 core or LCD backlight.
-
-Detailed policy: [`26-hat-power.md`](26-hat-power.md).
+See [`26-hat-power.md`](26-hat-power.md), [`19-power-tree.md`](19-power-tree.md) and [`28-power-passives-sequencing.md`](28-power-passives-sequencing.md).
 
 ## HAT+ STANDBY
 
-The HAT+ specification defines STANDBY with 5 V still present but 3.3 V absent.
+HAT+ STANDBY keeps Pi 5 V present while Pi 3.3 V is absent.
 
-Use `PI_3V3` presence as the HAT-active condition:
+Reference behavior:
 
 ```text
-PI_3V3 present -> 3V3_D valid -> enable 5V_SYS/local rails
-PI_3V3 absent  -> 3V3_D off   -> disable 5V_SYS/local rails
+PI_3V3 present -> 3V3_D valid -> TPS22975N ON -> 5V_SYS/local rails on
+PI_3V3 absent  -> 3V3_D off   -> TPS22975N off -> local receiver rails off
 ```
 
-No alternate source may back-power `3V3_D` while Pi 3.3 V is absent.
+No alternate source may back-power `3V3_D` while `PI_3V3` is absent.
 
-This naturally prevents ECP5/PPS/SPI outputs from driving an unpowered Raspberry Pi GPIO domain.
+## HAT ID EEPROM
 
-## HAT EEPROM
+Physical pins 27/28 remain dedicated to HAT identification:
 
-Reserve the HAT+ identification EEPROM on the dedicated ID pins and Pi 3.3 V domain. Keep identification traffic separate from receiver runtime SPI.
+```text
+27 = ID_SD
+28 = ID_SC
+```
+
+They connect only to the HAT ID EEPROM and are not routed through ECP5.
 
 ## Raspberry Pi host interface
 
-Preferred runtime interface:
+Reference runtime interface:
 
 ```text
-SPI host link
+SPI0 MOSI
+SPI0 MISO
+SPI0 SCLK
+SPI0 CE0
 IRQ / DATA_READY
-optional reset/control
+RESET/control
 PPS copy to Pi GPIO
 ```
 
-Raw ADC streaming is a diagnostic mode, not the normal host requirement.
+Exact mapping is frozen in [`27-ecp5-pin-plan-hat.md`](27-ecp5-pin-plan-hat.md) and `hardware/tscircuit/pin-plan.json`.
 
-The ECP5 pins connected to Raspberry Pi GPIO are assigned to a 3.3 V bank powered by `PI_3V3`.
+Raw ADC streaming remains a diagnostic mode rather than a normal host requirement.
 
-## HAT PI_3V3 current budget
+## Hardware PPS
 
-Do not assume unlimited header 3.3 V current.
-
-Provide a current-measure link and validate the real load for the supported Raspberry Pi models.
-
-The budget contains only:
-
-- ECP5 3.3 V I/O banks;
-- configuration flash;
-- HAT EEPROM;
-- LCD logic;
-- low-current host/PPS interface circuitry.
-
-The ADC, TCXO, AFE, FPGA core and LCD backlight are excluded.
-
-## HAT RF concerns
-
-The Raspberry Pi remains a difficult RF neighbor for a 77.5 kHz weak-signal receiver.
-
-Hard requirements:
-
-- ferrite at the board edge farthest from Pi digital/power circuitry;
-- no Pi/FPGA fast traces under the antenna/input cluster;
-- keep Pi digital return currents out of the analog region;
-- characterize CPU, USB, Ethernet and Wi-Fi activity;
-- preserve the option for a remote active antenna head in difficult installations.
-
-Using Pi 3.3 V removes one local 3.3 V switcher from the HAT, but it does not make the Raspberry Pi electrically quiet.
-
-# Variant B — standalone USB-C
-
-The standalone board remains a 5 V USB-C sink:
+The board provides one **dedicated external PPS** generated directly by the ECP5 disciplined timebase:
 
 ```text
-USB4105-GF-A
-  -> TUSB320LAIRWBR UFP/sink controller
-  -> TPS259470ARPWR eFuse
-  -> 5V_SYS
+DCF77 timing estimator
+      -> disciplined ECP5 timebase
+      -> PPS generator
+      -> dedicated output path
+      -> external PPS connector / test point
 ```
 
-No USB-PD is required.
+A secondary copy is routed to a Raspberry Pi GPIO for Linux/kernel PPS use. The external hardware PPS remains the metrology reference.
 
-Unlike the HAT, standalone generates its own digital 3.3 V rail:
-
-```text
-5V_SYS -> TPS628502 -> 3V3_D
-```
-
-Everything downstream of `3V3_D` remains functionally equivalent where practical.
-
-Standalone is the cleaner RF/metrology reference board.
-
-See [`25-standalone-usbc-power.md`](25-standalone-usbc-power.md).
-
-# Common power-domain comparison
-
-```text
-                          HAT+                 standalone
-
-5V_SYS source             Raspberry Pi 5 V    USB-C 5 V sink
-3V3_D source              Raspberry Pi 3.3 V  local TPS628502
-5V_AFE                    local filtered       local filtered
-3V3_ADC_A                 local LT3042         local LT3042
-3V3_CLK                   local TPS7A20        local TPS7A20
-1V1_CORE                  local TPS628502      local TPS628502
-2V5_AUX                   local LDO            local LDO
-```
-
-The sensitive analog/ADC/clock rails therefore remain locally generated on both boards even though the HAT uses Pi 3.3 V for its digital domain.
-
-# Hardware PPS
-
-Both boards provide:
-
-```text
-ECP5 disciplined timebase
-  -> deterministic PPS output path
-  -> external PPS connector/test point
-```
-
-The HAT additionally routes a secondary PPS copy to a Pi GPIO.
-
-Acceptance measurements compare:
+Acceptance measurement:
 
 ```text
 Delta t = PPS_DCF77 - PPS_GNSS
 ```
 
-with signal quality, lock state and temperature recorded.
+The fixed board delay is calibratable; variable delay/jitter is the timing error of interest.
 
-# Validation matrix
+## LCD
 
-| Test | HAT+ | standalone |
-|---|---:|---:|
-| analog noise floor | measure | measure |
-| 77.5 kHz self-spur | measure | measure |
-| carrier phase noise | measure | measure |
-| AM/PM decoding | same RTL | same RTL |
-| clock discipline | same RTL | same RTL |
-| PPS offset/jitter | measure | measure |
-| sensitivity | compare | baseline |
-| 3.3 V digital source noise | Pi rail | local buck |
-
-The difference in `3V3_D` source is deliberate and becomes part of the HAT-versus-standalone comparison.
-
-# tscircuit split
+Rev.0 keeps the local transflective 20x2 LCD:
 
 ```text
-hardware/tscircuit/src/
-  core/
-    receiver_core.tsx
-    afe.tsx
-    adc.tsx
-    ecp5.tsx
-    clock.tsx
-    pps.tsx
-    display.tsx
-    receiver_power.tsx
-  variants/
-    raspberry_pi_hatplus.tsx
-    standalone_usb_c.tsx
-  power/
-    hat_5v_input.tsx
-    usb_c_5v_input.tsx
-  host/
-    rpi_spi.tsx
-    usb_debug.tsx
+NHD-C0220BIZ-FSW-FBW-3V3M
+3.3 V I2C logic
+separately switched backlight
 ```
 
-The two boards preserve electrical function and RF intent rather than identical physical coordinates.
+The LCD is never required for timing operation. Backlight is OFF during precision RF measurements.
+
+## RF placement consequences
+
+The Raspberry Pi is the only host/power environment now considered, so HAT-specific EMI constraints are mandatory:
+
+- ferrite at the board edge farthest from Pi digital/power circuitry;
+- no Pi/FPGA fast traces beneath the antenna/input cluster;
+- Pi supply and host-current returns stay in the digital region;
+- TCXO, ADC and AFE keep their own local low-noise rails;
+- the 1.1 V core buck is kept far from ferrite/OPA810/LTC1562;
+- preserve the option for a remote active antenna head in difficult installations.
+
+## Validation
+
+Rev.0 validation is now HAT-only:
+
+| Test | Requirement |
+|---|---|
+| analog noise floor | measure on HAT |
+| 77.5 kHz self-spur | measure with Pi idle and loaded |
+| carrier phase noise | measure |
+| AM/PM decoding | regression + live reception |
+| clock discipline | validate with selected TCXO |
+| PPS offset/jitter | compare against GNSS |
+| Pi CPU/USB/Ethernet/Wi-Fi interference | characterize |
+| PI_3V3 current | measure |
+| HAT STANDBY | repeated power-cycle validation |
+
+There is no longer a standalone board used as a comparison baseline.
+
+## tscircuit structure
+
+The source tree is simplified to one board:
+
+```text
+hardware/tscircuit/
+  pin-plan.json
+  power-plan.json
+  src/
+    core/
+      receiver_core.tsx
+      afe.tsx
+      adc.tsx
+      ecp5.tsx
+      clock.tsx
+      pps.tsx
+      display.tsx
+      receiver_power.tsx
+    board/
+      raspberry_pi_hatplus.tsx
+      hatplus_constraints.ts
+      quilter.ts
+    host/
+      rpi_spi.tsx
+    power/
+      hat_5v_input.tsx
+```
 
 ## External specifications
 
-- Raspberry Pi HAT+ Specification, current revision.
-- Raspberry Pi GPIO/40-pin documentation.
-- USB Type-C sink requirements and selected controller/eFuse data sheets.
+- Raspberry Pi HAT+ Specification.
+- Raspberry Pi 40-pin GPIO documentation.
+- Lattice ECP5/ECP5-5G hardware/configuration documentation.
