@@ -1,295 +1,198 @@
-# SiTime Super-TCXO clock plan
+# Clock-source selection: precision, availability and frequency
 
-## Decision
+## Status
 
-The preferred clock source for the ECP5 rebuild is a **SiTime SiT5348 Super-TCXO in DCTCXO mode**, factory programmed to:
+No SiTime part number or custom frequency is frozen yet.
 
-```text
-24.180000 MHz
-3.3 V
-LVCMOS output
-±0.05 ppm stability class
-DCTCXO / I2C frequency control
-±6.25 ppm pull range initially preferred
-industrial or extended-industrial temperature grade
-```
+The previous `SiT5348 @ 24.180000 MHz` proposal is retained only as an arithmetic study. It is **not** the production choice, because the clock source must be selected from the combination of:
 
-The exact orderable OPN must be generated/validated with SiTime's part-number configurator before BOM release. Do not infer an OPN by hand in the production BOM.
+1. required final timing/holdover performance;
+2. real distributor availability of an exact orderable OPN;
+3. temperature range and supply/output compatibility;
+4. pull/control mechanism for DCF77 discipline;
+5. PLL legality and sample-clock implementation;
+6. EMI/self-interference risk;
+7. lifecycle and second-source strategy.
 
-The SiT5348 is currently a production device and supports arbitrary frequencies from 1 to 60 MHz, digital frequency tuning over I2C, and pull resolution down to approximately 5 ppt in the small pull-range modes.
+A mathematically convenient custom frequency is not sufficient justification by itself.
 
-## Why 24.180000 MHz instead of 25 MHz
+## Precision requirement comes first
 
-24.18 MHz has exact integer relationships to DCF77:
+Engeler reports a disciplined local-clock target around `0.1 ppm`, i.e. about `100 ppb`.
 
-```text
-DCF77 carrier       77.5 kHz
-ADC target          930 kS/s = 12 * 77.5 kHz
-TCXO                24.18 MHz = 26 * 930 kHz
-                                = 312 * 77.5 kHz
-```
+Useful free-run/holdover intuition:
 
-With the ECP5 PLL operated at x5:
+| Oscillator stability | worst-case time drift per second | worst-case drift per day |
+|---:|---:|---:|
+| ±500 ppb | ±500 ns/s | ±43.2 ms/day |
+| ±250 ppb | ±250 ns/s | ±21.6 ms/day |
+| ±100 ppb | ±100 ns/s | ±8.64 ms/day |
+| ±50 ppb | ±50 ns/s | ±4.32 ms/day |
+| ±20 ppb | ±20 ns/s | ±1.728 ms/day |
 
-```text
-24.18 MHz * 5 = 120.90 MHz
-```
+The final synchronized timing accuracy is not determined by the TCXO alone. It will also be limited by propagation, ferrite-antenna phase/group delay, analog-filter group delay, carrier phase estimation, calibration and receiver noise.
 
-and therefore:
+Therefore the current design rule is:
 
 ```text
-120.90 MHz / 130 = 930.000 kHz exactly
-120.90 MHz / 1560 = 77.500 kHz exactly
+baseline oscillator class: <= ±100 ppb
+preferred only if justified: ±50 ppb or better
 ```
 
-This eliminates the normal need for the fractional sample scheduler and its 8 ns event-grid quantisation.
+A ±100 ppb DCTCXO already matches the order of magnitude of Engeler's final disciplined-clock target. A ±50 ppb device is valuable mainly for better holdover and for a future tighter absolute-time target.
 
-## New preferred clock architecture
+## Distributor availability snapshot
+
+Availability must be checked again at BOM freeze; the following is only a dated engineering snapshot from Digi-Key on 2026-09-08.
+
+### Candidate A — 25 MHz, 3.3 V
 
 ```text
-SiT5348 DCTCXO @ 24.180000 MHz
-             |
-             +------------------------------+
-             |                              |
-             v                              v
-      ECP5 clock input                 I2C control
-             |                              ^
-             v                              |
-      fixed ECP5 PLL x5                     |
-             |                              |
-             v                              |
-         120.900 MHz                        |
-             |                              |
-             +--> /130 --> ADC sample_ce    |
-             |            930 kS/s          |
-             |                              |
-             +--> DSP / timing              |
-                                            |
-DCF77 carrier phase --> slow discipline ----+
+SiTime SiT5356AC-FQG33IT-25.000000
+DCTCXO
+25.000000 MHz
+3.3 V LVCMOS
+±100 ppb
+APR ±5.31 ppm
+-20 ... +70 °C
+Digi-Key: ~3502 factory stock at snapshot
 ```
-
-The DCF77 loop now changes the **physical reference oscillator frequency** through the SiT5348 digital control word. Because both the ECP5 system clock and ADC conversion timing come from the same oscillator, all integer DCF77 relationships remain intact while the oscillator is being disciplined.
-
-## Why DCTCXO instead of a fixed TCXO
-
-A fixed ±50 ppb Super-TCXO is already exceptionally good, but DCTCXO mode gives the receiver a clean hardware actuator for carrier discipline.
 
 Advantages:
 
-- no FPGA PLL reconfiguration;
-- no fractional ADC event scheduler in normal operation;
-- no per-sample timing dithering;
-- physical system clock follows the DCF77 carrier estimate;
-- extremely fine frequency-control resolution;
-- excellent holdover from the TCXO itself;
-- easy software/RTL loop control over I2C.
+- standard 25 MHz frequency;
+- 3.3 V LVCMOS;
+- useful narrow pull range;
+- direct fit with the existing 25 -> 125 MHz ECP5 clock study;
+- strong factory-stock depth at the snapshot.
 
-The old fractional scheduler remains useful as a fallback/test architecture and for boards populated with a generic fixed oscillator.
+Disadvantage: the exact stocked OPN found is not industrial-temperature grade.
 
-## SiT5348 capability relevant to this receiver
-
-Manufacturer documentation currently specifies:
-
-- frequency range: 1 to 60 MHz;
-- frequency stability option: ±50 ppb;
-- 2.5/2.8/3.0/3.3 V supply options;
-- LVCMOS or clipped-sine outputs;
-- 5.0 x 3.2 mm ceramic 10-pin package;
-- DCTCXO digital frequency control over I2C;
-- programmable pull ranges from ±6.25 ppm to very large ranges;
-- frequency-control resolution down to about 5 ppt for the small pull ranges;
-- strong dynamic-temperature behaviour;
-- very low acceleration sensitivity options.
-
-For this board the initial preference is **LVCMOS**, because it interfaces directly to the ECP5 clock input without a sine-to-logic conversion stage.
-
-## Pull range
-
-The smallest standard DCTCXO pull range, ±6.25 ppm, is already enormous relative to the ±0.05 ppm TCXO stability class and the ~0.1 ppm disciplined-clock target from Engeler.
-
-Use ±6.25 ppm unless hardware testing reveals a reason to need wider tuning.
-
-A small pull range is attractive because it keeps the finest digital tuning resolution.
-
-The DCF77 loop should never need to use most of this range during normal operation. Large corrections indicate an implementation, measurement, or clock-source problem and should be exposed as a diagnostic.
-
-## Frequency update dynamics
-
-The SiT5348 DCTCXO documentation gives frequency-control timing on the order of:
+### Candidate B — 26 MHz, 2.5 V
 
 ```text
-frequency-change delay    typ ~103 us, max ~140 us
-settling time             typ ~16.5 us, max ~20 us
+SiTime SiT5356AI-FQC25IE-26.000000
+DCTCXO
+26.000000 MHz
+2.5 V LVCMOS
+±100 ppb
+APR ±100 ppm
+-40 ... +85 °C
+Digi-Key: ~3502 factory stock at snapshot
 ```
 
-This is negligible for a DCF77 frequency-control loop updated once per second or more slowly.
+Advantages:
 
-Therefore the loop can safely:
+- industrial temperature range;
+- strong stock depth;
+- 26 MHz is a very common catalogue clock frequency;
+- ECP5 can use a convenient 130 MHz processing clock with a x5 plan if legal divider settings are confirmed.
 
-1. estimate carrier phase/frequency error;
-2. compute a new DCTCXO offset;
-3. write the I2C frequency-control word;
-4. wait for the next slow observation interval.
+Disadvantages:
 
-Do not update the oscillator at audio/high rates; the radio source itself only justifies a very slow discipline loop.
+- requires a clean 2.5 V oscillator rail;
+- pull range is much wider than required for DCF77 discipline.
 
-## I2C interface
+### Candidate C — 10 MHz, 3.3 V
 
-In DCTCXO mode, reserve the SiT5348 control pins in the FPGA interface:
+Example stocked ±100 ppb family member:
 
 ```text
-TCXO_SCL
-TCXO_SDA
-TCXO_A0       if address-select mode is used
-TCXO_OE       if the selected ordering option exposes OE
+SiTime SiT5356AE-FQ033JT-10.000000
+DCTCXO
+10.000000 MHz
+3.3 V LVCMOS
+±100 ppb
+APR ±5.31 ppm
+-40 ... +105 °C
+Digi-Key: ~6585 factory stock at snapshot
 ```
 
-Provide pull-ups to the selected digital rail according to the final datasheet configuration.
+Advantages:
 
-The clock-control block must support:
+- excellent distributor/factory-stock depth;
+- standard precision-reference frequency;
+- 3.3 V;
+- extended industrial temperature range;
+- narrow pull range suitable for discipline.
 
-- initial device presence/readback checks where supported;
-- writing the digital frequency-control word;
-- optional pull-range configuration if the selected OPN permits/runtime-requires it;
-- fault reporting if the I2C device is absent or stops acknowledging;
-- a zero-offset/default mode that leaves the TCXO at its factory nominal frequency.
+Disadvantage: 10 MHz places the ECP5 PLL phase-detector frequency near the lower end of the family specification in some clock plans, so the final PLL configuration must be checked carefully rather than assumed.
 
-## Exact integer timing at 120.9 MHz
+### Candidate D — 24.576 MHz, 3.3 V
 
-With nominal frequency:
+A Digi-Key-listed SiT5356 DCTCXO exists at 24.576 MHz and ±100 ppb, but only single-digit immediate stock was visible at the snapshot. This makes it a poor primary choice despite the familiar telecom/audio frequency.
 
-```text
-system clock             120,900,000 Hz
-ADC sample rate              930,000 Hz
-system clocks/sample               130
-samples/carrier cycle                 12
-system clocks/carrier              1,560
-system clocks/PRN chip          187,200
-samples/PRN chip                   1,440
-samples/second                    930,000
-system clocks/second          120,900,000
-```
+## Why SiT5348 is no longer the default
 
-This is a cleaner implementation basis than the previous 125 MHz + fractional sample-event scheme.
+The SiT5348 remains technically excellent and is still a valid candidate if the final timing/holdover requirement justifies it. Its ±50 ppb class, excellent dynamic behaviour and fine digital tuning are attractive.
 
-## ECP5 PLL operating point
+However:
 
-A candidate fixed PLL arrangement is:
+- the Endura part is a premium ruggedized component;
+- the previous 24.18 MHz proposal relied on custom programming rather than a deeply stocked catalogue OPN;
+- a stocked ±100 ppb SiT5356 DCTCXO already matches the order of magnitude of the receiver's current target;
+- distributor depth is part of the design requirement, not an afterthought.
 
-```text
-CLKI        = 24.180 MHz
-input divide = 1
-feedback multiplication = 5
-VCO / output-divider combination selected for legal ECP5 operation
-CLKOP       = 120.900 MHz
-```
+Therefore `SiT5348` is now an **upper-performance candidate**, not the default.
 
-The exact `EHXPLLL` divider parameters must be generated and validated with `ecppll`/Diamond against the ECP5 PLL legality rules. The architecture depends on the 24.18 -> 120.9 MHz relationship, not on hand-written primitive constants.
+## Frequency-selection policy
 
-## Discipline loop
+The clock frequency will be selected in this order:
 
-The carrier-phase estimator remains the error source.
+1. choose an exact stocked DCTCXO OPN meeting stability/temperature requirements;
+2. prefer standard catalogue frequencies with multiple distributor/factory-stock paths;
+3. verify ECP5 PLL legality and jitter;
+4. derive 930 kS/s with either an integer divider or the already-designed fractional scheduler;
+5. evaluate spectral relationships to 77.5 kHz and reject frequencies that create unacceptable receiver self-interference;
+6. only request a custom SiTime frequency if it provides a measured system benefit that outweighs sourcing risk.
 
-Preferred control model:
+## Important EMI correction to the 24.18 MHz idea
 
-```text
-carrier phase
-  -> unwrap
-  -> impulse rejection / hole punching
-  -> phase slope / frequency estimate
-  -> very slow PI/FLL or Engeler-like search
-  -> SiT5348 frequency offset word
-```
-
-Suggested states:
-
-### Free run / startup
-
-TCXO at nominal factory frequency. Even before DCF77 discipline, the ±50 ppb stability class is already inside the approximate ±0.1 ppm target reported for Engeler's disciplined clock.
-
-### Acquisition
-
-Use relatively short carrier averaging and estimate residual frequency error. Correction limits should be conservative; a Super-TCXO should not require tens of ppm correction.
-
-### Tracking
-
-After carrier lock, narrow the estimator bandwidth and apply tiny slow DCTCXO corrections.
-
-### Holdover
-
-Freeze the last trusted DCTCXO correction when DCF77 carrier confidence is lost. The Super-TCXO's intrinsic stability substantially improves holdover versus the low-cost quartz oscillator in the historical receiver.
-
-## Relationship to `sample_scheduler.sv`
-
-`rtl/core/sample_scheduler.sv` is **not deleted**.
-
-It remains useful for:
-
-- simulation of Engeler-like fractional correction;
-- generic XO prototype boards;
-- fallback if DCTCXO sourcing changes;
-- fault/recovery experiments;
-- comparison of fractional scheduling versus physically disciplined sampling.
-
-For the preferred SiT5348 board, however, the normal ADC scheduler becomes an exact integer `/130` enable generator.
-
-## EMI considerations
-
-The TCXO frequency was deliberately selected for arithmetic coherence, so it is itself harmonically related to DCF77:
+The 24.18 MHz study has the relation:
 
 ```text
 24.18 MHz = 312 * 77.5 kHz
 ```
 
-This is excellent mathematically but means clock leakage deserves serious board attention.
+That is attractive mathematically but potentially unattractive electromagnetically: the board clock is exactly harmonically related to the wanted carrier.
 
-Mandatory layout rules:
+For this weak-signal receiver, avoiding a deterministic clock/carrier relationship can be more valuable than eliminating a few nanoseconds of sample-scheduler quantization.
 
-- keep the TCXO and its 24.18 MHz trace far from the ferrite and input amplifier;
-- do not route the clock beneath the antenna or first analog stages;
-- keep the ECP5/TCXO region inside the digital partition;
-- use controlled edge rate/drive if the chosen SiTime output option permits it;
-- keep the clock trace short and avoid unnecessary stubs/test loops;
-- provide a test point only where it will not create a large radiating stub;
-- measure antenna spectra with TCXO/PLL/DSP activity enabled and disabled.
+This is another reason to prefer a normal stocked frequency such as 25 or 26 MHz unless measurements prove otherwise.
 
-If harmonic self-interference becomes measurable, clock shielding/layout and randomized FPGA processing remain valid mitigation tools.
+## Sample-clock consequence
 
-## Why SiT5348 rather than SiT5541 for Rev.0
+A standard stocked frequency does not prevent DCF77 discipline.
 
-The SiT5541 can provide even tighter ±10/±20 ppb stability, but uses a larger 7.0 x 5.0 mm package and is unnecessary for proving the Engeler receiver architecture.
-
-The SiT5348 already provides:
-
-- ±50 ppb stability;
-- digital frequency control;
-- 5.0 x 3.2 mm package;
-- arbitrary 24.18 MHz programming;
-- more than enough holdover performance for the initial receiver.
-
-The PCB should therefore target SiT5348 first. A future ultra-precision board may evaluate SiT5541 if absolute holdover becomes a project requirement.
-
-## Lifecycle policy
-
-Treat the oscillator as a specified function, but document the SiT5348 as the preferred implementation.
-
-Clock-source requirements are now:
+With a fixed NCO/sample scheduler:
 
 ```text
-nominal frequency     24.180000 MHz preferred
-stability             <= ±0.1 ppm; ±0.05 ppm preferred
-supply                3.3 V preferred
-output                LVCMOS preferred
-frequency control     digital/I2C strongly preferred
-pull range            >= ±1 ppm practical; ±6.25 ppm target
-package               compact SMD
-production lifecycle  active/production
+f_sample = f_system * INC / 2^N
 ```
 
-If SiT5348 becomes unavailable, a new DCTCXO can replace it provided the clock architecture and tuning API are adapted without changing the DCF77 DSP core.
+If a DCTCXO adjustment changes `f_system` by a small relative amount, the generated sample rate changes by the same relative amount. Therefore the DCTCXO can still be the physical frequency actuator while the fractional scheduler preserves the desired nominal 930 kS/s ratio.
 
-## Sources
+The existing portable module remains useful:
 
-- SiT5348 product page: https://www.sitime.com/products/ruggedized-timing/super-tcxos/sit5348
-- SiT5348 data sheet: https://www.sitime.com/datasheet/SiT5348
-- SiT5541 product page: https://www.sitime.com/products/ruggedized-timing/super-tcxos/sit5541
+```text
+rtl/core/sample_scheduler.sv
+```
+
+The normal design should therefore accept a few-nanosecond bounded scheduling quantization if that buys much better oscillator availability and EMI behaviour.
+
+## Decision gate before schematic freeze
+
+Do not place a final oscillator OPN in the production BOM until we have written down:
+
+```text
+absolute synchronized timing target
+required holdover duration
+allowed holdover time error
+board operating-temperature range
+required DCTCXO pull range
+acceptable supply rail(s)
+minimum distributor/factory stock depth
+maximum oscillator BOM cost
+```
+
+The likely baseline is currently **SiT5356 DCTCXO, ±100 ppb class, standard stocked frequency**, but exact frequency/OPN remains open.
