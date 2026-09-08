@@ -19,7 +19,10 @@ high-impedance low-noise input stage      [selection open]
 programmable gain                         [LTC6912]
         |
         v
-ADC driver                                [OPA2810 candidate]
+AC coupling / 1.25 V rebias
+        |
+        v
+OPA2835 dual ADC driver @ clean 3.3 V    [candidate]
         |
         v
 LTC1407AIMSE-1#PBF, 14 bit @ 930 kS/s    [selected Rev.0 ADC]
@@ -37,7 +40,35 @@ Lattice ECP5 LFE5U-45F / BG256
         +--> LCD
 ```
 
-The LTC1407A family is still `PRODUCTION`, so Rev.0 deliberately keeps an ADC very close to the historical receiver instead of replacing it without a measured benefit. See [`docs/18-adc-selection.md`](docs/18-adc-selection.md).
+The LTC1407A family is still `PRODUCTION`, so Rev.0 deliberately keeps an ADC very close to the historical receiver instead of replacing it without a measured benefit. The OPA2835 driver is a modern rebuild addition that allows the entire ADC island to run from a dedicated low-noise 3.3 V rail. See [`docs/18-adc-selection.md`](docs/18-adc-selection.md).
+
+## Shared Rev.0 power tree
+
+Both PCB variants converge on one `5V_SYS` boundary and then use the same downstream rails:
+
+```text
+5V_SYS
+  |
+  +--> filtered direct 5V_AFE
+  |      -> LTC1562 / LTC6912 / input stage
+  |
+  +--> LT3042 -> 3V3_ADC_A
+  |      -> LTC1407A-1 / OPA2835
+  |
+  +--> TPS7A20 -> 3V3_CLK
+  |      -> fixed TCXO
+  |
+  +--> TPS628502 -> 3V3_D
+  |      -> ECP5 I/O / flash / LCD logic
+  |      -> TPS7A20 -> 2V5_AUX
+  |
+  +--> TPS628502 -> 1V1_CORE
+         -> ECP5 core
+```
+
+Switching regulators are confined to the digital/power region. The AFE is fed from a low-loss passive branch and the ADC/clock each receive their own low-noise regulator. ECP5 startup is sequenced so the 3.3 V configuration bank/flash rail becomes valid before the remaining FPGA rails.
+
+See [`docs/19-power-tree.md`](docs/19-power-tree.md).
 
 ## Two PCB variants, one receiver core
 
@@ -62,7 +93,7 @@ See [`docs/17-pcb-variants.md`](docs/17-pcb-variants.md).
 
 The physical clock part and frequency are **not frozen yet**.
 
-Rev.0 baseline is now a **simple fixed TCXO**, not a mandatory DCTCXO. DCF77 discipline is implemented digitally in the ECP5/sample-time logic. A DCTCXO remains an optional experimental population if later holdover measurements justify it.
+Rev.0 baseline is a **simple fixed TCXO**, not a mandatory DCTCXO. DCF77 discipline is implemented digitally in the ECP5/sample-time logic. A DCTCXO remains an optional experimental population if later holdover measurements justify it.
 
 Clock selection is driven by:
 
@@ -159,7 +190,8 @@ Both variants also expose a **dedicated ECP5 hardware PPS**. The rising edge is 
 - [`docs/15-sitime-super-tcxo.md`](docs/15-sitime-super-tcxo.md) — clock-source precision/availability study.
 - [`docs/16-fpga-resource-budget.md`](docs/16-fpga-resource-budget.md) — XC3S1400AN-equivalent resource ceiling.
 - [`docs/17-pcb-variants.md`](docs/17-pcb-variants.md) — Raspberry Pi HAT+ and standalone USB-C variants.
-- [`docs/18-adc-selection.md`](docs/18-adc-selection.md) — Rev.0 LTC1407A-1 ADC and driver plan.
+- [`docs/18-adc-selection.md`](docs/18-adc-selection.md) — Rev.0 LTC1407A-1 ADC and OPA2835 driver plan.
+- [`docs/19-power-tree.md`](docs/19-power-tree.md) — Rev.0 low-noise power rails and ECP5 sequencing.
 - [`docs/references.md`](docs/references.md) — primary and manufacturer sources.
 
 ## Useful implementation files
@@ -177,6 +209,6 @@ Two rules govern the project:
 
 > Do not obtain that performance merely by spending substantially more FPGA resources than Engeler had available.
 
-A third practical rule now applies to component replacement:
+A third practical rule applies to component replacement:
 
 > Do not replace a historical component that is still production, well stocked and technically appropriate unless the replacement provides a measured system benefit.
