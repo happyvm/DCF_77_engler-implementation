@@ -11,12 +11,14 @@ BUILD_DIR ?= build
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
 	test-second-phase test-lock-controller test-qualification-disabled \
 	lint-pps-uart lint-goertzel lint-detector lint formal synth \
-	resource-check timing test-tools tool-versions clean
+	resource-check timing test-tools test-soft-history test-ml-controller \
+	tool-versions clean
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
-	test-second-phase test-lock-controller test-qualification-disabled test-tools
+	test-second-phase test-lock-controller test-qualification-disabled test-tools \
+	test-soft-history test-ml-controller
 
 test-adc-if: $(BUILD_DIR)/adc_if_tb.vvp
 	$(VVP) $<
@@ -153,6 +155,19 @@ $(BUILD_DIR)/hour_candidate_search_tb.vvp: \
 		rtl/ml_decoder/hour_candidate_search.sv sim/hour_candidate_search_tb.sv
 	mkdir -p $(BUILD_DIR)
 	$(IVERILOG) -g2012 -Wall -s hour_candidate_search_tb -o $@ $^
+
+test-soft-history: $(BUILD_DIR)/soft_history_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/soft_history_tb.vvp: rtl/ml_decoder/soft_history.sv sim/soft_history_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s soft_history_tb -o $@ $^
+
+test-ml-controller: $(BUILD_DIR)/ml_decoder_controller_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/ml_decoder_controller_tb.vvp: rtl/ml_decoder/dcf77_calendar_pkg.sv \
+		rtl/ml_decoder/ml_decoder_controller.sv sim/ml_decoder_controller_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s ml_decoder_controller_tb -o $@ $^
 
 test-lock-controller: $(BUILD_DIR)/receiver_lock_controller_tb.vvp
 	$(VVP) $<
