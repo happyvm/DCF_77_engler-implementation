@@ -20,6 +20,7 @@ Antenna R    330 kOhm damping, fixed
 Input buffer OPA810IDBVR
 BPF          LTC1562IG#PBF, fixed 77.5 kHz / 7.75 kHz design
 PGA          LTC6912IGN-1#PBF, gains 0/1/2/5/10/20/50/100
+TCXO         SiT5356AI-FQ-33E0-25.000000, 25 MHz, 3.3 V, ±100 ppb
 FPGA         Lattice ECP5 LFE5U-45F, BG256 preferred
 ADC          LTC1407AIMSE-1#PBF
 ADC rate     930 kS/s
@@ -36,14 +37,15 @@ Display      transflective 20x2 LCD on both PCB variants
 
 The integrated antenna and LTC1562 filter are intentionally **no-trim**. Component values are fixed from tolerance analysis and manufacturer reference designs; per-board passive selection is not part of the reference build.
 
-The PGA is also fixed at the hardware level. Gain is selected digitally by ECP5 from the LTC6912-1 table; no analog gain trim exists. The AGC controls ADC headroom and must not chase the deliberate DCF77 AM reduction.
+The PGA is fixed at the hardware level. Gain is selected digitally by ECP5 from the LTC6912-1 table; no analog gain trim exists. The AGC controls ADC headroom and must not chase the deliberate DCF77 AM reduction.
+
+The TCXO OPN and nominal frequency are now fixed at 25 MHz. DCF77 frequency discipline remains digital in the ECP5/sample scheduler; no DCTCXO control bus is required in the reference design.
 
 Still open before the complete `index.circuit.tsx` is frozen:
 
 - exact regulator OPN/package/passives after power simulation and sourcing re-check;
 - exact ECP5 speed/temperature OPN;
 - SPI configuration flash;
-- final fixed TCXO OPN/frequency;
 - exact LCD OPN/mechanical arrangement;
 - USB-C sink/power-path controller;
 - Raspberry Pi GPIO assignments.
@@ -53,6 +55,7 @@ Power details are in [`../../docs/19-power-tree.md`](../../docs/19-power-tree.md
 Antenna/input details are in [`../../docs/20-antenna-input.md`](../../docs/20-antenna-input.md).
 Fixed LTC1562 details are in [`../../docs/21-ltc1562-fixed-filter.md`](../../docs/21-ltc1562-fixed-filter.md).
 PGA details are in [`../../docs/22-ltc6912-pga.md`](../../docs/22-ltc6912-pga.md).
+Clock details are in [`../../docs/15-sitime-super-tcxo.md`](../../docs/15-sitime-super-tcxo.md).
 
 ## Planned structure
 
@@ -137,7 +140,7 @@ Current downstream architecture:
   |      -> LTC1407A-1 / OPA2835
   |
   +--> TPS7A20 -> 3V3_CLK
-  |      -> TCXO
+  |      -> SiT5356 fixed TCXO
   |
   +--> TPS628502 -> 3V3_D
   |      -> ECP5 VCCIO / flash / LCD logic
@@ -170,7 +173,7 @@ The following are not freely placed by Quilter:
 - LTC1562 and all fixed programming resistors;
 - LTC6912 and its AGND/input coupling parts;
 - ADC, LT3042, OPA2835 and the input RC network as a tight cluster;
-- TCXO and its dedicated LDO/clock escape direction;
+- SiT5356 TCXO and its dedicated TPS7A20/clock escape direction;
 - switcher hot loops and inductors;
 - mounting holes;
 - mechanically fixed board-edge connectors.
@@ -178,6 +181,8 @@ The following are not freely placed by Quilter:
 No fast clock, USB, SPI, ADC serial clock or buck switch node may run under or beside the integrated ferrite/input cluster. The unused Y/Z antenna windings remain open and must not acquire long PCB stubs.
 
 PGA SPI is sparse and low-rate; it must still be routed away from the ferrite and active-filter section nodes.
+
+The 25 MHz TCXO trace must remain short and must not cross the AFE/ferrite region.
 
 Analog, ADC, clock, FPGA, LCD, USB/debug and power blocks receive placement regions/keepouts so Quilter optimizes within the intended RF floorplan rather than inventing the floorplan itself.
 
@@ -203,25 +208,30 @@ The HAT+ and standalone boards have different interference environments, so thei
 - USB 2.0 data through the same connector is optional and independent of the receiver core;
 - retain JTAG, dedicated PPS and a debug/control interface so the board is useful without a Raspberry Pi.
 
-## Clock selection remains open
+## Clock selection
 
-No exact TCXO OPN or nominal clock frequency is frozen yet.
+Reference Rev.0 clock source:
 
-The baseline is a **simple fixed TCXO**, with DCF77 frequency correction retained in the ECP5/sample scheduler. DCTCXO population remains an experimental option only if measured holdover performance justifies the extra control dependency.
+```text
+SiT5356AI-FQ-33E0-25.000000
+25 MHz
+3.3 V LVCMOS
+±100 ppb
+-40...+85 degC
+```
 
-The TCXO receives its own low-noise `3V3_CLK` rail rather than sharing the ADC regulator.
+Reference plan:
 
-Selection is based on:
+```text
+25 MHz TCXO
+  -> ECP5 PLL
+  -> 125 MHz nominal system clock
+  -> 40-bit fractional sample/time scheduler
+  -> 930 kS/s average ADC cadence
+  -> digitally disciplined PPS
+```
 
-1. synchronized timing target and holdover requirement;
-2. exact orderable part availability at Digi-Key/Mouser;
-3. temperature range and supply compatibility;
-4. fixed-TCXO stability;
-5. ECP5 PLL/sample-clock implementation;
-6. measured/estimated EMI risk near 77.5 kHz;
-7. lifecycle and sourcing depth.
-
-See [`../../docs/15-sitime-super-tcxo.md`](../../docs/15-sitime-super-tcxo.md).
+DCTCXO remains an experimental option only. See [`../../docs/15-sitime-super-tcxo.md`](../../docs/15-sitime-super-tcxo.md).
 
 ## Antenna/input block
 
