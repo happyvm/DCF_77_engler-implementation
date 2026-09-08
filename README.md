@@ -12,19 +12,22 @@ The original paper is kept only as a source document under [`archive/papers/Enge
 - [`docs/02-receiver-architecture.md`](docs/02-receiver-architecture.md) — complete receiver data path and demonstration architecture.
 - [`docs/03-goertzel-detector.md`](docs/03-goertzel-detector.md) — Goertzel carrier/AM/PM detector, synchronisation and fixed-point implementation notes.
 - [`docs/04-time-decoder.md`](docs/04-time-decoder.md) — conventional BCD decoder and the ML decoder used by the demonstration receiver.
-- [`docs/05-clock-sync-noise.md`](docs/05-clock-sync-noise.md) — clock discipline, burst-noise rejection and clock-leakage mitigation.
+- [`docs/05-clock-sync-noise.md`](docs/05-clock-sync-noise.md) — Engeler clock discipline, burst-noise rejection and clock-leakage mitigation.
 - [`docs/06-hardware.md`](docs/06-hardware.md) — recovered hardware, part-number clarification and reconstruction status.
 - [`docs/07-performance-targets.md`](docs/07-performance-targets.md) — performance figures, sensitivity, timing and range targets.
 - [`docs/08-reconstruction-plan.md`](docs/08-reconstruction-plan.md) — staged plan to rebuild and validate the receiver.
 - [`docs/09-gaps-and-open-questions.md`](docs/09-gaps-and-open-questions.md) — remaining unknowns, with resolved items separated from genuine gaps.
 - [`docs/10-dcf77-pm-prn.md`](docs/10-dcf77-pm-prn.md) — exact PTB PRN/PZF generator, timing and PM minute marker.
 - [`docs/11-analog-reference-design.md`](docs/11-analog-reference-design.md) — first buildable analog front-end proposal and BOM.
-- [`docs/12-ecp5-migration.md`](docs/12-ecp5-migration.md) — ECP5 target, resources, clocking, configuration, power and HDL-portability plan.
+- [`docs/12-ecp5-migration.md`](docs/12-ecp5-migration.md) — ECP5 target, resources, configuration, power and HDL-portability plan.
+- [`docs/13-ecp5-clock-discipline.md`](docs/13-ecp5-clock-discipline.md) — fixed ECP5 PLL, fractional 930 kS/s scheduler and carrier-discipline architecture.
 - [`docs/references.md`](docs/references.md) — Engeler, PTB and manufacturer sources.
 
-Useful implementation tool:
+Useful implementation files:
 
 - [`tools/dcf77_prn.py`](tools/dcf77_prn.py) — executable 512-chip DCF77 PM sequence generator with verification invariants.
+- [`tools/clock_plan.py`](tools/clock_plan.py) — reproduces sample-accumulator, ppm-resolution and jitter-budget calculations.
+- [`rtl/core/sample_scheduler.sv`](rtl/core/sample_scheduler.sv) — portable fractional ADC conversion scheduler; no FPGA-vendor primitives.
 
 ## Demonstration receiver in one diagram
 
@@ -58,6 +61,36 @@ no SERDES required
 
 The 45F gives comfortable margin for the Goertzel paths, PRN correlator, debug instrumentation and ML decoder. The board and HDL should preserve a possible LFE5U-25F population where pin/resource usage permits. See [`docs/12-ecp5-migration.md`](docs/12-ecp5-migration.md).
 
+## Rebuild clock architecture
+
+The ECP5 PLL stays fixed. DCF77 disciplines the **ADC conversion scheduler**, not the FPGA PLL:
+
+```text
+25.000 MHz standard LVCMOS XO
+          |
+          v
+ECP5 PLL -> 125.000 MHz fixed FPGA clock
+                         |
+                         v
+                  40-bit phase accumulator
+                         |
+                         +--> ADC CONV/sample_ce
+                              average 930 kS/s
+                              trim controlled by carrier phase
+```
+
+Current numerical design point:
+
+```text
+phase width        40 bits
+nominal increment  8,180,366,511
+numerical error    about +0.000042 ppm
+trim resolution    about 0.000122 ppm / increment LSB
+system-clock grid  8 ns
+```
+
+This preserves Engeler's occasional-clock-correction principle without runtime PLL reconfiguration. Full reasoning and verification requirements are in [`docs/13-ecp5-clock-discipline.md`](docs/13-ecp5-clock-discipline.md).
+
 ## Key target values
 
 | Item | Target / implementation value |
@@ -67,6 +100,9 @@ The 45F gives comfortable margin for the Goertzel paths, PRN correlator, debug i
 | ADC | LTC1407 family, 14-bit A variant in the historical receiver |
 | historical FPGA | Xilinx XC3S1400AN |
 | rebuild FPGA | Lattice ECP5 LFE5U-45F, BG256 preferred |
+| rebuild FPGA reference XO | standard 25 MHz LVCMOS, exact OPN not frozen |
+| rebuild FPGA system clock | 125 MHz fixed PLL output |
+| sample scheduler | 40-bit fractional accumulator |
 | ML history | 3600 s |
 | Goertzel AM 3 dB bandwidth | ~15 Hz |
 | Goertzel PM 3 dB bandwidth | ~930 Hz |
@@ -92,7 +128,9 @@ The 45F gives comfortable margin for the Goertzel paths, PRN correlator, debug i
 - first LTC1562 77.5 kHz resistor set derived from the manufacturer's 8th-order band-pass application;
 - 14-bit LTC1407 family ambiguity narrowed to an `A` variant;
 - first analog prototype architecture and bring-up procedure documented;
-- ECP5 selected as the rebuild FPGA family, with LFE5U-45F/BG256 as the current Rev.0 target.
+- ECP5 selected as the rebuild FPGA family, with LFE5U-45F/BG256 as the current Rev.0 target;
+- fixed 25 MHz -> 125 MHz ECP5 clock strategy selected;
+- 40-bit fractional 930 kS/s scheduler designed and first portable RTL added.
 
 ### Still to recover or choose
 
@@ -101,8 +139,9 @@ The 45F gives comfortable margin for the Goertzel paths, PRN correlator, debug i
 - original LTC1562 resistor values versus final sustainable filter implementation;
 - LTC6912 suffix or replacement PGA;
 - final ADC choice and driver;
-- reference oscillator and ECP5 clock-discipline implementation;
+- exact lifecycle-safe 25 MHz oscillator OPN(s);
 - SPI configuration flash and FPGA power-tree parts;
+- carrier-discipline loop coefficients and confidence thresholds;
 - original PCB/Gerbers and connector details;
 - fixed-point constants and final ECP5 resource mapping.
 
@@ -156,9 +195,10 @@ Run:
 
 ```bash
 python3 tools/dcf77_prn.py --verify
+python3 tools/clock_plan.py
 ```
 
-to generate and sanity-check the reference sequence before implementing it in HDL.
+to sanity-check both the PM sequence and the current clock plan before implementing/altering the HDL.
 
 ## Reconstruction policy
 
@@ -172,7 +212,7 @@ The paper is an architecture/performance paper, **not a complete construction do
 
 The goal is to produce a receiver that can actually be rebuilt without silently presenting guessed circuitry as historical fact.
 
-A second rule now applies to obsolete silicon: **reproduce the behaviour and measured performance of the Engeler receiver, not the lifecycle problems of its 2012 BOM**.
+A second rule applies to obsolete silicon: **reproduce the behaviour and measured performance of the Engeler receiver, not the lifecycle problems of its 2012 BOM**.
 
 ## Recommended project strategy
 
@@ -180,13 +220,13 @@ Rebuild the system incrementally:
 
 1. characterize/tune the ferrite antenna;
 2. validate the input stage and analog band-pass with a signal generator;
-3. bring up ECP5 configuration, clocking and ADC capture;
-4. capture clean 930 kS/s raw ADC data;
+3. bring up ECP5 configuration and fixed 125 MHz clocking;
+4. validate the fractional 930 kS/s scheduler and capture clean raw ADC data;
 5. implement AM/carrier phase detection;
-6. validate the 512-chip PM correlator;
-7. implement second/minute synchronisation;
-8. add the ML time decoder;
-9. add clock discipline;
+6. close the carrier-based sample-clock discipline loop;
+7. validate the 512-chip PM correlator;
+8. implement second/minute synchronisation;
+9. add the ML time decoder;
 10. measure self-interference and final timing performance.
 
 Raw ADC recordings should be retained as regression data so later DSP revisions can be tested without changing the RF environment.
