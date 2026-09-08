@@ -1,0 +1,111 @@
+{
+  "device": "LFE5U-45F-7BG256I",
+  "package": "BG256",
+  "iovoltage_policy": {
+    "VCCIO0": "3V3_D",
+    "VCCIO1": "3V3_D",
+    "VCCIO2": "3V3_D",
+    "VCCIO3": "3V3_D",
+    "VCCIO6": "3V3_D",
+    "VCCIO7": "3V3_D",
+    "VCCIO8": "3V3_D"
+  },
+  "power_pins": {
+    "VCC": ["G6", "G7", "G9", "L8", "L9", "L10"],
+    "VCCAUX": ["G11", "L7"],
+    "VCCIO0": ["F6", "F7"],
+    "VCCIO1": ["F10", "F11"],
+    "VCCIO2": ["H11", "J11"],
+    "VCCIO3": ["K11", "L11"],
+    "VCCIO6": ["J6", "J7"],
+    "VCCIO7": ["H6", "H7"],
+    "VCCIO8": ["L6"]
+  },
+  "bank_roles": {
+    "0": "spare / standalone low-rate control",
+    "1": "25 MHz TCXO + Raspberry Pi HAT+ host interface",
+    "2": "LTC1407A ADC + LTC6912 PGA control",
+    "3": "reference PPS + LCD + diagnostics",
+    "6": "reserved/quiet near AFE",
+    "7": "reserved/quiet near AFE",
+    "8": "sysCONFIG/JTAG"
+  },
+  "common_signals": {
+    "CLK_25M": {"ball": "C9", "bank": 1, "pin_name": "PT47B/GR_PCLK1_1", "dir": "in"},
+    "ADC_SCK": {"ball": "J16", "bank": 2, "pin_name": "PR32A/PCLKT2_1", "dir": "out"},
+    "ADC_SDO": {"ball": "J15", "bank": 2, "pin_name": "PR32B/PCLKC2_1", "dir": "in"},
+    "ADC_CONV": {"ball": "K16", "bank": 2, "pin_name": "PR32C/PCLKT2_0", "dir": "out"},
+    "PGA_SCK": {"ball": "H12", "bank": 2, "pin_name": "PR26A", "dir": "out"},
+    "PGA_MOSI": {"ball": "H13", "bank": 2, "pin_name": "PR26B", "dir": "out"},
+    "PGA_CS_N": {"ball": "J12", "bank": 2, "pin_name": "PR26D", "dir": "out"},
+    "PPS_REF": {"ball": "R12", "bank": 3, "pin_name": "PR65A", "dir": "out"},
+    "LCD_SCL": {"ball": "M13", "bank": 3, "pin_name": "PR44C", "dir": "bidir_open_drain"},
+    "LCD_SDA": {"ball": "N14", "bank": 3, "pin_name": "PR44D", "dir": "bidir_open_drain"},
+    "LCD_RST_N": {"ball": "M14", "bank": 3, "pin_name": "PR41D", "dir": "out"},
+    "LCD_BL_EN": {"ball": "R13", "bank": 3, "pin_name": "PR62C", "dir": "out"}
+  },
+  "hatplus": {
+    "power": {
+      "physical_1": "PI_3V3",
+      "physical_17": "PI_3V3",
+      "physical_2": "PI_5V",
+      "physical_4": "PI_5V"
+    },
+    "host_signals": {
+      "HAT_SPI_MOSI": {"pi_gpio": 10, "pi_physical": 19, "ball": "A10", "bank": 1, "pin_name": "PT51B", "dir": "pi_to_ecp5"},
+      "HAT_SPI_MISO": {"pi_gpio": 9, "pi_physical": 21, "ball": "D11", "bank": 1, "pin_name": "PT69A", "dir": "ecp5_to_pi"},
+      "HAT_SPI_SCLK": {"pi_gpio": 11, "pi_physical": 23, "ball": "A9", "bank": 1, "pin_name": "PT51A", "dir": "pi_to_ecp5"},
+      "HAT_SPI_CS_N": {"pi_gpio": 8, "pi_physical": 24, "ball": "E11", "bank": 1, "pin_name": "PT69B", "dir": "pi_to_ecp5"},
+      "HAT_IRQ": {"pi_gpio": 25, "pi_physical": 22, "ball": "C12", "bank": 1, "pin_name": "PT74B", "dir": "ecp5_to_pi"},
+      "HAT_RESET_N": {"pi_gpio": 24, "pi_physical": 18, "ball": "B12", "bank": 1, "pin_name": "PT74A", "dir": "pi_to_ecp5"},
+      "HAT_PPS": {"pi_gpio": 4, "pi_physical": 7, "ball": "A11", "bank": 1, "pin_name": "PT71A", "dir": "ecp5_to_pi"}
+    },
+    "id_eeprom": {
+      "class": "Standard HAT+",
+      "i2c_address": "0x50",
+      "recommended_family": "CAT24C32-compatible",
+      "ID_SD": {"pi_gpio": 0, "pi_physical": 27},
+      "ID_SC": {"pi_gpio": 1, "pi_physical": 28},
+      "bus_pullup_ohm": 3900,
+      "wp_pullup_ohm": 1000,
+      "connect_to_ecp5": false
+    }
+  },
+  "bank8_sysconfig": {
+    "D7_IO7": "T6",
+    "D6_IO6": "R6",
+    "D5_IO5": "R7",
+    "D4_IO4": "P7",
+    "D3_IO3": "N7",
+    "D2_IO2": "M7",
+    "D1_MISO": "T7",
+    "D0_MOSI": "T8",
+    "CSN": "R8",
+    "CS1N": "P8",
+    "CSSPIN": "N8",
+    "DOUT_CSON": "M8",
+    "WRITEN": "M9",
+    "MCLK": "N9",
+    "INITN": "T9",
+    "PROGRAMN": "R9",
+    "DONE": "P9",
+    "CFG1": "P10",
+    "CFG2": "R10",
+    "CFG0": "N10",
+    "TDO": "M10",
+    "TCK": "T10",
+    "TDI": "R11",
+    "TMS": "T11"
+  },
+  "master_spi_flash": {
+    "FLASH_CS_N": {"ecp5_ball": "N8", "function": "CSSPIN"},
+    "FLASH_CLK": {"ecp5_ball": "N9", "function": "MCLK"},
+    "FLASH_MOSI": {"ecp5_ball": "T8", "function": "D0/MOSI"},
+    "FLASH_MISO": {"ecp5_ball": "T7", "function": "D1/MISO"}
+  },
+  "reserved": {
+    "external_clock_optional": {"ball": "B9", "bank": 1, "pin_name": "PT47A/GR_PCLK1_0"},
+    "adc_cluster_spare": {"ball": "K15", "bank": 2, "pin_name": "PR32D/PCLKC2_0"}
+  },
+  "source_policy": "Check this file against current Lattice FPGA-SC-02034 and the current Raspberry Pi HAT+ specification before fabrication."
+}
