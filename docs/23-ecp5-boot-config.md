@@ -14,7 +14,9 @@ speed grade -7
 
 The physical 45F gives development headroom, but `release_reference` remains constrained by `rtl/resource_budget.json` to the historical XC3S1400AN resource envelope.
 
-The complete user-I/O pin allocation is now frozen separately in [`27-ecp5-pin-plan-hat.md`](27-ecp5-pin-plan-hat.md) and mirrored in `hardware/tscircuit/pin-plan.json`.
+The board is now Raspberry Pi HAT+ only. There is no standalone USB-C configuration/power variant.
+
+The complete user-I/O allocation is frozen in [`27-ecp5-pin-plan-hat.md`](27-ecp5-pin-plan-hat.md) and mirrored in `hardware/tscircuit/pin-plan.json`.
 
 ## Configuration flash
 
@@ -32,19 +34,15 @@ SOIC-8 208 mil
 
 ## Boot mode
 
-Reference boot:
-
 ```text
 ECP5 Master SPI
 single-bit serial mode
 CFGMDN[2:0] = 010
 ```
 
-Quad-SPI is not required for Rev.0. Configuration time is not performance-critical for a DCF77 receiver, while serial Master SPI is simpler and easier to recover/debug.
+Quad-SPI is not required for Rev.0.
 
 ## Exact BG256 Bank-8 ball map
-
-For `LFE5U-45F-7BG256I`:
 
 ```text
 D7/IO7                    T6
@@ -74,11 +72,9 @@ TMS                       T11
 VCCIO8                    L6
 ```
 
-These names/balls are checked against the exact-device BG256 pin map. The tscircuit symbol must still be compared mechanically against the current Lattice `FPGA-SC-02034` CSV before fabrication.
+These names/balls must be checked against the current Lattice `FPGA-SC-02034` source before fabrication.
 
 ## Single-bit Master-SPI wiring
-
-Reference connection:
 
 ```text
 ECP5 N8  CSSPIN   ------> W25Q64 /CS
@@ -87,14 +83,14 @@ ECP5 T8  D0/MOSI  ------> W25Q64 DI / IO0
 ECP5 T7  D1/MISO  <------ W25Q64 DO / IO1
 ```
 
-Flash-side pins not used for serial boot:
+Flash-side unused serial pins:
 
 ```text
 W25Q64 /WP   -> 10 kOhm pull-up to 3V3_D
 W25Q64 /HOLD -> 10 kOhm pull-up to 3V3_D
 ```
 
-ECP5 Master-SPI pull policy from the current Lattice sysCONFIG guidance:
+ECP5 Master-SPI pulls:
 
 ```text
 MOSI T8   -> 10 kOhm pull-up to VCCIO8
@@ -103,13 +99,9 @@ CSSPIN N8 -> 4.7 kOhm pull-up to VCCIO8
 MCLK N9   -> 1 kOhm pull-up to VCCIO8
 ```
 
-`D2/D3` are not required for the single-bit reference path and are not routed to the flash in Rev.0.
+`D2/D3` are not required for the reference boot path.
 
-`DOUT/CSON` is not required to boot a single FPGA from the local flash; keep it available only as required by the final symbol/configuration rules and do not create a long unused trace.
-
-## Configuration mode straps
-
-Hard strap Master SPI:
+## Configuration straps
 
 ```text
 CFG2 R10 -> GND
@@ -117,11 +109,9 @@ CFG1 P10 -> 4.7 kOhm -> VCCIO8
 CFG0 N10 -> GND
 ```
 
-There is no user DIP switch for configuration mode.
+There is no user configuration-mode switch.
 
-## Configuration control/status
-
-Use:
+## Configuration status/control
 
 ```text
 PROGRAMN R9 -> 4.7 kOhm pull-up to VCCIO8
@@ -129,17 +119,11 @@ INITN    T9 -> 4.7 kOhm pull-up to VCCIO8
 DONE     P9 -> 4.7 kOhm pull-up to VCCIO8
 ```
 
-Expose `PROGRAMN`, `INITN` and `DONE` as probe-accessible test points.
-
-Provide a local pushbutton or test pad capable of asserting `PROGRAMN` low. Any host-controlled reset/reconfigure transistor must be open-drain/open-collector.
-
-`DONE` is the definitive configuration-complete indication; do not substitute an arbitrary startup delay.
+Expose `PROGRAMN`, `INITN` and `DONE` as test points. Provide a manual pad/button capable of asserting `PROGRAMN` low. Any host reset path must be open-drain/open-collector.
 
 ## JTAG recovery
 
-JTAG remains mandatory on both PCB variants.
-
-Exact balls:
+JTAG is mandatory on the HAT+ even though normal boot is from SPI flash.
 
 ```text
 TDO M10
@@ -157,56 +141,40 @@ TDO -> 4.7 kOhm pull-up to VCCIO8
 TCK -> 4.7 kOhm pull-down to GND
 ```
 
-Expose:
-
-```text
-TCK
-TMS
-TDI
-TDO
-VCCIO8 reference
-GND
-PROGRAMN preferred
-```
-
-on the same keyed debug/Tag-Connect-compatible interface for both boards.
+Expose `TCK`, `TMS`, `TDI`, `TDO`, `3V3_D` reference, GND and preferably `PROGRAMN` on a keyed debug/Tag-Connect-compatible interface.
 
 ## Bank-8 power source
 
 ```text
-VCCIO8 = 3V3_D
+VCCIO8 = 3V3_D = PI_3V3
 ```
 
-Source differs by variant:
-
-```text
-standalone: 5V_SYS -> local 3.3 V buck -> 3V3_D
-HAT+:       PI_3V3 --------------------> 3V3_D
-```
-
-The W25Q64 and configuration pull-ups use the same rail, so no level translation exists inside the boot island.
+The W25Q64 and all configuration pull-ups share this Pi-supplied 3.3 V digital domain. No level translation is required.
 
 ## Power sequencing
 
-Reference sequence:
+Reference HAT sequence:
 
 ```text
-3V3_D valid first
-   -> VCCIO8 valid
+PI_3V3 valid first
+   -> 3V3_D / VCCIO8 valid
    -> W25Q64 valid
    -> configuration pulls valid
-   -> enable 1V1_CORE and 2V5_AUX
-   -> ECP5 POR completes
+   -> 2V5_AUX starts
+   -> PI_3V3 enables TPS22975N
+   -> 5V_SYS rises
+   -> 1V1_CORE starts
+   -> ECP5 internal POR completes
    -> Master SPI boot
 ```
 
-On the HAT+, `3V3_D` is Pi 3.3 V and naturally disappears in HAT+ STANDBY. The remaining local receiver rails are disabled when Pi 3.3 V is absent, preventing GPIO back-powering.
+In HAT+ STANDBY, Pi 3.3 V disappears and the local 5 V receiver path is also switched off, preventing GPIO back-powering.
 
 All ECP5 rails must ramp monotonically.
 
 ## Dual-boot policy
 
-Reference flash-map concept:
+Reference flash map concept:
 
 ```text
 low address      golden/recovery image
@@ -214,11 +182,7 @@ next region      release/update image
 remaining space  reserved
 ```
 
-The first manufactured boards may initially program only one image while update/recovery logic is verified.
-
-Normal field updates must never erase the golden image.
-
-Both golden and release receiver builds remain subject to their appropriate FPGA resource profile; extra flash capacity does not relax the historical runtime resource budget.
+Normal field updates must never erase the golden image. Both images remain subject to the appropriate FPGA resource profile.
 
 ## Placement constraints
 
@@ -228,7 +192,7 @@ Hard rules:
 
 - flash adjacent to Bank 8;
 - `MCLK/CSSPIN/MOSI/MISO` short and local;
-- no configuration clock route toward the ferrite/OPA810/LTC1562 region;
+- no configuration clock route toward ferrite/OPA810/LTC1562;
 - JTAG footprint reachable from board edge;
 - `PROGRAMN/INITN/DONE` probe-accessible;
 - no decorative routing on unused Bank-8 configuration pins.
