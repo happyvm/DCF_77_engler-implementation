@@ -16,11 +16,11 @@ TDK B82453C0275A000 ferrite, X winding
 OPA810 FET-input buffer @ 5V_AFE
         |
         v
-LTC1562 77.5 kHz analog band-pass
+LTC1562IG#PBF fixed 77.5 kHz / ~7.75 kHz BPF
         |
         v
-LTC6912 programmable gain
-        |
+LTC6912IGN-1#PBF programmable gain
+        |  1 / 2 / 5 / 10 / 20 / 50 / 100
         v
 AC coupling / 1.25 V rebias
         |
@@ -43,7 +43,9 @@ Lattice ECP5 LFE5U-45F / BG256
         +--> LCD
 ```
 
-The integrated antenna network is intentionally **no-trim**. Fixed values are chosen so 77.5 kHz remains inside the useful antenna passband across the main L/C/input-capacitance tolerances; per-board capacitor selection is not part of the reference build. See [`docs/20-antenna-input.md`](docs/20-antenna-input.md).
+The integrated antenna and LTC1562 filter are intentionally **no-trim**. Fixed values are chosen so production boards do not require hand-selected R/C values. See [`docs/20-antenna-input.md`](docs/20-antenna-input.md) and [`docs/21-ltc1562-fixed-filter.md`](docs/21-ltc1562-fixed-filter.md).
+
+The PGA is now frozen as the `LTC6912-1` gain law. Its AGC manages ADC headroom and deliberately does not chase the DCF77 100/200 ms AM reduction. Gain updates after synchronization are scheduled in the short tail after the PM sequence, around 995 ms after the second boundary. See [`docs/22-ltc6912-pga.md`](docs/22-ltc6912-pga.md).
 
 The LTC1407A family is still `PRODUCTION`, so Rev.0 deliberately keeps an ADC very close to the historical receiver instead of replacing it without a measured benefit. See [`docs/18-adc-selection.md`](docs/18-adc-selection.md).
 
@@ -145,7 +147,7 @@ tscircuit
   -> Gerbers/fabrication
 ```
 
-Quilter is the selected placement/routing engine, but it does not get unrestricted authority over the ferrite/input network, switcher zones, clock zones or mechanically fixed parts.
+Quilter is the selected placement/routing engine, but it does not get unrestricted authority over the ferrite/input network, active-filter/PGA region, switcher zones, clock zones or mechanically fixed parts.
 
 Hardware workspace:
 
@@ -188,6 +190,8 @@ Both variants expose a **dedicated ECP5 hardware PPS**. The rising edge is the t
 - [`docs/18-adc-selection.md`](docs/18-adc-selection.md) — Rev.0 LTC1407A-1 ADC and OPA2835 driver plan.
 - [`docs/19-power-tree.md`](docs/19-power-tree.md) — Rev.0 low-noise power rails and ECP5 sequencing.
 - [`docs/20-antenna-input.md`](docs/20-antenna-input.md) — fixed no-trim TDK ferrite and OPA810 input network.
+- [`docs/21-ltc1562-fixed-filter.md`](docs/21-ltc1562-fixed-filter.md) — fixed no-trim 77.5 kHz LTC1562 band-pass.
+- [`docs/22-ltc6912-pga.md`](docs/22-ltc6912-pga.md) — fixed LTC6912-1 PGA, SPI and AGC policy.
 - [`docs/references.md`](docs/references.md) — primary and manufacturer sources.
 
 ## Reconstruction policy
@@ -198,6 +202,4 @@ Both variants expose a **dedicated ECP5 hardware PPS**. The rising edge is the t
 
 > Do not replace a historical component that is still production, well stocked and technically appropriate unless the replacement provides a measured system benefit.
 
-For the integrated Rev.0 antenna, another practical rule applies:
-
-> Reference hardware must not require per-unit antenna tuning or hand-selected R/C values.
+> Reference hardware must not require per-unit antenna/filter tuning or hand-selected R/C values.
