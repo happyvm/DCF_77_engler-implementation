@@ -1,17 +1,18 @@
 {
   "revision": "rev0",
+  "board": "raspberry_pi_hatplus",
   "policy": {
     "analog_no_trim": true,
     "power_passives_no_per_unit_selection": true,
     "switchers_confined_to_digital_power_region": true,
     "reference_switcher_mode": "forced_pwm",
-    "spread_spectrum_default": false
+    "spread_spectrum_default": false,
+    "usb_variant_present": false
   },
   "rails": {
     "5V_SYS": {
       "nominal_v": 5.0,
-      "source_standalone": "TPS259470ARPWR output",
-      "source_hat": "TPS22975NDSGR output"
+      "source": "TPS22975NDSGR output from PI_5V"
     },
     "5V_AFE": {
       "nominal_v": 5.0,
@@ -46,15 +47,14 @@
     },
     "3V3_D": {
       "nominal_v": 3.3,
-      "source_standalone": "TPS628502DRLR",
-      "source_hat": "PI_3V3 via current-measure/0R link",
+      "source": "PI_3V3 via current-measure/0R link",
       "loads": [
         "ECP5 VCCIO banks",
         "ECP5 VCCIO8",
         "W25Q64JVSSIQ",
         "LCD logic",
         "PPS/host I/O",
-        "HAT ID EEPROM on HAT variant"
+        "HAT ID EEPROM"
       ]
     },
     "2V5_AUX": {
@@ -72,7 +72,7 @@
       "loads": ["ECP5 VCC"]
     }
   },
-  "tps628502_common": {
+  "tps628502_core": {
     "opn": "TPS628502DRLR",
     "inductor": {
       "opn": "DFE252012PD-R47M=P2",
@@ -89,16 +89,9 @@
     "cout_each_uF": 10,
     "cout_count": 2,
     "capacitor_dielectric": "X7R",
-    "core_feedback": {
+    "feedback": {
       "rtop_ohm": 39200,
       "rbot_ohm": 47000,
-      "tolerance_percent": 0.1,
-      "cff_pF": 10,
-      "cff_dielectric": "C0G/NP0"
-    },
-    "standalone_3v3_feedback": {
-      "rtop_ohm": 88700,
-      "rbot_ohm": 19600,
       "tolerance_percent": 0.1,
       "cff_pF": 10,
       "cff_dielectric": "C0G/NP0"
@@ -116,24 +109,13 @@
     "pi_3v3_current_measure_link": true,
     "standby_policy": "PI_3V3 absent disables 5V_SYS and all local receiver rails"
   },
-  "sequencing": {
-    "standalone": [
-      "5V_SYS valid after USB-C eFuse",
-      "3V3_D buck starts",
-      "VCCIO8 and W25Q64 become valid",
-      "2V5_AUX starts from 3V3_D",
-      "PG_3V3_D enables 1V1_CORE",
-      "ECP5 internal POR releases only after VCC/VCCAUX/VCCIO8 thresholds"
-    ],
-    "hat": [
-      "PI_3V3 becomes valid and directly powers 3V3_D/VCCIO8/W25Q64",
-      "PI_3V3 enables TPS22975NDSGR",
-      "5V_SYS rises with CT-controlled slew",
-      "1V1_CORE and local analog/clock rails start from 5V_SYS",
-      "2V5_AUX starts from PI_3V3/3V3_D",
-      "ECP5 internal POR releases only after VCC/VCCAUX/VCCIO8 thresholds"
-    ]
-  },
+  "sequencing": [
+    "PI_3V3 becomes valid and directly powers 3V3_D/VCCIO8/W25Q64",
+    "PI_3V3 starts 2V5_AUX and enables TPS22975NDSGR",
+    "5V_SYS rises with CT-controlled slew",
+    "1V1_CORE and local analog/clock rails start from 5V_SYS",
+    "ECP5 internal POR releases only after VCC/VCCAUX/VCCIO8 thresholds"
+  ],
   "ecp5_decoupling": {
     "1V1_CORE": {
       "local_100nF_count": 6,
@@ -151,6 +133,7 @@
     }
   },
   "references": [
+    "docs/17-pcb-variants.md",
     "docs/19-power-tree.md",
     "docs/26-hat-power.md",
     "docs/28-power-passives-sequencing.md",
