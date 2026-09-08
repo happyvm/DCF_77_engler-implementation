@@ -53,6 +53,7 @@ SiT5356AI-FQ-33E0-25.000000 fixed TCXO
         +--> DCF77 digital clock discipline
         +--> dedicated hardware PPS
         +--> Raspberry Pi SPI host
+        +--> Raspberry Pi UART date/time telemetry
         +--> local LCD
 ```
 
@@ -159,12 +160,22 @@ HAT runtime interface:
 
 ```text
 SPI0 MOSI/MISO/SCLK/CE0
+UART GPIO14/15, 115200 8N1, date/time/status telemetry
 IRQ / DATA_READY
 RESET/control
 PPS copy to GPIO4
 ```
 
-The dedicated external PPS path is separate from the Pi GPIO copy and remains the timing/metrology reference.
+UART reference mapping:
+
+```text
+ECP5 A13/PT83A -> Pi GPIO15/RXD, physical pin 10
+Pi GPIO14/TXD, physical pin 8 -> ECP5 A14/PT83B
+```
+
+The normal UART frame is emitted once per second in the quiet tail after the DCF77 PM sequence and is limited to 64 bytes. See [`docs/29-hat-uart-time.md`](docs/29-hat-uart-time.md).
+
+The dedicated external PPS path is separate from the Pi GPIO copy and remains the timing/metrology reference. UART byte arrival time is not the PPS timestamp.
 
 ## Display
 
@@ -251,6 +262,7 @@ See [`docs/14-hardware-cad-tscircuit.md`](docs/14-hardware-cad-tscircuit.md) and
 - [`docs/26-hat-power.md`](docs/26-hat-power.md) — Pi 5 V + 3.3 V power split.
 - [`docs/27-ecp5-pin-plan-hat.md`](docs/27-ecp5-pin-plan-hat.md) — BG256/HAT pin plan.
 - [`docs/28-power-passives-sequencing.md`](docs/28-power-passives-sequencing.md) — exact HAT power passives/sequencing.
+- [`docs/29-hat-uart-time.md`](docs/29-hat-uart-time.md) — UART date/time/status telemetry to Raspberry Pi.
 - [`docs/references.md`](docs/references.md) — primary/manufacturer references.
 
 ## Reconstruction policy
