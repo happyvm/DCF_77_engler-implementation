@@ -31,6 +31,31 @@ module ml_decoder_controller_tb;
     frame(25,10,26,7,2,59,1,1,0,0); frame(25,10,26,7,2,0,0,1,0,0);
     // Leap second accepted only with A2; next timestamp is still xx:00.
     frame(25,6,30,1,23,59,1,0,1,1); frame(25,7,1,2,0,0,1,0,0,0);
+
+    // Re-establish a published sequence, then corrupt one frame (zone bit
+    // flipped without an announcement): it must not publish, the state
+    // must coast to the next minute keeping its zone rather than adopt
+    // the corrupted zone, and the very next clean frame must continue it.
+    frame(25,7,1,2,0,1,1,0,0,0); frame(25,7,1,2,0,2,1,0,0,0);
+    if(!publish_valid)$fatal(1,"sequence not re-established");
+    frame(25,7,1,2,0,3,0,0,0,0);
+    if(publish_valid)$fatal(1,"corrupted frame published");
+    if(minute!=3||cest!=1)$fatal(1,"corrupted frame did not coast the published state (%0d cest=%0b)",minute,cest);
+    frame(25,7,1,2,0,4,1,0,0,0);
+    if(publish_valid)$fatal(1,"published before confidence was rebuilt");
+    if(minute!=4)$fatal(1,"clean frame after corruption was not accepted as continuous");
+    frame(25,7,1,2,0,5,1,0,0,0);
+    if(!publish_valid)$fatal(1,"publication did not resume after one corrupted frame");
+
+    // A genuinely different time (receiver was wrong): two chained frames
+    // re-base the state, the third publishes it.
+    frame(25,9,14,7,17,30,1,0,0,0);
+    if(publish_valid||minute!=6||hour!=0)$fatal(1,"single stranger frame was adopted");
+    frame(25,9,14,7,17,31,1,0,0,0);
+    if(publish_valid)$fatal(1,"re-based time published too early");
+    if(minute!=31||hour!=17||day!=14)$fatal(1,"chained stranger frames were not adopted");
+    frame(25,9,14,7,17,32,1,0,0,0);
+    if(!publish_valid)$fatal(1,"re-based sequence did not publish on its third frame");
     $display("ml_decoder_controller_tb: PASS");$finish;
   end
 endmodule

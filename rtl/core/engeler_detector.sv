@@ -9,36 +9,6 @@ module engeler_detector #(
     parameter int SOFT_BITS = 32,
     parameter int AM_OUTPUT_SHIFT = 20,
     parameter int PM_OUTPUT_SHIFT = 24,
-    // Floor below which the PM early/late/prompt correlation triple is too
-    // weak to carry real sub-chip timing information (pure noise, or PM
-    // dropout) and must not be forwarded to frequency discipline at all.
-    // Chip-level soft values saturate at +-2^(SOFT_BITS-1) regardless of
-    // analog front-end gain (pm_chip_integrator's own saturating output),
-    // so the threshold is expressed relative to SOFT_BITS rather than as
-    // an absolute constant: a real (even weak) carrier reaching just
-    // 1/16 of one chip's full range, integrated coherently over the
-    // 512-chip PRN, sits far above the sqrt(512)-scaled random walk that
-    // equivalent-amplitude noise would produce with no fixed phase
-    // relationship to chip boundaries. Still a calibration constant, not
-    // a measured one -- re-validate once real receiver noise floor is
-    // characterized on hardware.
-    parameter int PM_MIN_PROMPT_MAGNITUDE = (SOFT_BITS > 4) ? (1 << (SOFT_BITS - 4)) : 1,
-    parameter bit QUALIFICATION_ENABLED = 1'b0,
-    // pm_minute_sync's 15-second matched filter sums signed per-second PM
-    // correlations (same pm_correlation this module also floors at
-    // PM_MIN_PROMPT_MAGNITUDE for the phase discriminator above): a real,
-    // even weak minute marker should stay coherent enough across those 15
-    // seconds to reach several multiples of that single-second floor,
-    // while a search across 60 candidate window offsets landing on pure
-    // noise regresses toward zero instead of building up. 8x the
-    // single-second floor is a calibration constant, not a measured one --
-    // re-validate once real receiver noise floor is characterized on
-    // hardware, same as PM_MIN_PROMPT_MAGNITUDE above.
-    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_SCORE =
-        (SOFT_BITS > 1) ? (1 << (SOFT_BITS - 1)) : 1,
-    // A quarter of the qualifying floor itself: the runner-up window must
-    // trail the winner by a clear margin, not just barely lose out.
-    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_GAP = MINUTE_MIN_SCORE >> 2,
     parameter int AM_SYNC_THRESHOLD = 1,
     parameter int SECOND_CYCLES = 77_500,
     parameter int SECOND_SEARCH_TOLERANCE = 1_000,
@@ -55,7 +25,40 @@ module engeler_detector #(
     // Goertzel bank scaling (bandwidth) constants; see engeler_observables.
     parameter logic signed [18:0] CARRIER_SCALE = 19'sd131059,
     parameter logic signed [18:0] AM_SCALE      = 19'sd130993,
-    parameter logic signed [18:0] PM_SCALE      = 19'sd126157
+    parameter logic signed [18:0] PM_SCALE      = 19'sd126157,
+    // Floor below which the PM early/late/prompt correlation triple is too
+    // weak to carry real sub-chip timing information (pure noise, or PM
+    // dropout) and must not be forwarded to frequency discipline at all.
+    // Chip-level soft values saturate at +-2^(SOFT_BITS-1) regardless of
+    // analog front-end gain (pm_chip_integrator's own saturating output),
+    // so the threshold is expressed relative to SOFT_BITS rather than as
+    // an absolute constant: a real (even weak) carrier reaching just
+    // 1/16 of one chip's full range, integrated coherently over the
+    // 512-chip PRN, sits far above the sqrt(512)-scaled random walk that
+    // equivalent-amplitude noise would produce with no fixed phase
+    // relationship to chip boundaries. A chip's soft value is a sum over
+    // CYCLES_PER_CHIP carrier cycles, so the floor scales with the chip
+    // length (identity at the real 120). Still a calibration constant, not
+    // a measured one -- re-validate once real receiver noise floor is
+    // characterized on hardware. In the time-compressed system test a
+    // clean carrier reaches ~5x this floor.
+    parameter int PM_MIN_PROMPT_MAGNITUDE =
+        (SOFT_BITS > 4) ? (((1 << (SOFT_BITS - 4)) / 120) * CYCLES_PER_CHIP) : 1,
+    parameter bit QUALIFICATION_ENABLED = 1'b0,
+    // pm_minute_sync's 15-second matched filter sums signed per-second PM
+    // correlations (same pm_correlation this module also floors at
+    // PM_MIN_PROMPT_MAGNITUDE for the phase discriminator above): a real,
+    // even weak minute marker should stay coherent enough across those 15
+    // seconds to reach several multiples of that single-second floor,
+    // while a search across 60 candidate window offsets landing on pure
+    // noise regresses toward zero instead of building up. 8x the
+    // single-second floor is a calibration constant, not a measured one --
+    // re-validate once real receiver noise floor is characterized on
+    // hardware, same as PM_MIN_PROMPT_MAGNITUDE above.
+    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_SCORE = 8 * PM_MIN_PROMPT_MAGNITUDE,
+    // A quarter of the qualifying floor itself: the runner-up window must
+    // trail the winner by a clear margin, not just barely lose out.
+    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_GAP = MINUTE_MIN_SCORE >> 2
 ) (
     input  logic clk,
     input  logic rst,
@@ -93,12 +96,29 @@ module engeler_detector #(
     logic signed [17:0] pm_phase_error_cycles;
     logic pm_phase_error_valid;
     logic [7:0] pm_timing_quality;
+    logic signed [SOFT_BITS+9:0] pm_magnitude;
+    logic signed [SOFT_BITS+9:0] pm_magnitude_scaled;
 
+    // PM measurement quality for second_phase_detector/frequency_discipline:
+    // the prompt correlation magnitude in units of 1/32 of the
+    // PM_MIN_PROMPT_MAGNITUDE floor, saturating at 255, so the floor itself
+    // reads 32 (frequency_discipline's ACQ_QUALITY_MIN) and 8x the floor
+    // saturates. Taking the top bits of the raw 42-bit correlation instead
+    // read zero for any realistic magnitude (a clean carrier reaches
+    // ~2^30, the extracted field started at bit 33) and made the frequency
+    // loop reject every PM-sourced measurement as low quality.
+    localparam int PM_QUALITY_SHIFT =
+        ($clog2(PM_MIN_PROMPT_MAGNITUDE) > 5) ? $clog2(PM_MIN_PROMPT_MAGNITUDE) - 5 : 0;
     always_comb begin
-        if (pm_correlation[SOFT_BITS+9])
-            pm_timing_quality = (~pm_correlation[SOFT_BITS+8 -: 8]);
+        if (pm_correlation < 0)
+            pm_magnitude = -pm_correlation;
         else
-            pm_timing_quality = pm_correlation[SOFT_BITS+8 -: 8];
+            pm_magnitude = pm_correlation;
+        pm_magnitude_scaled = pm_magnitude >>> PM_QUALITY_SHIFT;
+        if (pm_magnitude_scaled > (SOFT_BITS+10)'(255))
+            pm_timing_quality = 8'd255;
+        else
+            pm_timing_quality = 8'(pm_magnitude_scaled);
     end
 
     engeler_observables #(

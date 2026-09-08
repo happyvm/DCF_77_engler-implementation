@@ -136,25 +136,44 @@ module dcf77_receiver_core #(
     // its result lands while the PM sample of search position 59 is being
     // processed, i.e. during second (14 + 59 - end) mod 60. The next
     // second_ce therefore starts second (74 - end) mod 60. Only a
-    // qualified marker (or an unqualified build) may realign, so a
-    // noise-driven search never scrambles a good alignment.
+    // qualified marker (or an unqualified build) may realign, and a
+    // change to an established alignment must be confirmed by two
+    // consecutive results: when one minute's marker is damaged (dropout),
+    // the search's best window can be the next marker shifted by a
+    // second -- still strong enough to qualify -- and a single such
+    // result would otherwise move every history record off by one.
     logic realign_pending;
     logic [5:0] realign_value;
     logic [6:0] realign_raw;
-    logic [5:0] realign_now;
+    logic [5:0] realign_now, expected_next;
+    logic candidate_valid;
+    logic [5:0] candidate_value;
     always_comb begin
         realign_raw = 7'd74 - 7'(minute_window_end);
         realign_now = (realign_raw >= 7'd60) ? 6'(realign_raw - 7'd60) : 6'(realign_raw);
+        expected_next = (second_number == 6'd59) ? 6'd0 : second_number + 1'b1;
     end
-    wire realign_allowed = minute_result_valid &&
-                           (detector_minute_locked || !QUALIFICATION_ENABLED);
+    wire result_qualified = minute_result_valid &&
+                            (detector_minute_locked || !QUALIFICATION_ENABLED);
+    wire realign_allowed = result_qualified && (realign_now != expected_next) &&
+                           candidate_valid && (candidate_value == realign_now);
 
     always_ff @(posedge clk) begin
         if (rst) begin
             second_number <= 0;
             realign_pending <= 1'b0;
             realign_value <= '0;
+            candidate_valid <= 1'b0;
+            candidate_value <= '0;
         end else begin
+            if (result_qualified) begin
+                if (realign_now == expected_next || realign_allowed) begin
+                    candidate_valid <= 1'b0;
+                end else begin
+                    candidate_valid <= 1'b1;
+                    candidate_value <= realign_now;
+                end
+            end
             if (realign_allowed) begin
                 realign_pending <= 1'b1;
                 realign_value <= realign_now;
@@ -166,15 +185,27 @@ module dcf77_receiver_core #(
                 else if (realign_pending)
                     second_number <= realign_value;
                 else
-                    second_number <= second_number == 59 ? 0 : second_number + 1'b1;
+                    second_number <= expected_next;
             end
         end
+    end
+    // soft_history is a RAM: after reset (or power-up) it still holds
+    // whatever was there before, including records flagged valid. Only
+    // decode once a full minute of records has been written since reset,
+    // so a frame can never be assembled from stale or random memory.
+    logic [5:0] records_written;
+    always_ff @(posedge clk) begin
+        if (rst)
+            records_written <= '0;
+        else if (evidence_write_valid && records_written != 6'd60)
+            records_written <= records_written + 1'b1;
     end
     // Decode one telegram per aligned minute: the second_ce that closes
     // second 1 guarantees the records for seconds 16..58 of the telegram
     // that just ended are all written (second 59's write, and second 0's,
     // may still be in flight but carry no telegram fields).
-    wire frame_start = second_ce && (second_number == 6'd1);
+    wire frame_start = second_ce && (second_number == 6'd1) &&
+                       (records_written == 6'd60);
     // am_bit_valid and pm_correlation_valid never pulse on the same
     // carrier cycle (AM resolves ~300 ms into the second, PM near its
     // end): aggregate both into one coherent per-second record before

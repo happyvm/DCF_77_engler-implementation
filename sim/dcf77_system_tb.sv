@@ -62,9 +62,42 @@ module dcf77_system_tb;
     ) dut (.*);
 
     logic telemetry_seen = 1'b0, pps_seen = 1'b0;
+    // PM-path probes for the +verbose progress lines.
+    logic signed [41:0] last_pm_corr = '0;
+    logic signed [17:0] last_pm_err = '0;
+    integer pm_valid_count = 0, pm_err_count = 0;
+    logic [46:0] last_min_best = '0, last_min_gap = '0;
+    logic [5:0] last_win_end = '0;
     always @(posedge clk) begin
         if (telemetry_done) telemetry_seen <= 1'b1;
         if (pps) pps_seen <= 1'b1;
+        if (dut.pm_valid) begin
+            last_pm_corr <= dut.pm_soft; pm_valid_count <= pm_valid_count + 1;
+        end
+        if (dut.detector_i.pm_phase_error_valid) begin
+            last_pm_err <= dut.detector_i.pm_phase_error_cycles;
+            pm_err_count <= pm_err_count + 1;
+        end
+        if (verbose && dut.fs_result_valid)
+            $display("    [FRAME gen=%0d.%02d] cand %02d:%02d %02d/%02d/%02d wd=%0d cest=%0b a1=%0b a2=%0b conf(min=%0b hour=%0b) score=%0d gap=%0d | stored %02d:%02d cest=%0b dst=%0b cc=%0d",
+                     minutes_sent, second_in_min, dut.fs_hour, dut.fs_minute, dut.fs_day,
+                     dut.fs_month, dut.fs_year, dut.fs_weekday, dut.fs_cest,
+                     dut.fs_dst_announcement, dut.fs_leap_announcement,
+                     dut.fs_minute_confident, dut.fs_hour_confident,
+                     dut.fs_minute_best_score, dut.fs_minute_gap,
+                     decoded_hour, decoded_minute, decoded_cest, dut.decoded_dst,
+                     dut.consistent_count);
+        if (verbose && dut.ml_publish)
+            $display("    [PUBLISH gen=%0d.%02d]", minutes_sent, second_in_min);
+        if (minute_result_valid) begin
+            last_min_best <= dut.minute_best; last_min_gap <= dut.minute_gap;
+            last_win_end <= dut.minute_window_end;
+            if (verbose)
+                $display("    [MRV gen=%0d.%02d/%0d] end=%0d best=%0d second=%0d locked=%0b dut_sec=%0d realign=%0d",
+                         minutes_sent, second_in_min, carrier_cycle, dut.minute_window_end,
+                         dut.minute_best, dut.minute_best - dut.minute_gap,
+                         dut.detector_minute_locked, second_number, dut.realign_now);
+        end
     end
 
     // --- Synthetic signal generator state ---------------------------------
@@ -77,10 +110,20 @@ module dcf77_system_tb;
     integer noise_seed      = 32'h1234_5678;
 
     // Scenario controls
+    logic   verbose         = 1'b0; // +verbose: 10-second progress lines
     integer scn_noise_amp   = 0;
     logic   scn_pm_enabled  = 1'b1;
     logic   scn_pm_invert   = 1'b0;
     logic   scn_carrier_on  = 1'b1; // 0 -> pure noise, no carrier at all
+    // Local-oscillator error model: every scn_drift_period seconds the
+    // transmitted second is scn_drift carrier cycles longer (+1) or
+    // shorter (-1) than the receiver's nominal SECOND_CYCLES.
+    integer scn_drift = 0, scn_drift_period = 4;
+    // Carrier dropout: seconds [0, scn_dropout_secs) of transmitted minute
+    // scn_dropout_min are replaced by noise.
+    integer scn_dropout_min = -1, scn_dropout_secs = 0;
+    integer cur_second_len = SECOND_CYCLES;
+    integer seconds_sent = 0;
 
     // Reference telegram: ref_* is the time the telegram being sent right
     // now announces (the minute mark that ends it, per DCF77); cur_* is
@@ -179,7 +222,18 @@ module dcf77_system_tb;
             cur_minute = ref_minute; cur_hour = ref_hour; cur_day = ref_day;
             cur_weekday = ref_weekday; cur_month = ref_month; cur_year = ref_year;
             cur_cest = ref_cest;
-            if (ref_minute == 59) begin
+            // European DST rule, exactly as the decoder's continuity check
+            // expects it: announced by A1 through the preceding hour,
+            // 01:59 CET -> 03:00 CEST on the last Sunday of March and
+            // 02:59 CEST -> 02:00 CET on the last Sunday of October.
+            if (ref_dst_announce && ref_minute == 59 && ref_weekday == 7 && ref_day >= 25 &&
+                ((!ref_cest && ref_month == 3 && ref_hour == 1) ||
+                 (ref_cest && ref_month == 10 && ref_hour == 2))) begin
+                ref_minute = 0;
+                ref_hour = ref_cest ? 5'd2 : 5'd3;
+                ref_cest = !ref_cest;
+                ref_dst_announce = 1'b0;
+            end else if (ref_minute == 59) begin
                 ref_minute = 0;
                 if (ref_hour == 23) begin
                     ref_hour = 0;
@@ -204,12 +258,12 @@ module dcf77_system_tb;
     task automatic set_reference_time(
         input logic [5:0] minute, input logic [4:0] hour, input logic [5:0] day,
         input logic [2:0] weekday, input logic [3:0] month, input logic [7:0] year,
-        input logic cest
+        input logic cest, input logic dst_announce
     );
         begin
             ref_minute = minute; ref_hour = hour; ref_day = day;
             ref_weekday = weekday; ref_month = month; ref_year = year;
-            ref_cest = cest; ref_dst_announce = 1'b0; ref_leap_announce = 1'b0;
+            ref_cest = cest; ref_dst_announce = dst_announce; ref_leap_announce = 1'b0;
             encode_telegram();
         end
     endtask
@@ -229,8 +283,11 @@ module dcf77_system_tb;
         integer phi_sel;
         integer noise_term;
         integer new_chip;
+        logic carrier_now;
         begin
-            if (!scn_carrier_on) begin
+            carrier_now = scn_carrier_on &&
+                          !(minutes_sent == scn_dropout_min && second_in_min < scn_dropout_secs);
+            if (!carrier_now) begin
                 noise_seed = noise_seed + 1;
                 samp = 14'($random(noise_seed) % (scn_noise_amp > 0 ? scn_noise_amp : 4000));
             end else begin
@@ -273,9 +330,17 @@ module dcf77_system_tb;
             if (sample_in_cycle == 12) begin
                 sample_in_cycle = 0;
                 carrier_cycle = carrier_cycle + 1;
-                if (carrier_cycle == SECOND_CYCLES) begin
+                if (carrier_cycle == cur_second_len) begin
                     carrier_cycle = 0;
                     second_in_min = second_in_min + 1;
+                    seconds_sent = seconds_sent + 1;
+                    cur_second_len = SECOND_CYCLES +
+                        ((scn_drift != 0 && (seconds_sent % scn_drift_period) == 0) ? scn_drift : 0);
+                    if (verbose && (second_in_min % 10 == 0))
+                        $display("    [sec %0d.%02d] sync=%0d q=%0d pm_corr=%0d pm_n=%0d pm_err=%0d/%0d dut_sec=%0d min_best=%0d gap=%0d end=%0d",
+                                 minutes_sent, second_in_min, dut.sync_state, phase_quality,
+                                 last_pm_corr, pm_valid_count, last_pm_err, pm_err_count,
+                                 second_number, last_min_best, last_min_gap, last_win_end);
                     if (second_in_min == 60) begin
                         second_in_min = 0;
                         advance_reference_minute();
@@ -304,7 +369,10 @@ module dcf77_system_tb;
             rst <= 1'b1;
             repeat (4) @(posedge clk);
             sample_in_cycle = 0; carrier_cycle = 0; second_in_min = 0;
-            chip_index = -1; ref_lfsr = 9'b0; minutes_sent = 0;
+            chip_index = -1; ref_lfsr = 9'b0; minutes_sent = 0; seconds_sent = 0;
+            cur_second_len = SECOND_CYCLES;
+            scn_noise_amp = 0; scn_pm_enabled = 1'b1; scn_pm_invert = 1'b0;
+            scn_carrier_on = 1'b1; scn_drift = 0; scn_dropout_min = -1; scn_dropout_secs = 0;
             telemetry_seen <= 1'b0; pps_seen <= 1'b0;
             rst <= 1'b0;
             @(posedge clk);
@@ -346,9 +414,9 @@ module dcf77_system_tb;
     integer scenario_failures = 0;
     integer only_scenario = 0;
 
-    task automatic expect_lock(input string name);
+    task automatic expect_lock(input string name, input integer max_minutes);
         begin
-            run_until_locked(8, run_locked);
+            run_until_locked(max_minutes, run_locked);
             report_decoded(name);
             if (!run_locked) begin
                 $display("FAIL %s: never reached time_valid", name);
@@ -386,57 +454,114 @@ module dcf77_system_tb;
 
     initial begin
         if (!$value$plusargs("scenario=%d", only_scenario)) only_scenario = 0;
+        verbose = $test$plusargs("verbose");
 
         // 1. Clean signal: lock, correct time, PPS and UART.
         if (only_scenario == 0 || only_scenario == 1) begin
             start_scenario();
-            set_reference_time(6'd15, 5'd10, 6'd21, 3'd3, 4'd6, 8'd24, 1'b1);
-            scn_noise_amp = 0; scn_pm_enabled = 1'b1; scn_pm_invert = 1'b0;
-            scn_carrier_on = 1'b1;
-            expect_lock("clean_signal");
+            set_reference_time(6'd15, 5'd10, 6'd21, 3'd3, 4'd6, 8'd24, 1'b1, 1'b0);
+            expect_lock("clean_signal", 8);
         end
 
         // 2. Noise only: never publishes.
         if (only_scenario == 0 || only_scenario == 2) begin
             start_scenario();
-            set_reference_time(6'd0, 5'd0, 6'd1, 3'd1, 4'd1, 8'd24, 1'b0);
+            set_reference_time(6'd0, 5'd0, 6'd1, 3'd1, 4'd1, 8'd24, 1'b0, 1'b0);
             scn_carrier_on = 1'b0; scn_noise_amp = 3000;
             expect_no_lock("noise_only", 5);
         end
 
-        // 3. AM only (no PM burst): no minute marker, so no qualified lock.
+        // 3. AM only (no PM burst): no minute marker, so no qualified lock,
+        //    and no stale decode either (the RAM still holds scenario 1).
         if (only_scenario == 0 || only_scenario == 3) begin
             start_scenario();
-            set_reference_time(6'd0, 5'd8, 6'd10, 3'd1, 4'd3, 8'd25, 1'b0);
-            scn_carrier_on = 1'b1; scn_noise_amp = 0; scn_pm_enabled = 1'b0;
+            set_reference_time(6'd0, 5'd8, 6'd10, 3'd1, 4'd3, 8'd25, 1'b0, 1'b0);
+            scn_pm_enabled = 1'b0;
             expect_no_lock("am_only_no_pm", 5);
-            scn_pm_enabled = 1'b1;
+            if (decoded_minute != 0 || decoded_hour != 0) begin
+                $display("FAIL am_only_no_pm: decoded %02d:%02d from stale/unaligned history",
+                         decoded_hour, decoded_minute);
+                scenario_failures = scenario_failures + 1;
+            end
         end
 
         // 4. PM polarity inverted: still locks and decodes.
         if (only_scenario == 0 || only_scenario == 4) begin
             start_scenario();
-            set_reference_time(6'd45, 5'd23, 6'd28, 3'd2, 4'd2, 8'd23, 1'b0);
-            scn_carrier_on = 1'b1; scn_noise_amp = 0; scn_pm_invert = 1'b1;
-            expect_lock("pm_polarity_inverted");
-            scn_pm_invert = 1'b0;
+            set_reference_time(6'd45, 5'd23, 6'd28, 3'd2, 4'd2, 8'd23, 1'b0, 1'b0);
+            scn_pm_invert = 1'b1;
+            expect_lock("pm_polarity_inverted", 8);
         end
 
         // 5. Noisy but real signal.
         if (only_scenario == 0 || only_scenario == 5) begin
             start_scenario();
-            set_reference_time(6'd30, 5'd12, 6'd5, 3'd5, 4'd9, 8'd24, 1'b0);
-            scn_carrier_on = 1'b1; scn_noise_amp = 900;
-            expect_lock("noisy_signal");
-            scn_noise_amp = 0;
+            set_reference_time(6'd30, 5'd12, 6'd5, 3'd5, 4'd9, 8'd24, 1'b0, 1'b0);
+            scn_noise_amp = 900;
+            expect_lock("noisy_signal", 8);
         end
 
         // 6. Midnight / month-end rollover inside the observation window.
         if (only_scenario == 0 || only_scenario == 6) begin
             start_scenario();
-            set_reference_time(6'd58, 5'd23, 6'd30, 3'd2, 4'd4, 8'd24, 1'b1);
-            scn_carrier_on = 1'b1; scn_noise_amp = 0;
-            expect_lock("midnight_month_end");
+            set_reference_time(6'd58, 5'd23, 6'd30, 3'd2, 4'd4, 8'd24, 1'b1, 1'b0);
+            expect_lock("midnight_month_end", 8);
+        end
+
+        // 7. Local oscillator fast: the true second is one carrier cycle
+        //    longer every 4th second (~32 ppm at this compression); the
+        //    second tracker must slew and stay locked.
+        if (only_scenario == 0 || only_scenario == 7) begin
+            start_scenario();
+            set_reference_time(6'd5, 5'd6, 6'd12, 3'd4, 4'd11, 8'd24, 1'b0, 1'b0);
+            scn_drift = 1; scn_drift_period = 4;
+            expect_lock("oscillator_fast", 8);
+        end
+
+        // 8. Local oscillator slow: one cycle shorter every 4th second.
+        if (only_scenario == 0 || only_scenario == 8) begin
+            start_scenario();
+            set_reference_time(6'd40, 5'd18, 6'd3, 3'd6, 4'd8, 8'd25, 1'b1, 1'b0);
+            scn_drift = -1; scn_drift_period = 4;
+            expect_lock("oscillator_slow", 8);
+        end
+
+        // 9. Dropout after lock: 20 s of pure noise in transmitted minute 4,
+        //    then the carrier returns; the receiver must end up locked on
+        //    the right time again (holdover/reacquisition path).
+        if (only_scenario == 0 || only_scenario == 9) begin
+            start_scenario();
+            set_reference_time(6'd10, 5'd14, 6'd7, 3'd1, 4'd7, 8'd24, 1'b1, 1'b0);
+            scn_dropout_min = 6; scn_dropout_secs = 20;
+            expect_lock("dropout_then_lock", 6);
+            if (run_locked) begin
+                run_until_locked(7, run_locked); // ride through the dropout minute
+                repeat (4 * 60 * SECOND_CYCLES * 12) @(posedge clk);
+                report_decoded("dropout_reacquire");
+                if (!time_valid || !decoded_matches_current()) begin
+                    $display("FAIL dropout_reacquire: time_valid=%0b after carrier returned", time_valid);
+                    scenario_failures = scenario_failures + 1;
+                end else
+                    $display("PASS dropout_reacquire");
+            end
+        end
+
+        // 10. CET -> CEST with A1 announced: 01:57 CET on the last Sunday
+        //     of March 2024 (31st); the decoder's continuity rule must
+        //     accept 01:59 -> 03:00 and stay locked through it.
+        if (only_scenario == 0 || only_scenario == 10) begin
+            start_scenario();
+            set_reference_time(6'd57, 5'd1, 6'd31, 3'd7, 4'd3, 8'd24, 1'b0, 1'b1);
+            expect_lock("cet_to_cest", 8);
+            if (run_locked) begin
+                repeat (3 * 60 * SECOND_CYCLES * 12) @(posedge clk);
+                report_decoded("cet_to_cest_after");
+                if (!time_valid || !decoded_matches_current() || !decoded_cest) begin
+                    $display("FAIL cet_to_cest_after: lock/decode lost across the DST step");
+                    scenario_failures = scenario_failures + 1;
+                end else
+                    $display("PASS cet_to_cest_after");
+            end
         end
 
         if (scenario_failures != 0) begin

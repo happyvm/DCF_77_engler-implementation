@@ -14,7 +14,7 @@ BUILD_DIR ?= build
 	resource-check timing test-tools test-soft-history test-ml-controller \
 	test-frequency-discipline tool-versions clean test-integration synth-core \
 	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator \
-	test-second-phase-ramp test-system
+	test-second-phase-ramp test-system test-system
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
@@ -22,7 +22,7 @@ test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-second-phase test-lock-controller test-qualification-disabled test-tools \
 	test-soft-history test-ml-controller test-frequency-discipline test-integration \
 	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator \
-	test-second-phase-ramp
+	test-second-phase-ramp test-system
 
 test-integration: $(BUILD_DIR)/dcf77_hat_top_tb.vvp
 	$(VVP) $<
@@ -48,11 +48,17 @@ $(BUILD_DIR)/second_phase_ramp_tb.vvp: rtl/sync/second_phase_detector.sv sim/sec
 	mkdir -p $(BUILD_DIR)
 	$(IVERILOG) -g2012 -Wall -s second_phase_ramp_tb -o $@ $^
 
-test-system: $(BUILD_DIR)/dcf77_system_tb.vvp
-	$(VVP) $<
-$(BUILD_DIR)/dcf77_system_tb.vvp: $(CORE_RTL) sim/dcf77_system_tb.sv
-	mkdir -p $(BUILD_DIR)
-	$(IVERILOG) -g2012 -Wall -s dcf77_system_tb -o $@ $^
+# The system test simulates several minutes of receiver time per scenario;
+# Icarus needs ~5 s of wall clock per simulated second on this design, so
+# it is built with Verilator (--binary --timing), ~60x faster. Run a single
+# scenario with `build/vl_system/dcf77_system_tb +scenario=N +verbose`.
+test-system: $(BUILD_DIR)/vl_system/dcf77_system_tb
+	$<
+$(BUILD_DIR)/vl_system/dcf77_system_tb: $(CORE_RTL) sim/dcf77_system_tb.sv
+	mkdir -p $(BUILD_DIR)/vl_system
+	$(VERILATOR) --binary --timing -O2 -Wno-fatal -Wno-lint -Wno-style \
+		--top-module dcf77_system_tb --Mdir $(BUILD_DIR)/vl_system \
+		-o dcf77_system_tb $^
 
 $(BUILD_DIR)/dcf77_hat_top_tb.vvp: $(TOP_RTL) sim/dcf77_hat_top_tb.sv
 	mkdir -p $(BUILD_DIR)
@@ -282,8 +288,14 @@ lint:
 		rtl/goertzel/*.sv rtl/am/*.sv rtl/pm/*.sv rtl/sync/*.sv \
 		rtl/core/engeler_detector.sv
 
+FORMAL_JOBS := $(wildcard formal/*.sby)
+
+# Every formal/*.sby is run; a job's proof or bounded check failing fails
+# the target. Working directories land in formal/<job>/ (git-ignored).
 formal:
-	$(SBY) -f formal/pps_generator.sby
+	@set -e; for job in $(FORMAL_JOBS); do \
+		echo "== $$job"; $(SBY) -f $$job | tail -3; \
+	done
 
 synth:
 	mkdir -p $(BUILD_DIR)
