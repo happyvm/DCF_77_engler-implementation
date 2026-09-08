@@ -54,7 +54,7 @@ PI_3V3
        +--> W25Q64JV configuration flash
        +--> HAT+ ID EEPROM and pull-ups
        +--> LCD logic
-       +--> PPS / Pi host-I/O domain
+       +--> SPI / UART / PPS / Pi host-I/O domain
        +--> TPS7A2025PDQNR -> 2V5_AUX
 ```
 
@@ -132,6 +132,7 @@ SPI0 SCLK
 SPI0 MOSI
 SPI0 MISO
 SPI0 CE0
+UART TX/RX on GPIO15/GPIO14
 IRQ / DATA_READY
 RESET/control
 PPS copy to Pi
@@ -139,9 +140,12 @@ PPS copy to Pi
 
 No level shifter is required.
 
+UART is a low-rate date/time/status path at 115200 8N1; normal traffic is scheduled near the end of each second rather than being left continuously active.
+
 Exact mapping is frozen in:
 
 - `docs/27-ecp5-pin-plan-hat.md`
+- `docs/29-hat-uart-time.md`
 - `hardware/tscircuit/pin-plan.json`
 
 ## HAT ID EEPROM
@@ -169,7 +173,7 @@ Measured budget includes:
 - W25Q64 configuration activity;
 - LCD logic;
 - HAT EEPROM;
-- PPS/host interface switching;
+- SPI/UART/PPS host-interface switching;
 - 2V5_AUX input power.
 
 It excludes ADC, TCXO, AFE, ECP5 core and LCD backlight.
@@ -205,12 +209,13 @@ Hard rules:
 - PI_5V reaches the power branch without crossing the AFE first;
 - no Pi supply trace runs through ferrite/OPA810/LTC1562 cluster;
 - Pi-facing digital current returns remain on the digital side;
+- UART traces remain in the Bank-1/HAT region and routine UART traffic is end-of-second only;
 - the only local switcher is the ECP5 1.1 V core buck;
 - TCXO and ADC retain dedicated low-noise LDOs.
 
 ## References
 
 - Raspberry Pi HAT+ Specification.
-- Raspberry Pi 40-pin GPIO documentation.
+- Raspberry Pi 40-pin GPIO/UART documentation.
 - Texas Instruments TPS22975/TPS22975N data sheet.
 - Lattice ECP5/ECP5-5G Family Data Sheet and Hardware Checklist.
