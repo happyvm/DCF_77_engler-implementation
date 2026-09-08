@@ -34,9 +34,102 @@ Reference analog hardware is intentionally no-trim. Production boards must not r
 
 The physical ECP5-45F provides development headroom, but `release_reference` RTL must satisfy the historical XC3S1400AN limits in `rtl/resource_budget.json`.
 
+## Machine-readable ECP5 pin plan
+
+The Rev.0 FPGA/HAT assignment is frozen in:
+
+```text
+hardware/tscircuit/pin-plan.json
+```
+
+Human-readable rationale and Raspberry Pi physical-pin mapping:
+
+```text
+docs/27-ecp5-pin-plan-hat.md
+```
+
+### VCCIO policy
+
+All populated ECP5 I/O banks use the same logical 3.3 V rail:
+
+```text
+VCCIO0/1/2/3/6/7/8 = 3V3_D
+```
+
+Source differs by board:
+
+```text
+standalone: 5V_SYS -> local buck -> 3V3_D
+HAT+:       PI_3V3 -------------> 3V3_D
+```
+
+### Bank roles
+
+```text
+Bank 0  spare / standalone low-rate control
+Bank 1  SiT5356 TCXO + Raspberry Pi HAT+ host interface
+Bank 2  LTC1407A ADC + LTC6912 PGA control
+Bank 3  reference PPS + LCD + diagnostics
+Bank 6  reserved/quiet near AFE
+Bank 7  reserved/quiet near AFE
+Bank 8  SPI flash + sysCONFIG + JTAG
+```
+
+### Common signal balls
+
+```text
+CLK_25M      C9    GR_PCLK1_1
+ADC_SCK      J16
+ADC_SDO      J15
+ADC_CONV     K16
+PGA_SCK      H12
+PGA_MOSI     H13
+PGA_CS_N     J12
+PPS_REF      R12
+LCD_SCL      M13
+LCD_SDA      N14
+LCD_RST_N    M14
+LCD_BL_EN    R13
+```
+
+### HAT+ host GPIO mapping
+
+```text
+Pi physical 19 / GPIO10 MOSI -> ECP5 A10
+Pi physical 21 / GPIO9  MISO <- ECP5 D11
+Pi physical 23 / GPIO11 SCLK -> ECP5 A9
+Pi physical 24 / GPIO8  CE0  -> ECP5 E11
+Pi physical 22 / GPIO25 IRQ  <- ECP5 C12
+Pi physical 18 / GPIO24 RSTn -> ECP5 B12
+Pi physical 7  / GPIO4  PPS  <- ECP5 A11
+```
+
+`ID_SD` and `ID_SC` on physical pins 27/28 connect only to the HAT+ ID EEPROM and never to ECP5.
+
+### Bank-8 boot balls
+
+```text
+MOSI       T8
+MISO       T7
+CSSPIN     N8
+MCLK       N9
+PROGRAMN   R9
+INITN      T9
+DONE       P9
+CFG0       N10
+CFG1       P10
+CFG2       R10
+TDO        M10
+TCK        T10
+TDI        R11
+TMS        T11
+```
+
+See [`../../docs/23-ecp5-boot-config.md`](../../docs/23-ecp5-boot-config.md).
+
 ## Variant power architecture
 
-The precision/analog rails remain locally generated on both boards, but the source of the digital 3.3 V rail now differs intentionally.
+The precision/analog rails remain locally generated on both boards, but the digital 3.3 V source differs intentionally.
 
 ### Standalone USB-C
 
@@ -55,8 +148,6 @@ USB-C 5 V -> protected 5V_SYS
 
 ### Raspberry Pi HAT+
 
-The HAT consumes both header rails:
-
 ```text
 PI_5V
   -> protected/gated 5V_SYS
@@ -69,7 +160,7 @@ PI_5V
 PI_3V3
   -> current-measure / 0R link
   -> 3V3_D
-       +--> ECP5 VCCIO / VCCIO8
+       +--> all ECP5 VCCIO banks / VCCIO8
        +--> W25Q64JV
        +--> HAT ID EEPROM
        +--> LCD logic
@@ -77,49 +168,31 @@ PI_3V3
        +--> TPS7A20 -> 2V5_AUX under controlled enable
 ```
 
-The HAT therefore does **not** populate the standalone board's 3.3 V buck. This removes one local switching converter from the HAT PCB and directly matches Raspberry Pi GPIO voltage.
+The HAT does not populate the standalone board's 3.3 V buck.
 
-`PI_3V3` is digital-only. It never powers:
-
-```text
-ADC / OPA2835
-SiT5356 TCXO
-OPA810 / LTC1562 / LTC6912
-ECP5 1.1 V core
-LCD backlight
-```
+`PI_3V3` never powers ADC/OPA2835, TCXO, AFE, ECP5 core or LCD backlight.
 
 See [`../../docs/26-hat-power.md`](../../docs/26-hat-power.md).
 
 ## HAT+ STANDBY policy
-
-HAT+ STANDBY keeps Pi 5 V present while Pi 3.3 V is removed.
-
-Use `PI_3V3` presence as the HAT-active indication:
 
 ```text
 PI_3V3 present -> 3V3_D valid -> enable 5V_SYS/local rails
 PI_3V3 absent  -> 3V3_D off   -> disable 5V_SYS/local rails
 ```
 
-No alternate source may back-power `3V3_D` when the Raspberry Pi 3.3 V rail is absent.
-
-The HAT must include a current-measure link on `PI_3V3`. Final current budget is validated against the supported Raspberry Pi models; the analog, TCXO, FPGA core and backlight loads are deliberately excluded from this rail.
+No alternate source may back-power `3V3_D` while Pi 3.3 V is absent.
 
 ## FPGA boot/configuration
 
 ```text
 LFE5U-45F-7BG256I
 W25Q64JVSSIQ, 64 Mbit
-Master SPI
+Master SPI serial
 CFG[2:0] = 010
 ```
 
 JTAG is mandatory on both variants. `PROGRAMN`, `INITN` and `DONE` remain accessible.
-
-The 64 Mbit flash supports a future golden/recovery image plus update image without requiring bitstream compression.
-
-See [`../../docs/23-ecp5-boot-config.md`](../../docs/23-ecp5-boot-config.md).
 
 ## Display
 
@@ -134,8 +207,6 @@ FSTN transflective
 
 LCD logic uses `3V3_D`. Backlight is separately switched and normally OFF during precision RF measurements. On the HAT, backlight current comes from `5V_SYS`, not `PI_3V3`.
 
-See [`../../docs/24-lcd-display.md`](../../docs/24-lcd-display.md).
-
 ## Standalone USB-C
 
 ```text
@@ -146,8 +217,6 @@ USB4105-GF-A
 ```
 
 No USB-PD is required. USB 2.0 D+/D- remain optional for a future debug/data path.
-
-See [`../../docs/25-standalone-usbc-power.md`](../../docs/25-standalone-usbc-power.md).
 
 ## CAD / layout workflow
 
@@ -166,8 +235,9 @@ Quilter is not allowed to freely place/reroute:
 - ferrite / tuning / OPA810 cluster;
 - LTC1562 programming network;
 - ADC/LT3042/OPA2835 cluster;
-- TCXO/clock escape;
-- ECP5/flash boot cluster;
+- TCXO/clock escape to ECP5 `C9`;
+- ECP5/flash Bank-8 boot cluster;
+- external PPS path from `R12`;
 - power-converter hot loops;
 - mechanically fixed LCD/connectors/holes.
 
@@ -177,6 +247,7 @@ No fast digital trace or switch node may run beneath or beside the ferrite/input
 
 ```text
 hardware/tscircuit/
+  pin-plan.json
   src/
     core/
       receiver_core.tsx
@@ -206,13 +277,11 @@ hardware/tscircuit/
 
 ## Remaining schematic-freeze items
 
-- import/verify authoritative BG256 pin map and allocate I/O banks;
+The pin plan and HAT GPIO allocation are no longer open. Remaining work:
+
 - freeze regulator feedback/passives/decoupling from final power estimate;
-- choose exact HAT+ GPIO assignments;
 - freeze HAT `PI_3V3` current/protection/decoupling implementation;
 - decide whether standalone Rev.0 populates a USB 2.0 bridge;
 - freeze ESD/TVS and connector-shield strategy;
 - freeze LCD backlight current-limit components;
-- generate the first pin-accurate tscircuit schematic.
-
-Primary supporting documents include `docs/15` through `docs/26`, with `docs/26-hat-power.md` defining the HAT-specific dual-rail power split.
+- build and verify the first pin-accurate tscircuit ECP5/AFE/power schematic.
