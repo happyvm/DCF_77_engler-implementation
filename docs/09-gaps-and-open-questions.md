@@ -1,70 +1,72 @@
 # Gaps and open questions
 
-The Engeler paper contains enough information to reproduce the receiver **architecture**, but not enough to clone the original PCB verbatim. This document now distinguishes unresolved questions from items that have been recovered from external primary/manufacturer sources or resolved by explicit rebuild choices.
+The Engeler paper contains enough information to reproduce the receiver **architecture**, but not enough to clone the original PCB verbatim. This document distinguishes historical unknowns from items resolved by primary/manufacturer sources or explicit rebuild choices.
 
 ## Resolved since the initial documentation pass
 
 ### DCF77 PM PRN generator — RESOLVED
 
-The exact PM generator is no longer an open dependency.
+The exact PM generator is documented from PTB material and implemented in [`../tools/dcf77_prn.py`](../tools/dcf77_prn.py).
 
-PTB documentation provides:
-
-- 9-stage feedback shift register;
-- feedback from stages 5 and 9;
-- equivalent polynomial `x^9 + x^5 + 1`;
-- forced escape from the all-zero state;
-- 512 balanced chips per second;
-- chip clock `77.5 kHz / 120`;
-- cycle start 200 ms after the second boundary;
-- sequence inversion keying for binary 1;
-- ten inverted cycles during seconds 0-9 as the PM minute identifier.
-
-See [`10-dcf77-pm-prn.md`](10-dcf77-pm-prn.md) and [`../tools/dcf77_prn.py`](../tools/dcf77_prn.py).
+See [`10-dcf77-pm-prn.md`](10-dcf77-pm-prn.md).
 
 ### First LTC1562 component set — RESOLVED AS A REBUILD DESIGN
 
-The original Engeler resistor values remain unknown, but the LTC1562 manufacturer data sheet includes a directly applicable 8th-order band-pass topology. Scaling the published 80 kHz design to 77.5 kHz produces a documented, buildable first-pass filter.
-
-This does **not** recover the original PCB values; it resolves the question “how do we build a credible first prototype?”
+The original Engeler values remain unknown, but a buildable 77.5 kHz first-pass filter was derived from the manufacturer's published 8th-order LTC1562 application.
 
 See [`11-analog-reference-design.md`](11-analog-reference-design.md).
 
-### ADC 14-bit family member — PARTIALLY RESOLVED
+### Historical ADC family clarification — PARTIALLY RESOLVED
 
-The paper labels the part “LTC1407, 14 bit”. Manufacturer data establishes that the 14-bit versions are LTC1407A-family parts. The exact original suffix (`A` versus `A-1`) is still unknown.
+The paper labels “LTC1407, 14 bit”. Manufacturer data establishes that the 14-bit parts are LTC1407A-family devices. Exact historical suffix remains unknown.
 
-### Rebuild FPGA family — RESOLVED AS A DESIGN CHOICE
-
-The new implementation targets:
+### Rebuild FPGA — RESOLVED AS A DESIGN CHOICE
 
 ```text
 Lattice ECP5 LFE5U-45F
 BG256 / caBGA256
 ```
 
-The historical XC3S1400AN remains relevant only as a reference to the original receiver.
-
 See [`12-ecp5-migration.md`](12-ecp5-migration.md).
 
-### Rebuild clock architecture — RESOLVED AT ARCHITECTURE LEVEL
+### Rebuild hardware CAD — RESOLVED AS A DESIGN CHOICE
 
-The exact original Xilinx oscillator/DCM implementation is still historically unknown, but the **new ECP5 implementation** is now defined:
+The schematic and PCB will be authored in **tscircuit**, with KiCad export/review before fabrication. AI/cloud placement/routing is permitted after hard RF/EMI placement constraints are applied.
+
+See [`14-hardware-cad-tscircuit.md`](14-hardware-cad-tscircuit.md) and [`../hardware/tscircuit/README.md`](../hardware/tscircuit/README.md).
+
+### Rebuild oscillator family and nominal frequency — RESOLVED AT ARCHITECTURE LEVEL
+
+Preferred clock source:
 
 ```text
-25 MHz standard XO
- -> fixed ECP5 PLL
- -> 125 MHz system clock
- -> 40-bit fractional ADC sample scheduler
- -> average 930 kS/s
- -> slow trim from DCF77 carrier phase
+SiTime SiT5348 Super-TCXO / DCTCXO
+24.180000 MHz
+3.3 V
+LVCMOS
+I2C frequency control
 ```
 
-The first scheduler RTL is in [`../rtl/core/sample_scheduler.sv`](../rtl/core/sample_scheduler.sv). Calculations are reproducible with [`../tools/clock_plan.py`](../tools/clock_plan.py).
+The exact manufacturer ordering code is still to be generated/validated before BOM freeze.
+
+24.18 MHz was selected because it is exactly:
+
+```text
+312 * 77.5 kHz
+26 * 930 kHz
+```
+
+With an ECP5 x5 PLL the system clock is 120.9 MHz and ADC timing is an exact `/130`.
+
+See [`15-sitime-super-tcxo.md`](15-sitime-super-tcxo.md).
+
+### Rebuild clock discipline — RESOLVED AT ARCHITECTURE LEVEL
+
+The preferred hardware loop now disciplines the SiT5348 itself over I2C from DCF77 carrier phase. The ECP5 PLL remains fixed.
+
+The generic 25 MHz + 125 MHz + 40-bit fractional scheduler architecture remains as a fallback/reference path, with RTL in [`../rtl/core/sample_scheduler.sv`](../rtl/core/sample_scheduler.sv).
 
 See [`13-ecp5-clock-discipline.md`](13-ecp5-clock-discipline.md).
-
-This resolves the implementation architecture, **not** the exact loop coefficients or final oscillator manufacturer OPN.
 
 ## Missing historical hardware details
 
@@ -86,7 +88,7 @@ Still not published/recovered:
 - DAC use and channel mapping;
 - connector pinout and debug-header definition.
 
-These remain historical unknowns even where the rebuild deliberately chooses a modern replacement architecture.
+These remain historical unknowns even where the rebuild chooses a modern substitute.
 
 ## Missing DSP/FPGA constants
 
@@ -95,83 +97,102 @@ Not published explicitly:
 - HDL/source code;
 - fixed-point word widths;
 - Goertzel state scaling constants as binary values;
-- carrier Goertzel loop bandwidth versus acquisition state;
+- carrier estimator bandwidth versus acquisition state;
 - CORDIC precision/iteration count;
 - exact AGC thresholds and time constants;
-- exact second/minute correlation normalisation;
-- ML confidence-check thresholds;
-- all overflow/saturation rules;
-- memory organisation and update schedule;
-- detailed random-burst processing algorithm.
+- exact second/minute correlation normalization;
+- ML confidence thresholds;
+- overflow/saturation rules;
+- memory organization and update schedule;
+- detailed randomized/burst processing algorithm.
 
-These can be reconstructed by simulation and regression against stored RF captures, but they should be documented as new implementation choices.
+These can be reconstructed through software models, simulation and regression against stored RF captures.
 
 ## Rebuild clock items still open
 
-The ECP5 architecture is fixed, but several implementation details still require validation:
+The architecture is fixed, but implementation/tuning remains:
 
-- select at least two lifecycle-safe 25 MHz oscillator OPNs;
-- generate and verify the final ECP5 PLL primitive parameters with the selected toolchain;
+- generate/validate the exact SiT5348 24.180000 MHz DCTCXO OPN;
+- decide low-g versus ultra-low-g option and temperature grade;
+- generate and verify the ECP5 24.18 -> 120.9 MHz PLL primitive parameters;
+- implement the exact `/130` ADC event generator;
+- implement SiT5348 I2C frequency-control RTL/firmware;
 - select acquisition/tracking loop coefficients;
 - select phase-outlier/hole-punch thresholds;
 - establish holdover/reacquisition confidence rules;
-- measure actual ADC `CONV` timing quantisation/jitter;
-- measure self-interference caused by 25 MHz, 125 MHz and the fractional conversion pattern.
+- measure TCXO/PLL/ADC timing jitter on hardware;
+- measure self-interference caused by the harmonically related 24.18/120.9 MHz clocks.
 
-These are tuning/validation tasks, not reasons to reopen the basic fixed-PLL/fractional-scheduler architecture unless measurements show a concrete failure.
+The older fractional scheduler remains available if the DCTCXO path fails a real measurement or sourcing requirement.
 
-## Antenna identification and characterization
+## Antenna characterization
 
-The exact HKW part is named, but detailed electrical data for the exact Engeler sample is not yet secured.
-
-Before freezing the analog schematic, measure or obtain:
+Before the analog design is frozen, obtain/measure:
 
 - inductance at 77.5 kHz;
 - winding resistance;
 - Q and -3 dB bandwidth;
 - resonance versus tuning capacitance;
 - temperature coefficient;
-- resonance shift when mounted on/near the PCB;
+- mounting-induced resonance shift;
 - phase/group delay around 77.5 kHz.
 
-A secondary source reports about 897 µH for several HKW DCF77 rods, giving a nominal tuning capacitance near 4.70 nF, but this must remain a provisional value.
+A provisional ~897 µH figure from secondary HKW data implies ~4.70 nF tuning near 77.5 kHz, but it must not be treated as the exact Engeler antenna value.
 
 ## Analog filter validation
 
-The first rebuild filter now has calculated values, but it still needs measurement.
+Validate the first rebuild filter for:
 
-Validate:
-
-- actual centre frequency;
+- centre frequency;
 - -3 dB bandwidth;
 - passband gain;
 - phase/group delay;
-- tolerance over temperature;
-- rejection of likely local switch-mode interference;
-- PM correlation loss relative to a wider raw capture.
+- temperature/tolerance sensitivity;
+- rejection of realistic switch-mode interference;
+- PM correlation loss versus a wider raw capture.
 
-Only after those measurements should the filter be considered final.
+## Hardware CAD validation still required
+
+Selecting tscircuit does not finish the board design.
+
+Still required:
+
+- pin-accurate component wrappers and footprints;
+- complete netlist;
+- board dimensions/mechanical requirements;
+- analog/digital/RF keepout zones;
+- ECP5 BG256 fanout strategy;
+- power/ground strategy;
+- placement checks before routing;
+- AI/cloud routing evaluation;
+- KiCad export review and independent DRC;
+- fabrication-release archive.
+
+Because tscircuit/KiCad conversion is evolving, exporter output must always be reviewed rather than assumed perfect.
 
 ## Confidence-check reconstruction
 
-The paper gives a target wrong-decode probability but not the thresholds that produced it. The ML decoder should therefore be calibrated with Monte-Carlo simulation. Keep the target probability and report the measured false-lock rate for every chosen threshold set.
+The paper gives a wrong-decode target but not the thresholds that produced it. The ML decoder must therefore be calibrated with Monte-Carlo simulation and real captures, with false-lock probability recorded for every threshold set.
 
-## Questions to resolve during implementation
+## Current questions to resolve
 
-1. Can an authentic HKW FTD02011R be obtained and measured?
-2. Which modern high-impedance input stage should replace the obsolete BF245A in the sustainable BOM?
-3. Which LTC6912 variant, or replacement PGA, should be frozen in the BOM?
-4. Which ADC should be frozen for the rebuild and what driver/common-mode circuit does it require?
-5. Which two approved 25 MHz XO sources will be used for lifecycle resilience?
-6. What absolute timing target will define success: ~1 ms, <100 µs, or carrier-cycle-level timing?
-7. How will ferrite-antenna group delay be calibrated?
-8. How will FPGA/USB/display self-interference be measured before enclosure design?
-9. What raw DCF77 capture corpus will be stored for DSP regression testing?
-10. How will ML false-lock probability be measured and documented?
-11. What clock-loop coefficients provide fast acquisition without following impulsive phase noise?
+1. Can an authentic HKW FTD02011R be obtained and characterized?
+2. Which modern high-impedance input stage replaces the obsolete BF245A?
+3. Which sustainable band-pass implementation becomes the final BOM: LTC1562 reference design or standard-op-amp biquads?
+4. Which PGA becomes final?
+5. Which SAR ADC and driver/common-mode stage become final?
+6. Which exact SiT5348 DCTCXO OPN should be ordered for Rev.0?
+7. Which ECP5 speed/temperature OPN and SPI configuration flash should be frozen?
+8. Which regulators satisfy both lifecycle and receiver-noise requirements?
+9. What absolute timing target defines final success: ~1 ms, <100 µs, or better?
+10. How will ferrite-antenna group delay be calibrated?
+11. What raw DCF77 capture corpus will be kept for regression?
+12. What carrier-loop coefficients give fast acquisition without following propagation/impulse noise?
+13. How will FPGA/TCXO/USB/display self-interference be measured and accepted?
+14. How will ML false-lock probability be measured and documented?
 
-These questions should become GitHub issues as component sourcing, board design and RTL validation progress.
+## Documentation principle
 
-## Principle for future documentation
+When an unknown is solved by a **new design choice**, label it as reconstruction. When it is solved from a **primary source, manufacturer data sheet, original photograph or original hardware measurement**, label it as recovered fact.
 
-When an unknown is solved by a **new design choice**, label it as reconstruction. When it is solved from a **primary source, manufacturer data sheet, original photograph or original hardware measurement**, label it as recovered fact. This distinction is essential if the repository is to remain useful both as an engineering project and as a faithful reconstruction record.
+That distinction is essential for keeping the repository both buildable and historically honest.
