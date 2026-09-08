@@ -4,6 +4,21 @@ Le dépôt fournit maintenant des points d'entrée concrets pour les outils list
 dans le guide RTL. Les versions doivent être figées dans la future image CI;
 `make tool-versions` les affiche avant tout rapport de qualification.
 
+## Installation reproductible
+
+`tools/install-rtl-toolchain.sh` installe la publication OSS CAD Suite
+`2025-02-13` dans un répertoire dédié. Cette publication fournit ensemble
+Icarus, Verilator, Yosys, nextpnr-ecp5, Project Trellis, SymbiYosys et
+Boolector. La CI met ce répertoire en cache, mais la date figée dans le script
+reste la source de vérité; changer de chaîne nécessite donc une modification
+relue et versionnée du script.
+
+```sh
+tools/install-rtl-toolchain.sh
+source "$HOME/.local/oss-cad-suite-2025-02-13/environment"
+make tool-versions
+```
+
 ## Vérification statique
 
 ```sh
@@ -51,11 +66,15 @@ build/engeler_detector-stat.txt
 Cette cible synthétise le cœur et non un bitstream de carte. Le placement-routage
 avec nextpnr-ecp5 ne deviendra bloquant qu'après ajout du top-level ECP5, du
 fichier LPF et des contraintes d'horloge validées contre le PCB.
+La cible `make timing` réalise néanmoins périodiquement un placement-routage
+sans brochage à 48 MHz pour détecter les régressions du cœur. Son rapport ne
+constitue pas une clôture de timing de carte.
 
 ## Contrôle automatique du budget
 
 ```sh
 make resource-check
+make timing
 ```
 
 `tools/check_resource_budget.py` compte dans le netlist ECP5 les cellules
@@ -96,3 +115,9 @@ make resource-check
 simulateur HDL. Les autres commandes échouent volontairement si leur exécutable
 requis est absent; elles ne doivent jamais transformer une vérification ignorée
 en succès CI.
+
+Le workflow `.github/workflows/rtl.yml` exécute versions, tests Python, tests
+RTL et lint sur chaque pull request. La synthèse et le budget sont dans une
+tâche séparée. Le placement-routage et les preuves, plus longs, s'exécutent le
+lundi, sur demande et pour les tags de version. Tous les rapports restent
+téléchargeables comme artefacts GitHub Actions, y compris lors d'un échec.
