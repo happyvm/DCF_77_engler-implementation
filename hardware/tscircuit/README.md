@@ -11,16 +11,22 @@ The analog front end, ADC, clock, ECP5, display/timing outputs and downstream re
 
 ## Current pin-level decisions
 
-Now selected for Rev.0:
+Now selected or strongly preferred for Rev.0:
 
 ```text
-FPGA        Lattice ECP5 LFE5U-45F, BG256 preferred
-ADC         LTC1407AIMSE-1#PBF
-ADC rate    930 kS/s
-ADC driver  OPA2810IDR candidate, validation required
-PGA         LTC6912 family, -1 still preferred unless sourcing changes
-PPS         mandatory dedicated ECP5 hardware output
-Display     transflective 20x2 LCD on both PCB variants
+FPGA         Lattice ECP5 LFE5U-45F, BG256 preferred
+ADC          LTC1407AIMSE-1#PBF
+ADC rate     930 kS/s
+ADC driver   OPA2835IDGSR candidate, validation required
+PGA          LTC6912 family, -1 still preferred unless sourcing changes
+PPS          mandatory dedicated ECP5 hardware output
+Display      transflective 20x2 LCD on both PCB variants
+1V1 core     TPS628502 candidate
+3V3 digital  TPS628502 candidate
+2V5 aux      TPS7A20 fixed 2.5 V candidate
+3V3 ADC      LT3042 candidate
+3V3 clock    TPS7A20 fixed 3.3 V candidate
+5V AFE       low-loss passively filtered 5V_SYS
 ```
 
 Still open before the complete `index.circuit.tsx` is frozen:
@@ -28,7 +34,7 @@ Still open before the complete `index.circuit.tsx` is frozen:
 - sustainable high-impedance antenna input stage;
 - exact antenna part/tuning network from measured L/Q;
 - final LTC6912 OPN/package;
-- regulator tree;
+- exact regulator OPN/package/passives after power simulation and sourcing re-check;
 - exact ECP5 speed/temperature OPN;
 - SPI configuration flash;
 - final fixed TCXO OPN/frequency;
@@ -37,6 +43,7 @@ Still open before the complete `index.circuit.tsx` is frozen:
 - Raspberry Pi GPIO assignments.
 
 ADC details are in [`../../docs/18-adc-selection.md`](../../docs/18-adc-selection.md).
+Power details are in [`../../docs/19-power-tree.md`](../../docs/19-power-tree.md).
 
 ## Planned structure
 
@@ -107,16 +114,27 @@ See [`../../docs/14-hardware-cad-tscircuit.md`](../../docs/14-hardware-cad-tscir
 
 ## Shared power boundary
 
-Both boards present the same internal interface to the common receiver core:
+Both boards present the same internal `5V_SYS` boundary to the common receiver core.
+
+Current downstream architecture:
 
 ```text
 5V_SYS
-  -> receiver regulators / filters
-  -> AFE/PGA/ADC driver
-  -> dedicated low-noise ADC rail
-  -> clock
-  -> ECP5 rails
-  -> LCD/backlight rail
+  |
+  +--> low-loss passive filter -> 5V_AFE
+  |      -> LTC1562 / LTC6912 / input stage
+  |
+  +--> LT3042 -> 3V3_ADC_A
+  |      -> LTC1407A-1 / OPA2835
+  |
+  +--> TPS7A20 -> 3V3_CLK
+  |      -> TCXO
+  |
+  +--> TPS628502 -> 3V3_D
+  |      -> ECP5 VCCIO / flash / LCD logic
+  |      -> TPS7A20 -> 2V5_AUX
+  |
+  +--> TPS628502 -> 1V1_CORE
 ```
 
 Only the 5 V input shell differs:
@@ -131,6 +149,8 @@ USB-C VBUS -> Type-C sink/power path -> 5V_SYS
 
 The HAT+ variant uses Raspberry Pi 3.3 V only for HAT identification / power-state sensing as required, not as the main FPGA/analog supply.
 
+`3V3_D` is intentionally the first controlled FPGA rail. Its power-good signal enables `1V1_CORE` and `2V5_AUX` so ECP5 VCCIO8/configuration flash are valid before normal configuration begins.
+
 ## RF-critical placement policy
 
 The following are not freely placed by Quilter:
@@ -138,8 +158,10 @@ The following are not freely placed by Quilter:
 - antenna mechanical interface;
 - first high-impedance input device;
 - critical antenna tuning components;
-- ADC and its local analog driver/input RC network as a tightly constrained cluster;
-- TCXO and its clock escape direction;
+- LTC1562/PGA analog chain;
+- ADC, LT3042, OPA2835 and the input RC network as a tight cluster;
+- TCXO and its dedicated LDO/clock escape direction;
+- switcher hot loops and inductors;
 - mounting holes;
 - mechanically fixed board-edge connectors.
 
@@ -173,6 +195,8 @@ No exact TCXO OPN or nominal clock frequency is frozen yet.
 
 The baseline is a **simple fixed TCXO**, with DCF77 frequency correction retained in the ECP5/sample scheduler. DCTCXO population remains an experimental option only if measured holdover performance justifies the extra control dependency.
 
+The TCXO receives its own low-noise `3V3_CLK` rail rather than sharing the ADC regulator.
+
 Selection is based on:
 
 1. synchronized timing target and holdover requirement;
@@ -192,17 +216,17 @@ Preferred Rev.0 chain:
 ```text
 LTC6912 output
   -> AC coupling / 1.25 V rebias
-  -> OPA2810 channel
+  -> OPA2835 channel @ 3V3_ADC_A
   -> 51 ohm + 47 pF C0G isolation
   -> LTC1407A-1 CH0
 
 optional diagnostic source
-  -> OPA2810 channel
+  -> OPA2835 channel @ 3V3_ADC_A
   -> 51 ohm + 47 pF C0G isolation
   -> LTC1407A-1 CH1
 ```
 
-The ADC runs from a dedicated low-noise 3.3 V rail. The 2.5 V internal reference is locally bypassed and divided to create the 1.25 V ADC common-mode node.
+The ADC and OPA2835 share a dedicated LT3042-derived 3.3 V analog rail. The 2.5 V ADC internal reference is locally bypassed and divided to create the 1.25 V ADC common-mode node.
 
 ## FPGA resource policy
 
