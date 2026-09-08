@@ -34,13 +34,12 @@ module hour_candidate_search #(
     logic signed [SCORE_BITS-1:0] best_q, second_q;
     logic signed [SCORE_BITS-1:0] updated_best, updated_second;
     logic [4:0] best_hour_q, updated_hour;
-    integer i;
 
     always_comb begin
         if (candidate >= 20) begin
-            tens = 2; units = candidate - 20;
+            tens = 2; units = 4'(candidate - 5'd20);
         end else if (candidate >= 10) begin
-            tens = 1; units = candidate - 10;
+            tens = 1; units = 4'(candidate - 5'd10);
         end else begin
             tens = 0; units = candidate[3:0];
         end
@@ -54,11 +53,11 @@ module hour_candidate_search #(
         candidate_bits[6] = ^candidate_bits[5:0];
 
         candidate_score = '0;
-        for (i = 0; i < 7; i = i + 1) begin
+        for (int i = 0; i < 7; i = i + 1) begin
             if (candidate_bits[i])
-                candidate_score = candidate_score + evidence[i];
+                candidate_score = candidate_score + SCORE_BITS'(evidence[i]);
             else
-                candidate_score = candidate_score - evidence[i];
+                candidate_score = candidate_score - SCORE_BITS'(evidence[i]);
         end
 
         updated_best = best_q;
@@ -75,7 +74,7 @@ module hour_candidate_search #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            for (i = 0; i < 7; i = i + 1)
+            for (int i = 0; i < 7; i = i + 1)
                 evidence[i] <= '0;
             candidate    <= '0;
             best_q       <= {1'b1, {(SCORE_BITS-1){1'b0}}};

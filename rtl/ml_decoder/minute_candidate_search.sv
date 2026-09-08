@@ -35,20 +35,19 @@ module minute_candidate_search #(
     logic [5:0] best_minute_q, updated_minute;
     logic [3:0] units;
     logic [2:0] tens;
-    integer i;
 
     always_comb begin
         // Explicit decimal split avoids inferring generic divider/modulo logic.
         if (candidate >= 50) begin
-            tens = 5; units = candidate - 50;
+            tens = 5; units = 4'(candidate - 6'd50);
         end else if (candidate >= 40) begin
-            tens = 4; units = candidate - 40;
+            tens = 4; units = 4'(candidate - 6'd40);
         end else if (candidate >= 30) begin
-            tens = 3; units = candidate - 30;
+            tens = 3; units = 4'(candidate - 6'd30);
         end else if (candidate >= 20) begin
-            tens = 2; units = candidate - 20;
+            tens = 2; units = 4'(candidate - 6'd20);
         end else if (candidate >= 10) begin
-            tens = 1; units = candidate - 10;
+            tens = 1; units = 4'(candidate - 6'd10);
         end else begin
             tens = 0; units = candidate[3:0];
         end
@@ -62,11 +61,11 @@ module minute_candidate_search #(
         candidate_bits[7] = ^candidate_bits[6:0];
 
         candidate_score = '0;
-        for (i = 0; i < 8; i = i + 1) begin
+        for (int i = 0; i < 8; i = i + 1) begin
             if (candidate_bits[i])
-                candidate_score = candidate_score + evidence[i];
+                candidate_score = candidate_score + SCORE_BITS'(evidence[i]);
             else
-                candidate_score = candidate_score - evidence[i];
+                candidate_score = candidate_score - SCORE_BITS'(evidence[i]);
         end
 
         updated_best = best_q;
@@ -83,7 +82,7 @@ module minute_candidate_search #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            for (i = 0; i < 8; i = i + 1)
+            for (int i = 0; i < 8; i = i + 1)
                 evidence[i] <= '0;
             candidate      <= '0;
             best_q         <= {1'b1, {(SCORE_BITS-1){1'b0}}};
