@@ -19,7 +19,7 @@ Use this model to validate all FPGA arithmetic and ML decoding offline.
 
 ## Phase 1 — analog front-end only
 
-Build antenna + JFET + band-pass + PGA. Do not start with the full FPGA algorithm.
+Build antenna + input buffer + band-pass + PGA. Do not start with the full FPGA algorithm.
 
 Measure:
 
@@ -33,7 +33,7 @@ Measure:
 
 ## Phase 2 — raw ADC capture
 
-Clock the ADC at **930 kS/s** and capture long raw blocks to a PC. Add only enough FPGA logic for acquisition and transport.
+Clock the ADC at **930 kS/s** and capture long raw blocks through the Raspberry Pi host interface. Add only enough FPGA logic for acquisition and transport.
 
 Use captured data to develop the detector in Python/C first. This makes analog and algorithmic debugging independent.
 
@@ -83,20 +83,22 @@ Use soft bits. Add explicit confidence gating so random/noise input cannot force
 
 ## Phase 7 — clock discipline
 
-Add phase comparison, burst-noise hole punching and the divide-by-8 `d±1` fractional correction scheme. Narrow the carrier loop bandwidth as the correction converges.
+Add phase comparison, burst-noise hole punching and fractional digital correction. Narrow the carrier loop bandwidth as the correction converges.
 
 **Exit criterion:** measured processing-clock error <=0.1 ppm while locked and no loss of receiver stability during normal day/night signal variation.
 
 ## Phase 8 — EMI/self-leakage hardening
 
-Measure the antenna spectrum with the FPGA running. If digital spurs appear at 77.5 kHz or related aliases:
+Measure the antenna spectrum with the complete HAT running on a Raspberry Pi. If digital spurs appear at 77.5 kHz or related aliases:
 
 - add random-length processing bursts as in the paper;
 - improve supply isolation and grounding;
 - move/shield high-speed digital circuitry;
-- disable USB/DC-DC subsystems for A/B testing.
+- A/B test Raspberry Pi CPU/Ethernet/Wi-Fi activity;
+- disable LCD backlight and nonessential host traffic;
+- characterize the local 1.1 V core buck separately.
 
-**Exit criterion:** enabling the full FPGA logic does not measurably degrade carrier SNR at the antenna/front-end.
+**Exit criterion:** enabling the full FPGA and Raspberry Pi host workload does not measurably degrade carrier SNR beyond the accepted HAT budget.
 
 ## Phase 9 — absolute timing calibration
 
@@ -105,6 +107,7 @@ Compare the decoded second edge to GPS/PPS or a lab timebase. Characterise:
 - ferrite-antenna group delay;
 - analog-filter delay;
 - ADC/FPGA pipeline delay;
+- PPS output-path delay;
 - location-dependent propagation delay.
 
 **Exit criterion:** repeatable offset and jitter consistent with the target accuracy chosen for the rebuild.
@@ -129,12 +132,11 @@ sim/
   vectors/
   cocotb_or_equivalent/
 
-hw/
-  reference_bom/
-  rebuild_bom/
-  schematic/
-  pcb/
-  measurements/
+hardware/tscircuit/
+  pin-plan.json
+  power-plan.json
+  src/
+  dist/
 
 software/
   capture/
