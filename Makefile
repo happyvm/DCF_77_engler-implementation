@@ -9,14 +9,14 @@ BUILD_DIR ?= build
 .PHONY: test test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
-	test-lock-controller test-qualification-disabled \
+	test-second-phase test-lock-controller test-qualification-disabled \
 	lint-pps-uart lint-goertzel lint-detector lint formal synth \
 	resource-check timing test-tools tool-versions clean
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
-	test-lock-controller test-qualification-disabled test-tools
+	test-second-phase test-lock-controller test-qualification-disabled test-tools
 
 test-adc-if: $(BUILD_DIR)/adc_if_tb.vvp
 	$(VVP) $<
@@ -129,6 +129,14 @@ $(BUILD_DIR)/pm_minute_sync_tb.vvp: \
 	mkdir -p $(BUILD_DIR)
 	$(IVERILOG) -g2012 -Wall -s pm_minute_sync_tb -o $@ $^
 
+test-second-phase: $(BUILD_DIR)/second_phase_detector_tb.vvp
+	$(VVP) $<
+
+$(BUILD_DIR)/second_phase_detector_tb.vvp: \
+		rtl/sync/second_phase_detector.sv sim/second_phase_detector_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s second_phase_detector_tb -o $@ $^
+
 test-minute-ml: $(BUILD_DIR)/minute_candidate_search_tb.vvp
 	$(VVP) $<
 
@@ -173,7 +181,7 @@ lint-detector:
 		rtl/am/am_bit_extractor.sv rtl/pm/pm_chip_integrator.sv \
 		rtl/pm/dcf77_prn_generator.sv rtl/pm/pm_prn_correlator.sv \
 		rtl/pm/engeler_pm_correlator.sv rtl/pm/engeler_pm_pipeline.sv \
-		rtl/sync/pm_minute_sync.sv \
+		rtl/sync/pm_minute_sync.sv rtl/sync/second_phase_detector.sv \
 		rtl/core/engeler_detector.sv
 
 lint:

@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Integrated detector datapath from signed ADC samples to AM/PM soft evidence.
 //
-// second_ce must be aligned so the first observable_valid after it represents
-// carrier cycle zero of the new DCF77 second. Minute synchronization will
-// eventually generate this alignment; during bring-up it may come from a test
-// timebase.
+// The second epoch is recovered internally from AM and then refined by PZF.
 
 module engeler_detector #(
     parameter int SAMPLE_BITS = 14,
@@ -14,13 +11,19 @@ module engeler_detector #(
     parameter int PM_OUTPUT_SHIFT = 24,
     parameter bit QUALIFICATION_ENABLED = 1'b0,
     parameter logic [SOFT_BITS+14:0] MINUTE_MIN_SCORE = '0,
-    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_GAP = '0
+    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_GAP = '0,
+    parameter int AM_SYNC_THRESHOLD = 1
 ) (
     input  logic clk,
     input  logic rst,
     input  logic sample_ce,
     input  logic signed [SAMPLE_BITS-1:0] sample,
-    input  logic second_ce,
+    output logic second_ce,
+    output logic signed [17:0] second_phase_error,
+    output logic [7:0] second_phase_quality,
+    output logic second_measurement_outlier,
+    output logic [15:0] second_measurement_age,
+    output logic [1:0] second_sync_state,
     output logic signed [SOFT_BITS-1:0] am_soft_bit,
     output logic am_bit_valid,
     output logic signed [SOFT_BITS+9:0] pm_correlation,
@@ -44,6 +47,16 @@ module engeler_detector #(
     logic unused_prn_active;
     logic unused_prn_done;
     logic [16:0] unused_am_position;
+    logic signed [17:0] zero_pm_error;
+    logic [7:0] pm_timing_quality;
+
+    assign zero_pm_error = '0;
+    always_comb begin
+        if (pm_correlation[SOFT_BITS+9])
+            pm_timing_quality = (~pm_correlation[SOFT_BITS+8 -: 8]);
+        else
+            pm_timing_quality = pm_correlation[SOFT_BITS+8 -: 8];
+    end
 
     engeler_observables #(
         .SAMPLE_BITS(SAMPLE_BITS), .STATE_BITS(STATE_BITS)
@@ -52,6 +65,19 @@ module engeler_detector #(
         .carrier_real(carrier_real), .carrier_imag(carrier_imag),
         .am_inphase_raw(am_observable), .pm_quadrature_raw(pm_observable),
         .observable_valid(observable_valid), .overflow(detector_overflow)
+    );
+
+    second_phase_detector #(
+        .INPUT_BITS(OBSERVABLE_BITS), .AM_EDGE_THRESHOLD(AM_SYNC_THRESHOLD)
+    ) second_sync_i (
+        .clk(clk), .rst(rst), .carrier_ce(observable_valid),
+        .am_envelope(am_observable),
+        .pm_measurement_valid(pm_correlation_valid),
+        .pm_phase_error_cycles(zero_pm_error), .pm_quality(pm_timing_quality),
+        .second_ce(second_ce), .phase_error_cycles(second_phase_error),
+        .quality(second_phase_quality),
+        .measurement_outlier(second_measurement_outlier),
+        .measurement_age(second_measurement_age), .state(second_sync_state)
     );
 
     am_bit_extractor #(
