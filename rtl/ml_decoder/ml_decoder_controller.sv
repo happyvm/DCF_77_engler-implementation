@@ -101,7 +101,14 @@ module ml_decoder_controller #(
                                       alt_year, alt_dst, alt_cest, candidate_cest);
         candidate_packed = {candidate_minute, candidate_hour, candidate_day, candidate_weekday,
                             candidate_month, candidate_year};
-        date_ok = dcf77_calendar_pkg::valid_date(candidate_year, candidate_month, candidate_day);
+        // A candidate must be a representable civil time, not only a valid
+        // calendar date: the searches enumerate in-range values today, but
+        // the controller is the last gate before publication and must not
+        // adopt minute 60, hour 24 or weekday 0 as a baseline if a search is
+        // ever widened or corrupted (formal/ml_decoder_controller.sby).
+        date_ok = dcf77_calendar_pkg::valid_date(candidate_year, candidate_month, candidate_day) &&
+                  (candidate_minute < 6'd60) && (candidate_hour < 5'd24) &&
+                  (candidate_weekday != 3'd0);
         continuity = (candidate_packed == expected_main) && date_ok &&
                      (cest == candidate_cest || dst_announcement);
         continuity_alt = alt_valid && (candidate_packed == expected_alt) && date_ok &&

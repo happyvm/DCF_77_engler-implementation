@@ -1,0 +1,20 @@
+[tasks]
+bmc
+cover
+
+[options]
+bmc: mode bmc
+cover: mode cover
+depth 132
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv i2c_master_byte.sv lcd_i2c_driver.sv lcd_i2c_driver_formal.sv
+prep -top lcd_i2c_driver_formal
+
+[files]
+rtl/platform/i2c_master_byte.sv
+rtl/platform/lcd_i2c_driver.sv
+formal/lcd_i2c_driver_formal.sv
