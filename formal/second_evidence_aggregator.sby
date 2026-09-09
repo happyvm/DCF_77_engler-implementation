@@ -1,0 +1,17 @@
+[options]
+# Bounded: the reference model's latches are internal to the DUT and the
+# Yosys SystemVerilog frontend cannot reference them, so k-induction has
+# no invariant to tie them together; 20 cycles cover several seconds.
+mode bmc
+depth 20
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv second_evidence_aggregator.sv second_evidence_aggregator_formal.sv
+prep -flatten -top second_evidence_aggregator_formal
+
+[files]
+rtl/ml_decoder/second_evidence_aggregator.sv
+formal/second_evidence_aggregator_formal.sv
