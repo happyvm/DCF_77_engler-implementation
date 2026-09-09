@@ -1,0 +1,15 @@
+[options]
+mode bmc
+depth 40
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv uart_tx.sv uart_tx_formal.sv
+prep -top uart_tx_formal
+async2sync
+
+[files]
+rtl/platform/uart_tx.sv
+formal/uart_tx_formal.sv

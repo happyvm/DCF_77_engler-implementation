@@ -1,0 +1,14 @@
+[options]
+mode bmc
+depth 60
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv pga_spi_master.sv pga_spi_master_formal.sv
+prep -top pga_spi_master_formal
+
+[files]
+rtl/platform/pga_spi_master.sv
+formal/pga_spi_master_formal.sv

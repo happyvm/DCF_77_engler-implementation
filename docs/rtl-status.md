@@ -10,7 +10,7 @@ formal) sont conservés comme artefacts du workflow [`rtl.yml`](../.github/workf
 |---|---|---|---|---|---|---|---|---|---|
 | Interface ADC | [✓](30-rtl-development-guide.md#étape-b--acquisition-adc-brute) | [✓](../rtl/platform/adc_if.sv) | [✓](../sim/adc_if_tb.sv) | [✓](../sim/dcf77_hat_top_tb.sv) | [✓](../formal/adc_if.sby) | — | — | — | — |
 | Ordonnanceur d’échantillons | [✓](30-rtl-development-guide.md#étape-b--acquisition-adc-brute) | [✓](../rtl/core/sample_scheduler.sv) | — | [✓](../sim/dcf77_hat_top_tb.sv) | [✓](../formal/sample_scheduler.sby) | — | — | — | — |
-| Programmation PGA LTC6912 | [✓](22-ltc6912-pga.md) | [✓](../rtl/platform/pga_spi_master.sv) | [✓](../sim/pga_spi_master_tb.sv) | [✓](../sim/dcf77_hat_top_tb.sv) | — | — | — | — | — |
+| Programmation PGA LTC6912 | [✓](22-ltc6912-pga.md) | [✓](../rtl/platform/pga_spi_master.sv) | [✓](../sim/pga_spi_master_tb.sv) | [✓](../sim/dcf77_hat_top_tb.sv) | [✓](../formal/pga_spi_master.sby) (borné) | — | — | — | — |
 | Banque Goertzel | [✓](30-rtl-development-guide.md#étape-d--détection-porteuse-et-am) | [✓](../rtl/goertzel/engeler_goertzel_bank.sv) | [✓](../sim/engeler_goertzel_bank_tb.sv) | [✓](../sim/engeler_observables_tb.sv) | — | — | — | — | — |
 | Extraction AM | [✓](30-rtl-development-guide.md#étape-d--détection-porteuse-et-am) | [✓](../rtl/am/am_bit_extractor.sv) | [✓](../sim/am_bit_extractor_tb.sv) | [✓](../sim/dcf77_system_tb.sv) | — | — | — | — | — |
 | Synchronisation seconde (AM + PZF) | [✓](30-rtl-development-guide.md#étape-e--détection-pm-et-synchronisation) | [✓](../rtl/sync/second_phase_detector.sv) | [✓](../sim/second_phase_detector_tb.sv), [✓](../sim/second_phase_ramp_tb.sv) | [✓](../sim/dcf77_system_tb.sv) | — | — | — | — | — |
@@ -26,9 +26,9 @@ formal) sont conservés comme artefacts du workflow [`rtl.yml`](../.github/workf
 | Politique de verrouillage | [✓](30-rtl-development-guide.md#étape-g--discipline-dhorloge-et-produit-final) | [✓](../rtl/control/receiver_lock_controller.sv) | [✓](../sim/receiver_lock_controller_tb.sv) | [✓](../sim/dcf77_system_tb.sv) | [✓](../formal/receiver_lock_controller.sby) | — | — | — | — |
 | Discipline de fréquence | [✓](13-ecp5-clock-discipline.md) | [✓](../rtl/clock_discipline/frequency_discipline.sv) | [✓](../sim/frequency_discipline_tb.sv) | [✓](../sim/dcf77_system_tb.sv) | [✓](../formal/frequency_discipline.sby) (borné) | — | — | — | — |
 | PPS | [✓](30-rtl-development-guide.md#étape-g--discipline-dhorloge-et-produit-final) | [✓](../rtl/core/pps_generator.sv) | [✓](../sim/pps_generator_tb.sv) | [✓](../sim/dcf77_system_tb.sv) | [✓](../formal/pps_generator.sby) | — | — | — | — |
-| Télémétrie UART | [✓](29-hat-uart-time.md) | [✓](../rtl/core/time_telemetry.sv) | [✓](../sim/time_telemetry_tb.sv) | [✓](../sim/uart_tx_tb.sv) | — | — | — | — | — |
-| Esclave SPI HAT (carte de registres) | [✓](27-ecp5-pin-plan-hat.md) | [✓](../rtl/platform/hat_spi_slave.sv) | [✓](../sim/hat_spi_slave_tb.sv) | [✓](../sim/dcf77_hat_top_tb.sv) | — | — | — | — | — |
-| Afficheur LCD I2C (ST7036) | [✓](24-lcd-display.md) | [✓](../rtl/platform/lcd_i2c_driver.sv) | [✓](../sim/lcd_i2c_driver_tb.sv) | [✓](../sim/dcf77_hat_top_tb.sv) | — | — | — | — | — |
+| Télémétrie UART | [✓](29-hat-uart-time.md) | [✓](../rtl/core/time_telemetry.sv) | [✓](../sim/time_telemetry_tb.sv) | [✓](../sim/uart_tx_tb.sv) | [✓](../formal/time_telemetry.sby), [✓](../formal/uart_tx.sby) (bornés) | — | — | — | — |
+| Esclave SPI HAT (carte de registres) | [✓](27-ecp5-pin-plan-hat.md) | [✓](../rtl/platform/hat_spi_slave.sv) | [✓](../sim/hat_spi_slave_tb.sv) | [✓](../sim/dcf77_hat_top_tb.sv) | [✓](../formal/hat_spi_slave.sby) | — | — | — | — |
+| Afficheur LCD I2C (ST7036) | [✓](24-lcd-display.md) | [✓](../rtl/platform/lcd_i2c_driver.sv) | [✓](../sim/lcd_i2c_driver_tb.sv) | [✓](../sim/dcf77_hat_top_tb.sv) | [✓](../formal/i2c_master_byte.sby) (moteur octet, borné) | — | — | — | — |
 | Cœur récepteur (ADC → PPS/UART) | [✓](30-rtl-development-guide.md#étape-g--discipline-dhorloge-et-produit-final) | [✓](../rtl/core/dcf77_receiver_core.sv) | — | [✓](../sim/dcf77_system_tb.sv) (signal DCF77 synthétique, 10 scénarios) | — | — | — | — | — |
 | Top HAT | [✓](27-ecp5-pin-plan-hat.md) | [✓](../rtl/top/dcf77_hat_top.sv) | — | [✓](../sim/dcf77_hat_top_tb.sv) | — | — | — | — | — |
 

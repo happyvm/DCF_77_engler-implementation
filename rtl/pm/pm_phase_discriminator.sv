@@ -114,12 +114,34 @@ module pm_phase_discriminator #(
     logic prompt_seen, early_seen, late_seen;
     logic signed [CORR_BITS-1:0] prompt_latched, early_latched, late_latched;
 
+    // The final scaling/division runs as a sequential restoring divider,
+    // one quotient bit per clock over PROD_BITS clocks: it is needed once
+    // per second, and a single-cycle PROD_BITS-wide divider was this
+    // design's critical path (~290 ns).
+    localparam int DIV_STEP_W = $clog2(PROD_BITS + 1);
+    localparam logic [PROD_BITS-1:0] RESULT_MAX = PROD_BITS'((1 << (PHASE_ERROR_BITS - 1)) - 1);
+    logic div_busy, div_negative;
+    logic [PROD_BITS-1:0] div_dividend, div_divisor;
+    // Quotient bits already decided (the last one is composed at the output);
+    // the remainder is always below the divisor, so PROD_BITS bits suffice.
+    logic [PROD_BITS-2:0] div_quotient;
+    logic [PROD_BITS-1:0] div_remainder;
+    logic [PROD_BITS-1:0] quotient_now;
+    logic [DIV_STEP_W-1:0] div_step;
+    logic [PROD_BITS:0] rem_shift;
+    always_comb begin
+        rem_shift = {div_remainder, div_dividend[PROD_BITS-1]};
+        quotient_now = (rem_shift >= {1'b0, div_divisor}) ? {div_quotient, 1'b1} : {div_quotient, 1'b0};
+    end
+
     always_ff @(posedge clk) begin
         if (rst) begin
             prompt_seen <= 1'b0; early_seen <= 1'b0; late_seen <= 1'b0;
             prompt_latched <= '0; early_latched <= '0; late_latched <= '0;
             pm_phase_error_cycles <= '0;
             phase_error_valid <= 1'b0;
+            div_busy <= 1'b0; div_negative <= 1'b0; div_step <= '0;
+            div_dividend <= '0; div_divisor <= '0; div_quotient <= '0; div_remainder <= '0;
         end else begin
             phase_error_valid <= 1'b0;
 
@@ -140,6 +162,32 @@ module pm_phase_discriminator #(
                 late_latched <= late_correlation;
             end
 
+            if (div_busy) begin
+                div_dividend <= div_dividend << 1;
+                if (rem_shift >= {1'b0, div_divisor})
+                    div_remainder <= PROD_BITS'(rem_shift - {1'b0, div_divisor});
+                else
+                    div_remainder <= PROD_BITS'(rem_shift);
+                div_quotient <= quotient_now[PROD_BITS-2:0];
+                if (div_step == DIV_STEP_W'(1)) begin
+                    div_busy <= 1'b0;
+                    // Bring the quotient computed above into this cycle's
+                    // result: last bit decided by the comparison just made.
+                    phase_error_valid <= 1'b1;
+                    if (quotient_now > RESULT_MAX)
+                        // Parenthesised casts: an unparenthesised
+                        // "-N'(x)" is read by Yosys as a cast of size -N.
+                        pm_phase_error_cycles <= div_negative ?
+                            -(PHASE_ERROR_BITS'(RESULT_MAX)) : PHASE_ERROR_BITS'(RESULT_MAX);
+                    else if (div_negative)
+                        pm_phase_error_cycles <= -(PHASE_ERROR_BITS'(quotient_now));
+                    else
+                        pm_phase_error_cycles <= PHASE_ERROR_BITS'(quotient_now);
+                end else begin
+                    div_step <= div_step - 1'b1;
+                end
+            end
+
             // Fire once every tap has reported for this second. Since
             // second_ce always clears all three *_seen flags together,
             // a channel that never reports (e.g. simulated total PM
@@ -158,6 +206,7 @@ module pm_phase_discriminator #(
                 logic signed [CORR_BITS-1:0] late_aligned;
                 logic signed [CORR_BITS+1:0] numerator;
                 logic signed [CORR_BITS+1:0] denominator;
+                logic signed [PROD_BITS-1:0] scaled;
 
                 prompt_v = prompt_correlation_valid ? prompt_correlation : prompt_latched;
                 early_v = early_correlation_valid ? early_correlation : early_latched;
@@ -168,15 +217,21 @@ module pm_phase_discriminator #(
                 late_aligned = prompt_negative ? -late_v : late_v;
                 numerator = (CORR_BITS+2)'(late_aligned) - (CORR_BITS+2)'(early_aligned);
                 denominator = ((CORR_BITS+2)'(prompt_mag) <<< 1) + 1;
+                scaled = scale_by_offset_cycles(numerator);
 
                 prompt_seen <= 1'b0; early_seen <= 1'b0; late_seen <= 1'b0;
 
-                if (prompt_mag < CORR_BITS'(MIN_PROMPT_MAGNITUDE)) begin
-                    phase_error_valid <= 1'b0;
-                end else begin
-                    pm_phase_error_cycles <= PHASE_ERROR_BITS'(
-                        scale_by_offset_cycles(numerator) / PROD_BITS'(denominator));
-                    phase_error_valid <= 1'b1;
+                // A measurement below the floor is dropped; one arriving
+                // while the previous division still runs (impossible at
+                // one measurement per second) is dropped too.
+                if ((prompt_mag >= CORR_BITS'(MIN_PROMPT_MAGNITUDE)) && !div_busy) begin
+                    div_negative <= scaled[PROD_BITS-1];
+                    div_dividend <= scaled[PROD_BITS-1] ? PROD_BITS'(-scaled) : PROD_BITS'(scaled);
+                    div_divisor <= PROD_BITS'(denominator);
+                    div_quotient <= '0;
+                    div_remainder <= '0;
+                    div_step <= DIV_STEP_W'(PROD_BITS);
+                    div_busy <= 1'b1;
                 end
             end
         end

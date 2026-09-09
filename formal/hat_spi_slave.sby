@@ -1,0 +1,14 @@
+[options]
+mode prove
+depth 12
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv hat_spi_slave.sv hat_spi_slave_formal.sv
+prep -top hat_spi_slave_formal
+
+[files]
+rtl/platform/hat_spi_slave.sv
+formal/hat_spi_slave_formal.sv
