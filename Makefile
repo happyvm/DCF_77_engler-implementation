@@ -312,10 +312,12 @@ FORMAL_JOBS := $(wildcard formal/*.sby)
 
 # Every formal/*.sby is run; a job's proof or bounded check failing fails
 # the target. Working directories land in formal/<job>/ (git-ignored).
+# pipefail matters: without it the pipeline's status is tail's and a
+# failing sby would be silently reported as success.
 formal:
-	@set -e; for job in $(FORMAL_JOBS); do \
+	@bash -o pipefail -c 'set -e; for job in $(FORMAL_JOBS); do \
 		echo "== $$job"; $(SBY) -f $$job | tail -3; \
-	done
+	done'
 
 synth:
 	mkdir -p $(BUILD_DIR)
