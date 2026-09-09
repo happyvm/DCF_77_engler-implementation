@@ -3,10 +3,9 @@
 // civil time, PPS and UART telemetry out.
 //
 // Everything from the Engeler detector onward lives here so that the HAT
-// top (and later a standalone variant) only adds clocking, the ADC serial
-// interface and pin mapping around one shared core, and so that a system
-// test can drive the whole decode chain at one sample per clock without
-// paying for the serial ADC protocol.
+// top only adds clocking, the ADC serial interface and pin mapping around
+// one shared core, and so that a system test can drive the whole decode
+// chain at one sample per clock without paying for the serial ADC protocol.
 module dcf77_receiver_core #(
     parameter int SECOND_CYCLES = 77_500,
     parameter int SECOND_SEARCH_TOLERANCE = 1_000,
