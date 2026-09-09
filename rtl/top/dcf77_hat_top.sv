@@ -32,7 +32,17 @@ module dcf77_hat_top #(
     parameter int unsigned ACQUIRE_RESULTS = 3,
     parameter int unsigned EXIT_FAILURES = 2,
     parameter bit HOLDOVER_ENABLED = 1'b1,
-    parameter int unsigned HOLDOVER_TICKS = 60
+    parameter int unsigned HOLDOVER_TICKS = 60,
+    // LTC6912-1 gain nibbles programmed once after reset (docs/22): channel
+    // A is the receive path at the power-up gain of 100 V/V (0111), channel
+    // B is unused and held in software shutdown (1000). No AGC yet: the
+    // gain is fixed and deterministic.
+    parameter logic [3:0] PGA_GAIN_A = 4'b0111,
+    parameter logic [3:0] PGA_GAIN_B = 4'b1000,
+    parameter int unsigned PGA_SCK_HZ = 100_000,
+    parameter int unsigned CLK_HZ = 125_000_000,
+    // Reported in the HAT SPI register map (major.minor).
+    parameter logic [15:0] RTL_VERSION = 16'h0001
 ) (
     input  logic clk_25m, input logic reset_n,
     output logic adc_conv, output logic adc_sck, input logic adc_sdo,
@@ -53,6 +63,7 @@ module dcf77_hat_top #(
     logic signed [23:0] trim_inc;
     logic [PHASE_BITS-1:0] sample_phase;
     logic second_ce, time_valid, pps_valid, minute_result_valid, detector_overflow;
+    logic ml_locked, minute_locked, frequency_locked;
     logic telemetry_done;
     logic [5:0] second_number;
     logic [7:0] phase_quality;
@@ -90,6 +101,7 @@ module dcf77_hat_top #(
         .clk(clk), .rst(rst), .sample_ce(adc_valid), .sample(adc_ch0),
         .trim_inc(trim_inc), .second_ce(second_ce), .second_number(second_number),
         .time_valid(time_valid), .pps_valid(pps_valid), .lock_state(diag_lock_state),
+        .ml_locked(ml_locked), .minute_locked(minute_locked), .frequency_locked(frequency_locked),
         .detector_overflow(detector_overflow), .minute_result_valid(minute_result_valid),
         .phase_quality(phase_quality),
         .decoded_minute(decoded_minute), .decoded_hour(decoded_hour),
@@ -99,21 +111,37 @@ module dcf77_hat_top #(
         .uart_tx(hat_uart_tx), .pps(hat_pps), .pps_ref(pps_ref),
         .telemetry_done(telemetry_done));
 
-    assign pga_sck = 1'b0; assign pga_mosi = 1'b0; assign pga_cs_n = 1'b1;
+    logic pga_busy, pga_done;
+    pga_spi_master #(.CLK_HZ(CLK_HZ), .SCK_HZ(PGA_SCK_HZ)) pga_i (
+        .clk(clk), .rst(rst), .send(1'b0), .gain_a(PGA_GAIN_A), .gain_b(PGA_GAIN_B),
+        .pga_sck(pga_sck), .pga_mosi(pga_mosi), .pga_cs_n(pga_cs_n),
+        .busy(pga_busy), .done(pga_done));
+
+    // Raspberry Pi status/time register map (see hat_spi_slave for the
+    // layout). UART remains the primary time channel; this is control and
+    // diagnostics.
+    logic [7:0] hat_control;
+    logic hat_transaction_done;
+    hat_spi_slave #(.RTL_VERSION(RTL_VERSION)) hat_spi_i (
+        .clk(clk), .rst(rst),
+        .spi_sclk(hat_spi_sclk), .spi_mosi(hat_spi_mosi), .spi_cs_n(hat_spi_cs_n),
+        .spi_miso(hat_spi_miso),
+        .lock_state(diag_lock_state), .time_valid(time_valid), .pps_valid(pps_valid),
+        .ml_locked(ml_locked), .minute_locked(minute_locked),
+        .frequency_locked(frequency_locked), .adc_fault(diag_adc_fault),
+        .detector_overflow(detector_overflow), .phase_quality(phase_quality),
+        .second(second_number), .minute(decoded_minute), .hour(decoded_hour),
+        .day(decoded_day), .weekday(decoded_weekday), .month(decoded_month),
+        .year(decoded_year), .cest(decoded_cest), .trim_inc(trim_inc),
+        .control(hat_control), .transaction_done(hat_transaction_done));
+
     assign lcd_scl = 1'bz; assign lcd_sda = 1'bz;
     assign lcd_rst_n = !rst; assign lcd_bl_en = time_valid;
-    assign hat_spi_miso = hat_spi_cs_n ? 1'b0 :
-                          (hat_spi_mosi ? detector_overflow : diag_lock_state[0]);
     assign hat_irq = minute_result_valid | diag_adc_fault;
     assign diag_sample_ce = sample_ce; assign diag_sample_valid = adc_valid;
     assign diag_second_ce = second_ce;
     assign diag_ch1_activity = |adc_ch1;
-    // Decoded fields, second counter and quality are exported by the core
-    // for the future SPI HAT register map; until that lands they have no
-    // consumer at this level beyond the UART/PPS the core already drives.
-    wire unused_inputs = hat_spi_sclk ^ hat_uart_rx ^ adc_busy ^ sample_phase[0] ^
-                         pps_valid ^ telemetry_done ^ second_number[0] ^
-                         phase_quality[0] ^ decoded_minute[0] ^ decoded_hour[0] ^
-                         decoded_day[0] ^ decoded_weekday[0] ^ decoded_month[0] ^
-                         decoded_year[0] ^ decoded_cest;
+    wire unused_inputs = hat_uart_rx ^ adc_busy ^ sample_phase[0] ^
+                         pga_busy ^ pga_done ^ telemetry_done ^
+                         hat_control[0] ^ hat_transaction_done;
 endmodule

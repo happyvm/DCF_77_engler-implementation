@@ -40,6 +40,9 @@ module dcf77_receiver_core #(
     output logic time_valid,
     output logic pps_valid,
     output logic [2:0] lock_state,
+    output logic ml_locked,
+    output logic minute_locked,
+    output logic frequency_locked,
     output logic detector_overflow,
     output logic minute_result_valid,
     output logic [7:0] phase_quality,
@@ -69,7 +72,6 @@ module dcf77_receiver_core #(
     logic signed [32:0] carrier_real, carrier_imag;
     logic discipline_locked, discipline_rejected;
     logic [15:0] discipline_age;
-    logic ml_locked, minute_locked, frequency_locked;
     logic [HIST_AW-1:0] history_wp, history_ra;
     logic history_full, history_re, history_rv, history_sample_valid;
     logic signed [15:0] history_am, history_pm;
@@ -333,6 +335,5 @@ module dcf77_receiver_core #(
                          ml_scan_busy ^ fs_busy ^ minute_best[0] ^ minute_gap[0] ^
                          estimated_offset[0] ^
                          ml_gap[0] ^ consistent_count[0] ^ decoded_dst ^ decoded_leap ^
-                         ml_locked ^ minute_locked ^ frequency_locked ^
                          history_re_unused ^ history_ra_unused[0];
 endmodule

@@ -14,7 +14,7 @@ BUILD_DIR ?= build
 	resource-check timing test-tools test-soft-history test-ml-controller \
 	test-frequency-discipline tool-versions clean test-integration synth-core \
 	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator \
-	test-second-phase-ramp test-system test-system
+	test-second-phase-ramp test-system test-pga test-hat-spi test-system
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
@@ -22,12 +22,13 @@ test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-second-phase test-lock-controller test-qualification-disabled test-tools \
 	test-soft-history test-ml-controller test-frequency-discipline test-integration \
 	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator \
-	test-second-phase-ramp test-system
+	test-second-phase-ramp test-system test-pga test-hat-spi
 
 test-integration: $(BUILD_DIR)/dcf77_hat_top_tb.vvp
 	$(VVP) $<
 
-TOP_RTL := rtl/ecp5/clock_reset_ecp5.sv rtl/platform/adc_if.sv \
+TOP_RTL := rtl/ecp5/clock_reset_ecp5.sv rtl/platform/adc_if.sv rtl/platform/pga_spi_master.sv \
+	rtl/platform/hat_spi_slave.sv \
 	rtl/platform/uart_tx.sv rtl/core/sample_scheduler.sv rtl/core/pps_generator.sv \
 	rtl/core/time_telemetry.sv rtl/core/pps_uart.sv rtl/goertzel/*.sv rtl/am/*.sv \
 	rtl/pm/*.sv rtl/sync/*.sv rtl/core/engeler_detector.sv rtl/ml_decoder/*.sv \
@@ -74,6 +75,18 @@ $(BUILD_DIR)/frequency_discipline_tb.vvp: \
 
 test-adc-if: $(BUILD_DIR)/adc_if_tb.vvp
 	$(VVP) $<
+
+test-hat-spi: $(BUILD_DIR)/hat_spi_slave_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/hat_spi_slave_tb.vvp: rtl/platform/hat_spi_slave.sv sim/hat_spi_slave_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s hat_spi_slave_tb -o $@ $^
+
+test-pga: $(BUILD_DIR)/pga_spi_master_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/pga_spi_master_tb.vvp: rtl/platform/pga_spi_master.sv sim/pga_spi_master_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s pga_spi_master_tb -o $@ $^
 
 $(BUILD_DIR)/adc_if_tb.vvp: rtl/platform/adc_if.sv sim/adc_if_tb.sv
 	mkdir -p $(BUILD_DIR)
