@@ -1,0 +1,14 @@
+[options]
+mode prove
+depth 12
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv receiver_lock_controller.sv receiver_lock_controller_formal.sv
+prep -top receiver_lock_controller_formal
+
+[files]
+rtl/control/receiver_lock_controller.sv
+formal/receiver_lock_controller_formal.sv

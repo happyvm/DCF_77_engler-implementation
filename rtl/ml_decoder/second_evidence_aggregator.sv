@@ -73,8 +73,10 @@ module second_evidence_aggregator #(
                 sample_valid         <= am_seen && pm_seen;
                 quality              <= quality_in;
                 second_position_out  <= second_position;
-                am_seen <= 1'b0;
-                pm_seen <= 1'b0;
+                // A pulse landing on the boundary itself belongs to the
+                // second that is starting, not to the record being emitted.
+                am_seen <= am_valid;
+                pm_seen <= pm_valid;
             end
         end
     end

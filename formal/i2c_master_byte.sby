@@ -1,0 +1,14 @@
+[options]
+mode bmc
+depth 96
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv i2c_master_byte.sv i2c_master_byte_formal.sv
+prep -top i2c_master_byte_formal
+
+[files]
+rtl/platform/i2c_master_byte.sv
+formal/i2c_master_byte_formal.sv

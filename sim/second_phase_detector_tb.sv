@@ -32,11 +32,14 @@ module second_phase_detector_tb;
         end
     end
 
+    // A one-carrier notch; the extra clock covers the detector's registered
+    // input stage so the edge's effects are visible when the task returns.
     task automatic am_notch(input bit inverted);
         begin
             am_envelope <= inverted ? -12'sd20 : 12'sd20;
             @(posedge clk); #1;
             am_envelope <= inverted ? -12'sd100 : 12'sd100;
+            @(posedge clk); #1;
         end
     endtask
 
@@ -82,6 +85,18 @@ module second_phase_detector_tb;
             $fatal(1, "inverted-polarity RF did not leave HOLDOVER");
         if (tick_count < 3)
             $fatal(1, "insufficient internally generated seconds");
+
+        // Late slew reversal inside one second: an early edge (+3, slew +1)
+        // followed by an edge in the last cycles (-1, slew -1). The former
+        // exact-match wrap test then never matched again and the position
+        // counter ran through a second period (found by the bounded proof
+        // in formal/second_phase_detector_formal.sv); the tick-gap monitor
+        // above catches the missing second.
+        wait (dut.position == 2); am_notch(0);
+        wait (dut.position == SECOND_CYCLES - 2); am_notch(0);
+        wait_carriers(2 * SECOND_CYCLES + 4);
+        if (phase_error_cycles > 3 || phase_error_cycles < -3)
+            $fatal(1, "phase error %0d left the tracking aperture", phase_error_cycles);
         $display("second_phase_detector_tb: PASS");
         $finish;
     end

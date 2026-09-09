@@ -13,7 +13,19 @@ module pm_minute_sync #(
     // an unconfigured detector (or an all-zero input stream) into a lock.
     parameter bit QUALIFICATION_ENABLED = 1'b0,
     parameter logic [INPUT_BITS+4:0] MIN_SCORE = '0,
-    parameter logic [INPUT_BITS+4:0] MIN_GAP = '0
+    parameter logic [INPUT_BITS+4:0] MIN_GAP = '0,
+    // Scale-free part of the qualification. Data seconds carry
+    // full-magnitude correlations just like the marker, so with the
+    // marker absent (dropout) the best of the ~45 data windows still
+    // clears any absolute floor; and the runner-up is always the marker
+    // shifted by one second (14 of 15 terms shared), so best/second gaps
+    // cannot separate the two cases either. What does separate them is
+    // the winner against the signal level: a real marker sums 15 aligned
+    // terms, ~15x the mean |correlation| over the search, while the best
+    // of 45 random-sign 15-term sums lands around 8-10x. Require
+    // best >= MARKER_MIN_MEANS x mean|correlation|, i.e.
+    // 60*best >= MARKER_MIN_MEANS*sum|correlation| over the 60 samples.
+    parameter int MARKER_MIN_MEANS = 11 // < 64, see the shift-add below
 ) (
     input  logic clk,
     input  logic rst,
@@ -42,6 +54,13 @@ module pm_minute_sync #(
     logic [SCORE_BITS-1:0] updated_best, updated_second;
     logic [5:0] updated_index;
     logic updated_polarity;
+    // Sum of |pm_second_soft| over the current 60-sample search (6 extra
+    // bits: 60 < 64 terms of INPUT_BITS-1 magnitude bits each).
+    logic [INPUT_BITS+5:0] abs_sum_q, abs_sum_next;
+    logic [INPUT_BITS-1:0] sample_magnitude;
+    // 60*best vs MARKER_MIN_MEANS*sum: both fit in SCORE_BITS+6 bits.
+    logic [SCORE_BITS+5:0] best_scaled, sum_scaled;
+    logic marker_dominant;
 
     always_comb begin
         candidate_score = '0;
@@ -58,6 +77,12 @@ module pm_minute_sync #(
         candidate_magnitude = candidate_score[SCORE_BITS-1]
                             ? (~candidate_score + 1'b1) : candidate_score;
 
+        if (pm_second_soft < 0)
+            sample_magnitude = INPUT_BITS'(-pm_second_soft);
+        else
+            sample_magnitude = INPUT_BITS'(pm_second_soft);
+        abs_sum_next = abs_sum_q + (INPUT_BITS+6)'(sample_magnitude);
+
         updated_best = best_score_q;
         updated_second = second_score_q;
         updated_index = best_index_q;
@@ -70,6 +95,16 @@ module pm_minute_sync #(
         end else if (candidate_magnitude > second_score_q) begin
             updated_second = candidate_magnitude;
         end
+
+        // Constant scalings as shift-adds (60 = 64 - 4, MARKER_MIN_MEANS
+        // unrolled over its bits): a plain `*` on these 47-bit values
+        // pulled six MULT18X18D tiles out of an already over-budget pool.
+        best_scaled = ((SCORE_BITS+6)'(updated_best) << 6) - ((SCORE_BITS+6)'(updated_best) << 2);
+        sum_scaled = '0;
+        for (int b = 0; b < 6; b = b + 1)
+            if (MARKER_MIN_MEANS[b])
+                sum_scaled = sum_scaled + ((SCORE_BITS+6)'(abs_sum_next) << b);
+        marker_dominant = (best_scaled >= sum_scaled);
     end
 
     always_ff @(posedge clk) begin
@@ -82,6 +117,7 @@ module pm_minute_sync #(
             second_score_q       <= '0;
             best_index_q         <= '0;
             best_polarity_q      <= 1'b0;
+            abs_sum_q            <= '0;
             result_valid         <= 1'b0;
             locked               <= 1'b0;
             best_window_end      <= '0;
@@ -105,18 +141,21 @@ module pm_minute_sync #(
                     quality_gap          <= updated_best - updated_second;
                     locked <= QUALIFICATION_ENABLED &&
                               (updated_best >= MIN_SCORE) &&
-                              ((updated_best - updated_second) >= MIN_GAP);
+                              ((updated_best - updated_second) >= MIN_GAP) &&
+                              marker_dominant;
                     search_index    <= '0;
                     best_score_q    <= '0;
                     second_score_q  <= '0;
                     best_index_q    <= '0;
                     best_polarity_q <= 1'b0;
+                    abs_sum_q       <= '0;
                 end else begin
                     search_index    <= search_index + 1'b1;
                     best_score_q    <= updated_best;
                     second_score_q  <= updated_second;
                     best_index_q    <= updated_index;
                     best_polarity_q <= updated_polarity;
+                    abs_sum_q       <= abs_sum_next;
                 end
             end
         end

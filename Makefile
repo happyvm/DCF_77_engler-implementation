@@ -13,23 +13,53 @@ BUILD_DIR ?= build
 	lint-pps-uart lint-goertzel lint-detector lint formal synth \
 	resource-check timing test-tools test-soft-history test-ml-controller \
 	test-frequency-discipline tool-versions clean test-integration synth-core \
-	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator
+	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator \
+	test-second-phase-ramp test-system test-pga test-hat-spi test-lcd test-system
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-observables test-prn test-pm-correlator test-pm-integrator \
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
 	test-second-phase test-lock-controller test-qualification-disabled test-tools \
 	test-soft-history test-ml-controller test-frequency-discipline test-integration \
-	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator
+	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator \
+	test-second-phase-ramp test-system test-pga test-hat-spi test-lcd
 
 test-integration: $(BUILD_DIR)/dcf77_hat_top_tb.vvp
 	$(VVP) $<
 
-TOP_RTL := rtl/ecp5/clock_reset_ecp5.sv rtl/platform/adc_if.sv \
+TOP_RTL := rtl/ecp5/clock_reset_ecp5.sv rtl/platform/adc_if.sv rtl/platform/pga_spi_master.sv \
+	rtl/platform/hat_spi_slave.sv rtl/platform/i2c_master_byte.sv rtl/platform/lcd_i2c_driver.sv \
 	rtl/platform/uart_tx.sv rtl/core/sample_scheduler.sv rtl/core/pps_generator.sv \
 	rtl/core/time_telemetry.sv rtl/core/pps_uart.sv rtl/goertzel/*.sv rtl/am/*.sv \
 	rtl/pm/*.sv rtl/sync/*.sv rtl/core/engeler_detector.sv rtl/ml_decoder/*.sv \
-	rtl/control/*.sv rtl/clock_discipline/*.sv rtl/top/dcf77_hat_top.sv
+	rtl/control/*.sv rtl/clock_discipline/*.sv rtl/core/dcf77_receiver_core.sv \
+	rtl/top/dcf77_hat_top.sv
+
+# Everything the receiver core needs, without the HAT shell (PLL, sample
+# scheduler, ADC serial interface): the system test drives the core at one
+# sample per clock instead of paying for the 32-edge ADC frame per sample.
+CORE_RTL := rtl/core/pps_generator.sv rtl/core/time_telemetry.sv rtl/core/pps_uart.sv \
+	rtl/platform/uart_tx.sv rtl/goertzel/*.sv rtl/am/*.sv rtl/pm/*.sv rtl/sync/*.sv \
+	rtl/core/engeler_detector.sv rtl/ml_decoder/*.sv rtl/control/*.sv \
+	rtl/clock_discipline/*.sv rtl/core/dcf77_receiver_core.sv
+
+test-second-phase-ramp: $(BUILD_DIR)/second_phase_ramp_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/second_phase_ramp_tb.vvp: rtl/sync/second_phase_detector.sv sim/second_phase_ramp_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s second_phase_ramp_tb -o $@ $^
+
+# The system test simulates several minutes of receiver time per scenario;
+# Icarus needs ~5 s of wall clock per simulated second on this design, so
+# it is built with Verilator (--binary --timing), ~60x faster. Run a single
+# scenario with `build/vl_system/dcf77_system_tb +scenario=N +verbose`.
+test-system: $(BUILD_DIR)/vl_system/dcf77_system_tb
+	$<
+$(BUILD_DIR)/vl_system/dcf77_system_tb: $(CORE_RTL) sim/dcf77_system_tb.sv
+	mkdir -p $(BUILD_DIR)/vl_system
+	$(VERILATOR) --binary --timing -O2 -Wno-fatal -Wno-lint -Wno-style \
+		--top-module dcf77_system_tb --Mdir $(BUILD_DIR)/vl_system \
+		-o dcf77_system_tb $^
 
 $(BUILD_DIR)/dcf77_hat_top_tb.vvp: $(TOP_RTL) sim/dcf77_hat_top_tb.sv
 	mkdir -p $(BUILD_DIR)
@@ -45,6 +75,25 @@ $(BUILD_DIR)/frequency_discipline_tb.vvp: \
 
 test-adc-if: $(BUILD_DIR)/adc_if_tb.vvp
 	$(VVP) $<
+
+test-hat-spi: $(BUILD_DIR)/hat_spi_slave_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/hat_spi_slave_tb.vvp: rtl/platform/hat_spi_slave.sv sim/hat_spi_slave_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s hat_spi_slave_tb -o $@ $^
+
+test-lcd: $(BUILD_DIR)/lcd_i2c_driver_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/lcd_i2c_driver_tb.vvp: rtl/platform/i2c_master_byte.sv rtl/platform/lcd_i2c_driver.sv \
+		sim/lcd_i2c_driver_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s lcd_i2c_driver_tb -o $@ $^
+
+test-pga: $(BUILD_DIR)/pga_spi_master_tb.vvp
+	$(VVP) $<
+$(BUILD_DIR)/pga_spi_master_tb.vvp: rtl/platform/pga_spi_master.sv sim/pga_spi_master_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s pga_spi_master_tb -o $@ $^
 
 $(BUILD_DIR)/adc_if_tb.vvp: rtl/platform/adc_if.sv sim/adc_if_tb.sv
 	mkdir -p $(BUILD_DIR)
@@ -259,8 +308,16 @@ lint:
 		rtl/goertzel/*.sv rtl/am/*.sv rtl/pm/*.sv rtl/sync/*.sv \
 		rtl/core/engeler_detector.sv
 
+FORMAL_JOBS := $(wildcard formal/*.sby)
+
+# Every formal/*.sby is run; a job's proof or bounded check failing fails
+# the target. Working directories land in formal/<job>/ (git-ignored).
+# pipefail matters: without it the pipeline's status is tail's and a
+# failing sby would be silently reported as success.
 formal:
-	$(SBY) -f formal/pps_generator.sby
+	@bash -o pipefail -c 'set -e; for job in $(FORMAL_JOBS); do \
+		echo "== $$job"; $(SBY) -f $$job | tail -3; \
+	done'
 
 synth:
 	mkdir -p $(BUILD_DIR)

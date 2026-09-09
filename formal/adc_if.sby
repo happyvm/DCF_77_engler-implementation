@@ -1,0 +1,14 @@
+[options]
+mode prove
+depth 12
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv adc_if.sv adc_if_formal.sv
+prep -flatten -top adc_if_formal
+
+[files]
+rtl/platform/adc_if.sv
+formal/adc_if_formal.sv

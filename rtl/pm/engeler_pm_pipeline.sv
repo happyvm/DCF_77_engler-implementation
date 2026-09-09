@@ -7,8 +7,12 @@ module engeler_pm_pipeline #(
     parameter int OUTPUT_SHIFT = 24,
     // Overridable so pm_phase_discriminator can instantiate early/late
     // taps a few carrier cycles either side of the nominal PRN start,
-    // without duplicating this pipeline's wiring.
-    parameter int PRN_START_CYCLE = 15_500
+    // without duplicating this pipeline's wiring, and so a
+    // time-compressed simulation can shorten the whole second coherently.
+    parameter int SECOND_CYCLES = 77_500,
+    parameter int PRN_START_CYCLE = 15_500,
+    parameter int CYCLES_PER_CHIP = 120,
+    parameter int CHIP_COUNT = 512
 ) (
     input  logic clk,
     input  logic rst,
@@ -29,7 +33,9 @@ module engeler_pm_pipeline #(
 
     pm_chip_integrator #(
         .INPUT_BITS(OBSERVABLE_BITS), .OUTPUT_BITS(CHIP_SOFT_BITS),
-        .OUTPUT_SHIFT(OUTPUT_SHIFT), .PRN_START_CYCLE(PRN_START_CYCLE)
+        .OUTPUT_SHIFT(OUTPUT_SHIFT), .SECOND_CYCLES(SECOND_CYCLES),
+        .PRN_START_CYCLE(PRN_START_CYCLE), .CYCLES_PER_CHIP(CYCLES_PER_CHIP),
+        .CHIP_COUNT(CHIP_COUNT)
     ) integrator_i (
         .clk(clk), .rst(rst), .second_ce(second_ce), .carrier_ce(carrier_ce),
         .pm_observable(pm_observable), .chip_soft(chip_soft),

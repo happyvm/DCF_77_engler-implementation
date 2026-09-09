@@ -1,0 +1,14 @@
+[options]
+mode bmc
+depth 48
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv time_telemetry.sv time_telemetry_formal.sv
+prep -top time_telemetry_formal
+
+[files]
+rtl/core/time_telemetry.sv
+formal/time_telemetry_formal.sv

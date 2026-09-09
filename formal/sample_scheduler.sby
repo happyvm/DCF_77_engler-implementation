@@ -1,0 +1,14 @@
+[options]
+mode prove
+depth 12
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv sample_scheduler.sv sample_scheduler_formal.sv
+prep -top sample_scheduler_formal
+
+[files]
+rtl/core/sample_scheduler.sv
+formal/sample_scheduler_formal.sv

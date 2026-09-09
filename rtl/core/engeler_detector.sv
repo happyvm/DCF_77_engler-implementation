@@ -9,6 +9,23 @@ module engeler_detector #(
     parameter int SOFT_BITS = 32,
     parameter int AM_OUTPUT_SHIFT = 20,
     parameter int PM_OUTPUT_SHIFT = 24,
+    parameter int AM_SYNC_THRESHOLD = 1,
+    parameter int SECOND_CYCLES = 77_500,
+    parameter int SECOND_SEARCH_TOLERANCE = 1_000,
+    parameter int SECOND_TRACK_WINDOW = 2_000,
+    parameter int SECOND_ACQUIRE_HITS = 2,
+    // DCF77 timing in carrier cycles, all tied to SECOND_CYCLES so that a
+    // time-compressed simulation shortening the second keeps the AM
+    // windows (100 ms each) and the PRN burst start (200 ms) coherent.
+    // The chip length and count are the standard 512-chip sequence.
+    parameter int AM_WINDOW_CYCLES = SECOND_CYCLES / 10,
+    parameter int PRN_START_CYCLE = SECOND_CYCLES / 5,
+    parameter int CYCLES_PER_CHIP = 120,
+    parameter int CHIP_COUNT = 512,
+    // Goertzel bank scaling (bandwidth) constants; see engeler_observables.
+    parameter logic signed [18:0] CARRIER_SCALE = 19'sd131059,
+    parameter logic signed [18:0] AM_SCALE      = 19'sd130993,
+    parameter logic signed [18:0] PM_SCALE      = 19'sd126157,
     // Floor below which the PM early/late/prompt correlation triple is too
     // weak to carry real sub-chip timing information (pure noise, or PM
     // dropout) and must not be forwarded to frequency discipline at all.
@@ -19,10 +36,14 @@ module engeler_detector #(
     // 1/16 of one chip's full range, integrated coherently over the
     // 512-chip PRN, sits far above the sqrt(512)-scaled random walk that
     // equivalent-amplitude noise would produce with no fixed phase
-    // relationship to chip boundaries. Still a calibration constant, not
+    // relationship to chip boundaries. A chip's soft value is a sum over
+    // CYCLES_PER_CHIP carrier cycles, so the floor scales with the chip
+    // length (identity at the real 120). Still a calibration constant, not
     // a measured one -- re-validate once real receiver noise floor is
-    // characterized on hardware.
-    parameter int PM_MIN_PROMPT_MAGNITUDE = (SOFT_BITS > 4) ? (1 << (SOFT_BITS - 4)) : 1,
+    // characterized on hardware. In the time-compressed system test a
+    // clean carrier reaches ~5x this floor.
+    parameter int PM_MIN_PROMPT_MAGNITUDE =
+        (SOFT_BITS > 4) ? (((1 << (SOFT_BITS - 4)) / 120) * CYCLES_PER_CHIP) : 1,
     parameter bit QUALIFICATION_ENABLED = 1'b0,
     // pm_minute_sync's 15-second matched filter sums signed per-second PM
     // correlations (same pm_correlation this module also floors at
@@ -34,16 +55,10 @@ module engeler_detector #(
     // single-second floor is a calibration constant, not a measured one --
     // re-validate once real receiver noise floor is characterized on
     // hardware, same as PM_MIN_PROMPT_MAGNITUDE above.
-    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_SCORE =
-        (SOFT_BITS > 1) ? (1 << (SOFT_BITS - 1)) : 1,
+    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_SCORE = 8 * PM_MIN_PROMPT_MAGNITUDE,
     // A quarter of the qualifying floor itself: the runner-up window must
     // trail the winner by a clear margin, not just barely lose out.
-    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_GAP = MINUTE_MIN_SCORE >> 2,
-    parameter int AM_SYNC_THRESHOLD = 1,
-    parameter int SECOND_CYCLES = 77_500,
-    parameter int SECOND_SEARCH_TOLERANCE = 1_000,
-    parameter int SECOND_TRACK_WINDOW = 2_000,
-    parameter int SECOND_ACQUIRE_HITS = 2
+    parameter logic [SOFT_BITS+14:0] MINUTE_MIN_GAP = MINUTE_MIN_SCORE >> 2
 ) (
     input  logic clk,
     input  logic rst,
@@ -81,16 +96,34 @@ module engeler_detector #(
     logic signed [17:0] pm_phase_error_cycles;
     logic pm_phase_error_valid;
     logic [7:0] pm_timing_quality;
+    logic signed [SOFT_BITS+9:0] pm_magnitude;
+    logic signed [SOFT_BITS+9:0] pm_magnitude_scaled;
 
+    // PM measurement quality for second_phase_detector/frequency_discipline:
+    // the prompt correlation magnitude in units of 1/32 of the
+    // PM_MIN_PROMPT_MAGNITUDE floor, saturating at 255, so the floor itself
+    // reads 32 (frequency_discipline's ACQ_QUALITY_MIN) and 8x the floor
+    // saturates. Taking the top bits of the raw 42-bit correlation instead
+    // read zero for any realistic magnitude (a clean carrier reaches
+    // ~2^30, the extracted field started at bit 33) and made the frequency
+    // loop reject every PM-sourced measurement as low quality.
+    localparam int PM_QUALITY_SHIFT =
+        ($clog2(PM_MIN_PROMPT_MAGNITUDE) > 5) ? $clog2(PM_MIN_PROMPT_MAGNITUDE) - 5 : 0;
     always_comb begin
-        if (pm_correlation[SOFT_BITS+9])
-            pm_timing_quality = (~pm_correlation[SOFT_BITS+8 -: 8]);
+        if (pm_correlation < 0)
+            pm_magnitude = -pm_correlation;
         else
-            pm_timing_quality = pm_correlation[SOFT_BITS+8 -: 8];
+            pm_magnitude = pm_correlation;
+        pm_magnitude_scaled = pm_magnitude >>> PM_QUALITY_SHIFT;
+        if (pm_magnitude_scaled > (SOFT_BITS+10)'(255))
+            pm_timing_quality = 8'd255;
+        else
+            pm_timing_quality = 8'(pm_magnitude_scaled);
     end
 
     engeler_observables #(
-        .SAMPLE_BITS(SAMPLE_BITS), .STATE_BITS(STATE_BITS)
+        .SAMPLE_BITS(SAMPLE_BITS), .STATE_BITS(STATE_BITS),
+        .CARRIER_SCALE(CARRIER_SCALE), .AM_SCALE(AM_SCALE), .PM_SCALE(PM_SCALE)
     ) observables_i (
         .clk(clk), .rst(rst), .sample_ce(sample_ce), .sample(sample),
         .carrier_real(carrier_real), .carrier_imag(carrier_imag),
@@ -116,7 +149,10 @@ module engeler_detector #(
 
     am_bit_extractor #(
         .INPUT_BITS(OBSERVABLE_BITS), .OUTPUT_BITS(SOFT_BITS),
-        .OUTPUT_SHIFT(AM_OUTPUT_SHIFT)
+        .OUTPUT_SHIFT(AM_OUTPUT_SHIFT), .SECOND_CYCLES(SECOND_CYCLES),
+        .DATA_START_CYCLE(AM_WINDOW_CYCLES),
+        .REFERENCE_START_CYCLE(2 * AM_WINDOW_CYCLES),
+        .WINDOW_CYCLES(AM_WINDOW_CYCLES)
     ) am_i (
         .clk(clk), .rst(rst), .second_ce(second_ce),
         .carrier_ce(observable_valid), .am_observable(am_observable),
@@ -126,7 +162,9 @@ module engeler_detector #(
 
     engeler_pm_pipeline #(
         .OBSERVABLE_BITS(OBSERVABLE_BITS), .CHIP_SOFT_BITS(SOFT_BITS),
-        .OUTPUT_SHIFT(PM_OUTPUT_SHIFT)
+        .OUTPUT_SHIFT(PM_OUTPUT_SHIFT), .SECOND_CYCLES(SECOND_CYCLES),
+        .PRN_START_CYCLE(PRN_START_CYCLE), .CYCLES_PER_CHIP(CYCLES_PER_CHIP),
+        .CHIP_COUNT(CHIP_COUNT)
     ) pm_i (
         .clk(clk), .rst(rst), .second_ce(second_ce),
         .carrier_ce(observable_valid), .pm_observable(pm_observable),
@@ -142,7 +180,9 @@ module engeler_detector #(
     // instead of the former always-zero stub.
     pm_phase_discriminator #(
         .OBSERVABLE_BITS(OBSERVABLE_BITS), .CHIP_SOFT_BITS(SOFT_BITS),
-        .OUTPUT_SHIFT(PM_OUTPUT_SHIFT),
+        .OUTPUT_SHIFT(PM_OUTPUT_SHIFT), .SECOND_CYCLES(SECOND_CYCLES),
+        .PRN_START_CYCLE(PRN_START_CYCLE), .CYCLES_PER_CHIP(CYCLES_PER_CHIP),
+        .CHIP_COUNT(CHIP_COUNT),
         .MIN_PROMPT_MAGNITUDE(PM_MIN_PROMPT_MAGNITUDE)
     ) pm_phase_i (
         .clk(clk), .rst(rst), .second_ce(second_ce),

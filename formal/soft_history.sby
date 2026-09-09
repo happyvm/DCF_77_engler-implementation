@@ -1,0 +1,14 @@
+[options]
+mode prove
+depth 10
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv soft_history.sv soft_history_formal.sv
+prep -top soft_history_formal
+
+[files]
+rtl/ml_decoder/soft_history.sv
+formal/soft_history_formal.sv
