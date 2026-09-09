@@ -1,0 +1,14 @@
+[options]
+mode bmc
+depth 30
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv hour_candidate_search.sv hour_candidate_search_formal.sv
+prep -top hour_candidate_search_formal
+
+[files]
+rtl/ml_decoder/hour_candidate_search.sv
+formal/hour_candidate_search_formal.sv

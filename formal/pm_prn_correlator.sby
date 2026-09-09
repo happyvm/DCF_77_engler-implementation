@@ -1,0 +1,19 @@
+[options]
+# Bounded: correlation's shadow accumulator is internal to the DUT and the
+# Yosys SystemVerilog frontend cannot reference it, so k-induction has no
+# invariant to tie the two together (same reasoning as
+# second_evidence_aggregator.sby). 20 clocks cover several 512-chip wraps
+# once chip_index itself is driven directly by anyseq.
+mode bmc
+depth 20
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv pm_prn_correlator.sv pm_prn_correlator_formal.sv
+prep -top pm_prn_correlator_formal
+
+[files]
+rtl/pm/pm_prn_correlator.sv
+formal/pm_prn_correlator_formal.sv

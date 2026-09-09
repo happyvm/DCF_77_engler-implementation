@@ -1,0 +1,17 @@
+[options]
+mode bmc
+depth 40
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv goertzel_resonator.sv goertzel_complex_12.sv engeler_goertzel_bank.sv engeler_observables.sv engeler_observables_formal.sv
+prep -top engeler_observables_formal
+
+[files]
+rtl/goertzel/goertzel_resonator.sv
+rtl/goertzel/goertzel_complex_12.sv
+rtl/goertzel/engeler_goertzel_bank.sv
+rtl/goertzel/engeler_observables.sv
+formal/engeler_observables_formal.sv

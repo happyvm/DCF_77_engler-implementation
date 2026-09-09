@@ -1,0 +1,17 @@
+[options]
+mode bmc
+depth 5
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv pps_generator.sv time_telemetry.sv uart_tx.sv pps_uart.sv pps_uart_formal.sv
+prep -top pps_uart_formal
+
+[files]
+rtl/core/pps_generator.sv
+rtl/core/time_telemetry.sv
+rtl/platform/uart_tx.sv
+rtl/core/pps_uart.sv
+formal/pps_uart_formal.sv

@@ -1,0 +1,14 @@
+[options]
+mode bmc
+depth 15
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv clock_reset_ecp5.sv clock_reset_ecp5_formal.sv
+prep -top clock_reset_ecp5_formal
+
+[files]
+rtl/ecp5/clock_reset_ecp5.sv
+formal/clock_reset_ecp5_formal.sv

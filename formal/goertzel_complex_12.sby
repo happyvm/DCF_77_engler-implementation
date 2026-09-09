@@ -1,0 +1,14 @@
+[options]
+mode bmc
+depth 2
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv goertzel_complex_12.sv goertzel_complex_12_formal.sv
+prep -top goertzel_complex_12_formal
+
+[files]
+rtl/goertzel/goertzel_complex_12.sv
+formal/goertzel_complex_12_formal.sv

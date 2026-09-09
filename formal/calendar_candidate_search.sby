@@ -1,0 +1,17 @@
+[options]
+# field==3 (year, 0..99) is excluded from this proof (see the formal
+# testbench header): the longest remaining case is day, 31 candidates, so
+# depth just needs to cover one full run plus setup/reset.
+mode bmc
+depth 40
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv calendar_candidate_search.sv calendar_candidate_search_formal.sv
+prep -top calendar_candidate_search_formal
+
+[files]
+rtl/ml_decoder/calendar_candidate_search.sv
+formal/calendar_candidate_search_formal.sv

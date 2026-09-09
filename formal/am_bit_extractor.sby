@@ -1,0 +1,14 @@
+[options]
+mode bmc
+depth 90
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv am_bit_extractor.sv am_bit_extractor_formal.sv
+prep -top am_bit_extractor_formal
+
+[files]
+rtl/am/am_bit_extractor.sv
+formal/am_bit_extractor_formal.sv

@@ -223,6 +223,8 @@ The dual conversion result is transmitted in 32 serial clocks. Therefore the ave
 
 Do not operate this close to the boundary. The ECP5 ADC wrapper should target a serial clock comfortably above 30 MHz and within the data-sheet timing limits, with enough margin for conversion and framing time.
 
+This is already satisfied entirely on-chip: [`adc_if.sv`](../rtl/platform/adc_if.sv) derives SCK by dividing the system clock the ECP5's own PLL generates ([`clock_reset_ecp5.sv`](../rtl/ecp5/clock_reset_ecp5.sv), see [`13-ecp5-clock-discipline.md`](13-ecp5-clock-discipline.md)), not an external clock source. At the fallback plan's 125 MHz and `dcf77_hat_top`'s default `ADC_SCK_HALF_CYCLES=1`, SCK toggles every clock, giving 62.5 MHz -- better than 2x the 30 MHz floor. If a future ADC choice needs a serial clock faster than the current 125 MHz system clock allows by division alone, the fix stays on-chip: the same EHXPLLL instance is a plain x5 multiplier (`CLKI_DIV=1`/`CLKFB_DIV=5`/`CLKOP_DIV=5`, unrelated to which oscillator feeds it) and Lattice's PLL exposes further output taps (`CLKOS`/`CLKOS2`/`CLKOS3`) at independent divide ratios from the same VCO, so a higher dedicated ADC-clock tap is a PLL parameter change, never new external clock hardware.
+
 Initial RTL requirement:
 
 ```text

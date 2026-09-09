@@ -3,7 +3,21 @@
 // to rtl/ecp5; simulations use the portable clock bypass below.
 module clock_reset_ecp5 #(
     parameter bit SIM_BYPASS = 1'b0,
-    parameter int unsigned RESET_CYCLES = 16
+    parameter int unsigned RESET_CYCLES = 16,
+    // EHXPLLL's fixed CLKI_DIV=1/CLKFB_DIV=5/CLKOP_DIV=5 below is a plain
+    // x5 multiplier: it is not tied to the 25 MHz XO fallback plan and
+    // needs no divider change to serve the preferred 24.18 MHz Super-TCXO
+    // plan from docs/13-ecp5-clock-discipline.md (24.18 MHz x5 = 120.9
+    // MHz) or any other input oscillator at the same ratio -- i.e. the
+    // FPGA already generates whatever system/ADC-serial-clock frequency
+    // that plan needs on-chip, with no new external clock hardware.
+    // These two strings are timing-report metadata only (nextpnr reads
+    // the FREQUENCY_PIN_* attributes below for its own analysis; they do
+    // not affect the generated divider ratio), so swapping the board's
+    // input oscillator only needs these two parameters updated to match,
+    // not a hand-edited attribute string.
+    parameter CLKI_FREQ_MHZ = "25.000000",
+    parameter CLKOP_FREQ_MHZ = "125.000000"
 ) (
     input  logic clk_25mhz,
     input  logic ext_reset_n,
@@ -30,8 +44,8 @@ module clock_reset_ecp5 #(
         // CLKOP * CLKOP_DIV = 625 MHz. CLKI_FREQ/CLKOP_FREQ are not real
         // EHXPLLL parameters (nextpnr instead reads the FREQUENCY_PIN_*
         // attributes below for timing analysis).
-        (* FREQUENCY_PIN_CLKI = "25.000000" *)
-        (* FREQUENCY_PIN_CLKOP = "125.000000" *)
+        (* FREQUENCY_PIN_CLKI = CLKI_FREQ_MHZ *)
+        (* FREQUENCY_PIN_CLKOP = CLKOP_FREQ_MHZ *)
         EHXPLLL #(
             .CLKI_DIV(1), .CLKFB_DIV(5), .CLKOP_DIV(5), .CLKOP_CPHASE(2),
             .CLKOP_ENABLE("ENABLED"), .FEEDBK_PATH("INT_OP")

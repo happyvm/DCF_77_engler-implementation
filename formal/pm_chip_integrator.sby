@@ -1,0 +1,14 @@
+[options]
+mode bmc
+depth 60
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv pm_chip_integrator.sv pm_chip_integrator_formal.sv
+prep -top pm_chip_integrator_formal
+
+[files]
+rtl/pm/pm_chip_integrator.sv
+formal/pm_chip_integrator_formal.sv

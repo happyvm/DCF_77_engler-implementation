@@ -1,0 +1,14 @@
+[options]
+mode prove
+depth 20
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv dcf77_prn_generator.sv dcf77_prn_generator_formal.sv
+prep -top dcf77_prn_generator_formal
+
+[files]
+rtl/pm/dcf77_prn_generator.sv
+formal/dcf77_prn_generator_formal.sv
