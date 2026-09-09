@@ -7,6 +7,7 @@ module dcf77_hat_top_tb;
     logic sample_ce, sample_valid, second_ce, adc_fault, ch1_activity;
     logic [2:0] lock_state;
     tri lcd_scl, lcd_sda;
+    pullup (lcd_scl); pullup (lcd_sda);
     always #4 clk = !clk;
 
     dcf77_hat_top #(
@@ -15,7 +16,8 @@ module dcf77_hat_top_tb;
         .ADC_SCK_HALF_CYCLES(1), .SECOND_CYCLES(8),
         .SECOND_SEARCH_TOLERANCE(2), .SECOND_TRACK_WINDOW(2),
         .SECOND_ACQUIRE_HITS(2), .PPS_PULSE_CYCLES(2), .HISTORY_DEPTH(16),
-        .CLK_HZ(1_000_000), .PGA_SCK_HZ(125_000)
+        .CLK_HZ(1_000_000), .PGA_SCK_HZ(125_000),
+        .LCD_SCL_HZ(125_000), .LCD_POWERUP_WAIT(64), .LCD_CMD_WAIT(16)
     ) dut (
         .clk_25m(clk), .reset_n(reset_n), .adc_conv(adc_conv),
         .adc_sck(adc_sck), .adc_sdo(adc_sdo), .pga_sck(pga_sck),
@@ -72,7 +74,11 @@ module dcf77_hat_top_tb;
         #200; hat_cs_n = 1;
         if (spi_id[0] !== 8'hDC || spi_id[1] !== 8'h77 || spi_id[2] !== 8'h00 || spi_id[3] !== 8'h01)
             $fatal(1, "HAT SPI identity read %h %h %h %h", spi_id[0], spi_id[1], spi_id[2], spi_id[3]);
-        $display("PASS: top reset, scheduler, ADC CH0 path, PGA programming, HAT SPI and interfaces");
+        // LCD initialization completes on the open-drain bus with pull-ups.
+        // (No ST7036 model here, so nothing acknowledges; the unit test covers that.)
+        wait (dut.lcd_ready);
+        if (lcd_scl !== 1'b1 || lcd_sda !== 1'b1) $fatal(1, "LCD bus not released after init");
+        $display("PASS: top reset, scheduler, ADC CH0 path, PGA programming, HAT SPI, LCD init and interfaces");
         $finish;
     end
 

@@ -42,7 +42,11 @@ module dcf77_hat_top #(
     parameter int unsigned PGA_SCK_HZ = 100_000,
     parameter int unsigned CLK_HZ = 125_000_000,
     // Reported in the HAT SPI register map (major.minor).
-    parameter logic [15:0] RTL_VERSION = 16'h0001
+    parameter logic [15:0] RTL_VERSION = 16'h0001,
+    // LCD I2C rate and ST7036 power-up/command settle times (40 ms, 10 ms).
+    parameter int unsigned LCD_SCL_HZ = 100_000,
+    parameter int unsigned LCD_POWERUP_WAIT = 5_000_000,
+    parameter int unsigned LCD_CMD_WAIT = 1_250_000
 ) (
     input  logic clk_25m, input logic reset_n,
     output logic adc_conv, output logic adc_sck, input logic adc_sdo,
@@ -135,13 +139,29 @@ module dcf77_hat_top #(
         .year(decoded_year), .cest(decoded_cest), .trim_inc(trim_inc),
         .control(hat_control), .transaction_done(hat_transaction_done));
 
-    assign lcd_scl = 1'bz; assign lcd_sda = 1'bz;
-    assign lcd_rst_n = !rst; assign lcd_bl_en = time_valid;
+    // Local 20x2 status display: reads receiver outputs only, so it can
+    // neither stall nor perturb the decode chain; open-drain I2C pins.
+    logic lcd_scl_low, lcd_sda_low, lcd_ready, lcd_ack_error;
+    lcd_i2c_driver #(
+        .CLK_HZ(CLK_HZ), .SCL_HZ(LCD_SCL_HZ),
+        .POWERUP_WAIT(LCD_POWERUP_WAIT), .CMD_WAIT(LCD_CMD_WAIT)
+    ) lcd_i (
+        .clk(clk), .rst(rst), .tick(second_ce),
+        .second(second_number), .minute(decoded_minute), .hour(decoded_hour),
+        .day(decoded_day), .month(decoded_month), .year(decoded_year),
+        .lock_state(diag_lock_state), .minute_locked(minute_locked),
+        .quality(phase_quality), .lcd_rst_n(lcd_rst_n),
+        .scl_drive_low(lcd_scl_low), .sda_drive_low(lcd_sda_low), .sda_in(lcd_sda),
+        .ready(lcd_ready), .ack_error(lcd_ack_error));
+    assign lcd_scl = lcd_scl_low ? 1'b0 : 1'bz;
+    assign lcd_sda = lcd_sda_low ? 1'b0 : 1'bz;
+    assign lcd_bl_en = time_valid;
     assign hat_irq = minute_result_valid | diag_adc_fault;
     assign diag_sample_ce = sample_ce; assign diag_sample_valid = adc_valid;
     assign diag_second_ce = second_ce;
     assign diag_ch1_activity = |adc_ch1;
     wire unused_inputs = hat_uart_rx ^ adc_busy ^ sample_phase[0] ^
                          pga_busy ^ pga_done ^ telemetry_done ^
-                         hat_control[0] ^ hat_transaction_done;
+                         hat_control[0] ^ hat_transaction_done ^
+                         lcd_ready ^ lcd_ack_error;
 endmodule
