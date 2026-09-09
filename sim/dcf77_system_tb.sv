@@ -45,6 +45,7 @@ module dcf77_system_tb;
     logic signed [23:0] trim_inc;
     logic second_ce, time_valid, pps_valid, detector_overflow, minute_result_valid;
     logic [5:0] second_number; logic [2:0] lock_state; logic [7:0] phase_quality;
+    logic ml_locked, minute_locked, frequency_locked;
     logic [5:0] decoded_minute; logic [4:0] decoded_hour; logic [5:0] decoded_day;
     logic [2:0] decoded_weekday; logic [3:0] decoded_month; logic [7:0] decoded_year;
     logic decoded_cest, uart_tx, pps, pps_ref, telemetry_done;
