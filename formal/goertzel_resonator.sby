@@ -1,0 +1,14 @@
+[options]
+mode bmc
+depth 20
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv goertzel_resonator.sv goertzel_resonator_formal.sv
+prep -top goertzel_resonator_formal
+
+[files]
+rtl/goertzel/goertzel_resonator.sv
+formal/goertzel_resonator_formal.sv
