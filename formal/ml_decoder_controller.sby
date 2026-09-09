@@ -1,0 +1,20 @@
+[tasks]
+bmc
+cover
+
+[options]
+bmc: mode bmc
+cover: mode cover
+depth 14
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv dcf77_calendar_pkg.sv ml_decoder_controller.sv ml_decoder_controller_formal.sv
+prep -top ml_decoder_controller_formal
+
+[files]
+rtl/ml_decoder/dcf77_calendar_pkg.sv
+rtl/ml_decoder/ml_decoder_controller.sv
+formal/ml_decoder_controller_formal.sv

@@ -56,6 +56,18 @@ module ml_decoder_controller_tb;
     if(minute!=31||hour!=17||day!=14)$fatal(1,"chained stranger frames were not adopted");
     frame(25,9,14,7,17,32,1,0,0,0);
     if(!publish_valid)$fatal(1,"re-based sequence did not publish on its third frame");
+
+    // Out-of-range fields with a valid calendar date (minute 60, hour 24,
+    // weekday 0) are not civil times: ignored outright, so the published
+    // state neither adopts nor coasts and the next clean frame continues.
+    frame(25,9,14,7,17,60,1,0,0,0);
+    if(publish_valid||minute!=32)$fatal(1,"minute 60 frame was acted on (minute=%0d)",minute);
+    frame(25,9,14,7,24,33,1,0,0,0);
+    if(publish_valid||minute!=32||hour!=17)$fatal(1,"hour 24 frame was acted on");
+    frame(25,9,14,0,17,33,1,0,0,0);
+    if(publish_valid||minute!=32)$fatal(1,"weekday 0 frame was acted on");
+    frame(25,9,14,7,17,33,1,0,0,0);
+    if(!publish_valid||minute!=33)$fatal(1,"clean frame after out-of-range frames did not publish");
     $display("ml_decoder_controller_tb: PASS");$finish;
   end
 endmodule
