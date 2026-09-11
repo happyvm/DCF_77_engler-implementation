@@ -86,7 +86,6 @@ module frequency_discipline #(
         logic signed [63:0] proportional, requested, bounded_request;
         logic signed [63:0] step;
         logic quality_ok, phase_ok, delta_ok, accepted;
-        integer kp, ki, estimator_shift;
 
         if (rst) begin
             estimated_offset <= '0;
@@ -125,20 +124,33 @@ module frequency_discipline #(
                     measurement_age <= '0;
                     previous_phase <= phase_error;
                     have_previous <= 1'b1;
-                    kp = frequency_locked ? TRACK_KP : ACQ_KP;
-                    ki = frequency_locked ? TRACK_KI : ACQ_KI;
-                    estimator_shift = frequency_locked ? TRACK_EST_SHIFT : ACQ_EST_SHIFT;
 
+                    // The gain and estimator constants are parameters.  Keeping
+                    // them as compile-time constants on each branch of the
+                    // frequency_locked test -- rather than selecting them into a
+                    // variable first -- avoids inferring a general 18x18
+                    // multiplier and a barrel shifter on the critical path
+                    // (see docs/37-timing-closure-plan.md).  The selected value
+                    // and the arithmetic are otherwise unchanged.
                     estimate_next = $signed(estimated_offset);
                     if (have_previous) begin
                         raw_frequency = (delta64 * PHASE_TO_TRIM) >>> PHASE_FRAC_BITS;
-                        estimate_next = $signed(estimated_offset) +
-                                        ((raw_frequency - $signed(estimated_offset)) >>> estimator_shift);
+                        if (frequency_locked)
+                            estimate_next = $signed(estimated_offset) +
+                                            ((raw_frequency - $signed(estimated_offset)) >>> TRACK_EST_SHIFT);
+                        else
+                            estimate_next = $signed(estimated_offset) +
+                                            ((raw_frequency - $signed(estimated_offset)) >>> ACQ_EST_SHIFT);
                     end
                     estimated_offset <= trim_clip(estimate_next);
 
-                    proportional = (phase64 * kp) >>> PHASE_FRAC_BITS;
-                    i_delta = (phase64 * ki) >>> PHASE_FRAC_BITS;
+                    if (frequency_locked) begin
+                        proportional = (phase64 * TRACK_KP) >>> PHASE_FRAC_BITS;
+                        i_delta = (phase64 * TRACK_KI) >>> PHASE_FRAC_BITS;
+                    end else begin
+                        proportional = (phase64 * ACQ_KP) >>> PHASE_FRAC_BITS;
+                        i_delta = (phase64 * ACQ_KI) >>> PHASE_FRAC_BITS;
+                    end
                     integrator_candidate = integrator + i_delta;
                     requested = estimate_next + integrator_candidate + proportional;
 

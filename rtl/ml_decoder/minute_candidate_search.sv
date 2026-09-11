@@ -49,6 +49,12 @@ module minute_candidate_search #(
 `endif
     logic [3:0] units;
     logic [2:0] tens;
+    // Balanced-tree score accumulation (see calendar_candidate_search.sv and
+    // docs/37-timing-closure-plan.md): the straight serial loop produced an
+    // eight-deep carry chain on the ECP5 critical path.  Two's-complement
+    // addition is associative under modular wrap, so the tree is bit-identical.
+    logic signed [SCORE_BITS-1:0] t0, t1, t2, t3, t4, t5, t6, t7;
+    logic signed [SCORE_BITS-1:0] p0, p1, p2, p3;
 
     always_comb begin
         // Explicit decimal split avoids inferring generic divider/modulo logic.
@@ -74,13 +80,19 @@ module minute_candidate_search #(
         candidate_bits[6] = tens[2];
         candidate_bits[7] = ^candidate_bits[6:0];
 
-        candidate_score = '0;
-        for (int i = 0; i < 8; i = i + 1) begin
-            if (candidate_bits[i])
-                candidate_score = candidate_score + SCORE_BITS'(evidence[i]);
-            else
-                candidate_score = candidate_score - SCORE_BITS'(evidence[i]);
-        end
+        t0 = candidate_bits[0] ? SCORE_BITS'(evidence[0]) : SCORE_BITS'(-evidence[0]);
+        t1 = candidate_bits[1] ? SCORE_BITS'(evidence[1]) : SCORE_BITS'(-evidence[1]);
+        t2 = candidate_bits[2] ? SCORE_BITS'(evidence[2]) : SCORE_BITS'(-evidence[2]);
+        t3 = candidate_bits[3] ? SCORE_BITS'(evidence[3]) : SCORE_BITS'(-evidence[3]);
+        t4 = candidate_bits[4] ? SCORE_BITS'(evidence[4]) : SCORE_BITS'(-evidence[4]);
+        t5 = candidate_bits[5] ? SCORE_BITS'(evidence[5]) : SCORE_BITS'(-evidence[5]);
+        t6 = candidate_bits[6] ? SCORE_BITS'(evidence[6]) : SCORE_BITS'(-evidence[6]);
+        t7 = candidate_bits[7] ? SCORE_BITS'(evidence[7]) : SCORE_BITS'(-evidence[7]);
+        p0 = t0 + t1;
+        p1 = t2 + t3;
+        p2 = t4 + t5;
+        p3 = t6 + t7;
+        candidate_score = (p0 + p1) + (p2 + p3);
 
         updated_best = best_q;
         updated_second = second_q;

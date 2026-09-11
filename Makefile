@@ -371,9 +371,13 @@ resource-check-ecp5: synth-ecp5
 # an arbitrary probe frequency) and BLOCK ASYNCPATHS, so genuinely
 # asynchronous ports (reset_n/hat_reset_n feed clock_reset_ecp5's async
 # FF reset directly) are not folded into the synchronous Fmax figure.
+# --seed 1 pins the placer RNG so successive runs of the same netlist report
+# the same Fmax; without it nextpnr's reported Fmax varies by several MHz
+# between runs, which makes before/after comparisons meaningless.
 timing: synth
 	mkdir -p $(BUILD_DIR)/reports
 	bash -o pipefail -c 'nextpnr-ecp5 --45k --package CABGA256 --freq 125 \
+		--seed 1 \
 		--lpf synth/dcf77_hat_top.lpf --lpf-allow-unconstrained \
 		--json $(BUILD_DIR)/release_reference.json \
 		--textcfg $(BUILD_DIR)/release_reference.config \

@@ -34,6 +34,11 @@ module hour_candidate_search #(
     logic signed [SCORE_BITS-1:0] best_q, second_q;
     logic signed [SCORE_BITS-1:0] updated_best, updated_second;
     logic [4:0] best_hour_q, updated_hour;
+    // Balanced-tree score accumulation (see calendar_candidate_search.sv and
+    // docs/37-timing-closure-plan.md); bit-identical to the serial loop but
+    // three adder levels instead of seven.
+    logic signed [SCORE_BITS-1:0] t0, t1, t2, t3, t4, t5, t6;
+    logic signed [SCORE_BITS-1:0] p0, p1, p2;
 
     always_comb begin
         if (candidate >= 20) begin
@@ -52,13 +57,17 @@ module hour_candidate_search #(
         candidate_bits[5] = tens[1];
         candidate_bits[6] = ^candidate_bits[5:0];
 
-        candidate_score = '0;
-        for (int i = 0; i < 7; i = i + 1) begin
-            if (candidate_bits[i])
-                candidate_score = candidate_score + SCORE_BITS'(evidence[i]);
-            else
-                candidate_score = candidate_score - SCORE_BITS'(evidence[i]);
-        end
+        t0 = candidate_bits[0] ? SCORE_BITS'(evidence[0]) : SCORE_BITS'(-evidence[0]);
+        t1 = candidate_bits[1] ? SCORE_BITS'(evidence[1]) : SCORE_BITS'(-evidence[1]);
+        t2 = candidate_bits[2] ? SCORE_BITS'(evidence[2]) : SCORE_BITS'(-evidence[2]);
+        t3 = candidate_bits[3] ? SCORE_BITS'(evidence[3]) : SCORE_BITS'(-evidence[3]);
+        t4 = candidate_bits[4] ? SCORE_BITS'(evidence[4]) : SCORE_BITS'(-evidence[4]);
+        t5 = candidate_bits[5] ? SCORE_BITS'(evidence[5]) : SCORE_BITS'(-evidence[5]);
+        t6 = candidate_bits[6] ? SCORE_BITS'(evidence[6]) : SCORE_BITS'(-evidence[6]);
+        p0 = t0 + t1;
+        p1 = t2 + t3;
+        p2 = t4 + t5;
+        candidate_score = (p0 + p1) + (p2 + t6);
 
         updated_best = best_q;
         updated_second = second_q;
