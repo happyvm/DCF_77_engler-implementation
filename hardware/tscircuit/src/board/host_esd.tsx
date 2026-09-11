@@ -29,27 +29,25 @@
 import { N } from "../parts/nets";
 import { at } from "../parts";
 
-const GND = N.gnd;
+/** One single-line bidirectional ESD diode (SOD-882) clamping `net` to GND. */
+function EsdClamp({ ref, net }: { ref: string; net: string }) {
+  return (
+    <chip
+      name={ref}
+      footprint="sod882"
+      {...at("host_debug", ref)}
+      pinLabels={{ pin1: "LINE", pin2: "GND" }}
+      connections={{ LINE: net, GND: N.gnd }}
+    />
+  );
+}
 
 export function HostEsdProtection() {
   return (
     <>
-      {/* D_ESD_PPS: clamp on the external PPS output line. */}
-      <chip
-        name="D_ESD_PPS"
-        footprint="sod882"
-        {...at("host_debug", "D_ESD_PPS")}
-        pinLabels={{ pin1: "LINE", pin2: "GND" }}
-        connections={{ LINE: N.ppsOut, GND: GND }}
-      />
-      {/* D_ESD_REF: clamp on the 3V3_D reference pin of the test header. */}
-      <chip
-        name="D_ESD_REF"
-        footprint="sod882"
-        {...at("host_debug", "D_ESD_REF")}
-        pinLabels={{ pin1: "LINE", pin2: "GND" }}
-        connections={{ LINE: N.v3v3d, GND: GND }}
-      />
+      {/* J3 is the only user-reachable connector: clamp its two signal pins. */}
+      <EsdClamp ref="D_ESD_PPS" net={N.ppsOut} />
+      <EsdClamp ref="D_ESD_REF" net={N.v3v3d} />
     </>
   );
 }
