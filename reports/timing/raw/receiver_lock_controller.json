@@ -9,8 +9,8 @@
  "throughput": "1 transition per event",
  "config": "QUALIFICATION_ENABLED=1'b1",
  "notes": "Control path. Benchmark uses QUALIFICATION_ENABLED=1: the production default 0 forces UNSYNC and folds the whole FSM to an empty design, so the enabled configuration is the meaningful one to time.",
- "commit": "2620d80383ae",
- "date": "2026-09-11T21:16:59Z",
+ "commit": "afa5b3c9b93d",
+ "date": "2026-09-11T21:43:04Z",
  "target_device": "LFE5U-45F-7BG256I",
  "speed_grade": "-7",
  "seed": 1,
@@ -67,6 +67,6 @@
   "total_cells": 0,
   "wire_bits": 168
  },
- "fingerprint": "a6479a47c653f185",
+ "fingerprint": "cc6e234c3c77b1db",
  "tool_versions": "yosys=Yosys 0.52 (git sha1 fee39a3284c90249e1d9684cf6944ffbbcbb8f90); nextpnr=\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.9-3); iverilog=Icarus Verilog version 12.0 (stable) (); python=Python 3.14.4; host=Linux-7.0.0-28-generic-x86_64-with-glibc2.43"
 }

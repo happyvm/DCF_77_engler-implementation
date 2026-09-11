@@ -9,8 +9,8 @@
  "throughput": "1 sample per clk at 125 MHz (PLL-derived)",
  "config": "production-defaults",
  "notes": "Full HAT top; contains the ECP5 PLL, benchmarked in direct mode with the production LPF (clk_25m 25 MHz -> clk 125 MHz).",
- "commit": "2620d80383ae",
- "date": "2026-09-11T21:07:13Z",
+ "commit": "afa5b3c9b93d",
+ "date": "2026-09-11T21:32:55Z",
  "target_device": "LFE5U-45F-7BG256I",
  "speed_grade": "-7",
  "seed": 1,
@@ -86,6 +86,6 @@
   "total_cells": 0,
   "wire_bits": 1316
  },
- "fingerprint": "7f3a4c5a4d19cfc0",
+ "fingerprint": "b0fa61a81ff9c2a7",
  "tool_versions": "yosys=Yosys 0.52 (git sha1 fee39a3284c90249e1d9684cf6944ffbbcbb8f90); nextpnr=\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.9-3); iverilog=Icarus Verilog version 12.0 (stable) (); python=Python 3.14.4; host=Linux-7.0.0-28-generic-x86_64-with-glibc2.43"
 }

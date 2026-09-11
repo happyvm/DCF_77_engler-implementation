@@ -9,8 +9,8 @@
  "throughput": "1 search per hour boundary",
  "config": "production-defaults",
  "notes": "Search FSM.",
- "commit": "2620d80383ae",
- "date": "2026-09-11T21:16:50Z",
+ "commit": "afa5b3c9b93d",
+ "date": "2026-09-11T21:40:27Z",
  "target_device": "LFE5U-45F-7BG256I",
  "speed_grade": "-7",
  "seed": 1,
@@ -69,6 +69,6 @@
   "total_cells": 0,
   "wire_bits": 1180
  },
- "fingerprint": "0513340b8f98fffa",
+ "fingerprint": "8cf0770c93e14607",
  "tool_versions": "yosys=Yosys 0.52 (git sha1 fee39a3284c90249e1d9684cf6944ffbbcbb8f90); nextpnr=\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.9-3); iverilog=Icarus Verilog version 12.0 (stable) (); python=Python 3.14.4; host=Linux-7.0.0-28-generic-x86_64-with-glibc2.43"
 }

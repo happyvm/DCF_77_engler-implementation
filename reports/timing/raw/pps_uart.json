@@ -9,8 +9,8 @@
  "throughput": "1 PPS + telemetry per second",
  "config": "production-defaults",
  "notes": "Composition of pps_generator + time_telemetry + uart_tx.",
- "commit": "2620d80383ae",
- "date": "2026-09-11T21:17:21Z",
+ "commit": "afa5b3c9b93d",
+ "date": "2026-09-11T21:43:01Z",
  "target_device": "LFE5U-45F-7BG256I",
  "speed_grade": "-7",
  "seed": 1,
@@ -70,6 +70,6 @@
   "total_cells": 0,
   "wire_bits": 137
  },
- "fingerprint": "2124e0e810957292",
+ "fingerprint": "a1f1819f6b1cd727",
  "tool_versions": "yosys=Yosys 0.52 (git sha1 fee39a3284c90249e1d9684cf6944ffbbcbb8f90); nextpnr=\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.9-3); iverilog=Icarus Verilog version 12.0 (stable) (); python=Python 3.14.4; host=Linux-7.0.0-28-generic-x86_64-with-glibc2.43"
 }
