@@ -51,7 +51,7 @@ complementary strengths, so each `.sby` uses whichever completes faster:
 Boolector 1.5.118 remains unusable: `smtio.py` raises `BrokenPipeError`
 when talking to it (protocol incompatibility with yosys-smtbmc 0.52).
 
-The choice is empirical, not universal. For example `«redacted:am_…»`
+The choice is empirical, not universal. For example `am_bit_extractor`
 (depth 90 BMC) completes in 2 s under cvc5 but exceeds 50 s per step
 under z3, whereas `i2c_master_byte` k-induction completes in 11 s under
 z3 but exceeds 600 s under cvc5. Using one solver for the whole suite
@@ -114,7 +114,7 @@ Notes:
 | Proof | Solver | Mode | Depth | Time |
 |-------|--------|------|-------|------|
 | adc_if | cvc5 | prove (k-induction) | 12 | <1 s |
-| «redacted:am_…» | cvc5 | bmc | 90 | 2 s |
+| am_bit_extractor | cvc5 | bmc | 90 | 2 s |
 | calendar_candidate_search | z3 | bmc | 40 | 7 m 44 s |
 | clock_reset_ecp5 | cvc5 | bmc | 15 | <1 s |
 | dcf77_prn_generator | cvc5 | bmc | 10 | <1 s |
