@@ -347,3 +347,79 @@ assertion de contrat, test de cadence séparé lorsque la cadence le permet.
 2400 s. La correction fonctionnelle n'est pas affectée ; une alternative plus
 rapide consisterait à piloter `sample_ce` par `ready` (espacement ~2,2 cycles en
 moyenne), à considérer si le temps CI devient un problème.
+
+## 6. `pm_minute_sync` : séquenceur multi-cycle (commit `122cca5`)
+
+Après §5, le pire chemin **routé du top** était dans `pm_minute_sync`
+(34,23 ns, `docs/39` §3 : `history[10][7] → quality_gap`) : une chaîne
+combinatoire unique exécutée en un cycle faisant la somme série de **15 termes**
+du filtre apparié, la sélection des deux meilleurs candidats, puis la
+qualification (`MIN_GAP`, dominance du marqueur `60*best >= 11*Σ|corr|`).
+
+Comme `frequency_discipline` (§3), ce bloc produit **un résultat par seconde
+DCF77** (~10⁸ cycles `clk_sys` oisifs à 125 MHz). Il est réécrit en
+**séquenceur à quatre états** — `S_IDLE → S_SCORE → S_SELECT → S_MARK →
+S_COMMIT` — une réduction arithmétique par état :
+
+- `S_SCORE` : somme du filtre apparié (arbre d'additionneurs) + accumulateur
+  `Σ|corr|` ;
+- `S_SELECT` : `|score|` et sélection top-2 ;
+- `S_MARK` : dominance du marqueur + `locked` + `quality_gap` ;
+- `S_COMMIT` : décalage de `history`, mise à jour des accumulateurs ou
+  commit terminal (`result_valid`, sorties, reset des accumulateurs).
+
+**Latence : 4 cycles** après acceptation d'un échantillon, `busy` explicite.
+`pm_second_valid` présenté pendant `busy` est **ignoré** (contrat appelant).
+
+**Précision DSP strictement préservée (bit-à-bit)** : mêmes expressions,
+largeurs, constantes, saturations et conventions de signe ; seules les
+frontières de registres entre réductions *indépendantes* ont bougé. La somme des
+15 termes est un **arbre d'additionneurs équilibré**, bit-identique à la somme
+série (associativité de l'addition en complément à deux modulo 2^N), profondeur
+4 au lieu de 15. La cadence réelle (1 valid/s) rend la latence transparente.
+
+Vérification :
+
+| Contrôle | Résultat |
+|---|---|
+| `make test-minute-sync` (vecteurs exacts + latence busy=4) | PASS |
+| `make test-qualification-disabled` | PASS |
+| `make test-system` (10 scénarios, Verilator) | PASS |
+| `make lint` | PASS (0 avertissement) |
+| `sby -f formal/pm_minute_sync.sby` (k-induction, contrat inclus) | PASS |
+| `make resource-check` | PASS (LUT4 9 289, FF 6 929, EBR 8, MULT 28, PLL 1) |
+
+Le contrat de cadence est **prouvé** (`formal/pm_minute_sync_formal.sv` :
+légalité de transition, `busy ≤ 4` cycles consécutifs, `result_valid` arrive
+exactement 4 cycles après un `pm_second_valid` accepté, `locked` ne change
+qu'avec `result_valid`) et **imposé en simulation**
+(`sim/pm_minute_sync_contract.sv`, instancié dans les deux bancs qui pilotent
+`pm_second_valid`). Le cœur réel pilote `pm_correlation_valid` à la vraie
+cadence (1/s), très au-dessus de la latence de 4 cycles : aucun échantillon
+n'est perdu in situ.
+
+### Rapport de timing versionné (`make timing`, seed 1)
+
+| Champ | Valeur |
+|---|---|
+| Commit testé | `122cca5` |
+| Cible | `LFE5U-45F-7BG256I`, `release_reference`, 125 MHz |
+| Fmax obtenu | **31,73 MHz** (baseline : 21,54 ; §3 : 27,53 ; §5.1 : 29,21) |
+| Slack pire chemin | **−23,52 ns** (8,00 − 31,52 ns) |
+| Chemin critique final | `lcd_i.pos[2]` → `lcd_i.shadow.0.3` (DPRAM) — 121 segments |
+| LUT4 | 9 289 |
+| FF | 6 929 |
+| EBR18 | 8 |
+| MULT18X18D | 28 |
+| PLL | 1 |
+
+Le chemin critique **quitte `pm_minute_sync`** : il est maintenant
+`lcd_i2c_driver` (§5.2/§5.3), dominé par le **routage du tableau `shadow`
+(LUTRAM) indexé par `pos`** (logic 13,3 ns + routage 18,2 ns). C'est le point
+déjà signalé en §5.3 comme nécessitant soit un bit « sale » par position, soit
+un **floorplan** (`docs/27-ecp5-pin-plan-hat.md`).
+
+Gain depuis le baseline : 21,54 → **31,73 MHz (+47,3 %)**, toutes les limites du
+profil `release_reference` respectées, `MULT18X18D` inchangé (28/32), précision
+DSP préservée.
+
