@@ -1,0 +1,71 @@
+{
+ "module": "hat_spi_slave",
+ "file": "rtl/platform/hat_spi_slave.sv",
+ "kind": "io-interface",
+ "mode": "wrapper",
+ "clock": "clk",
+ "clock_target_mhz": 125.0,
+ "latency": "N/A (SPI transaction FSM)",
+ "throughput": "1 register access per SPI frame",
+ "config": "production-defaults",
+ "notes": "spi_sclk is an external serial clock sampled by the clk FSM.",
+ "commit": "2620d80383ae",
+ "date": "2026-09-11T21:17:30Z",
+ "target_device": "LFE5U-45F-7BG256I",
+ "speed_grade": "-7",
+ "seed": 1,
+ "fmax_mhz": 111.148,
+ "worst_slack_ns": -0.997,
+ "timing_met": false,
+ "lut4": 515,
+ "ff": 253,
+ "ebr18": 0,
+ "mult18x18d": 0,
+ "pll": 0,
+ "ramw": 0,
+ "critical_path_summary": "dut.rx_shift_TRELLIS_FF_Q_1 -> dut.tx_shift_TRELLIS_FF_Q_3 [8.47 ns: logic 1.67 + route 6.80, 17 segs]",
+ "critical_paths": [
+  {
+   "source": "dut.rx_shift_TRELLIS_FF_Q_1",
+   "dest": "dut.tx_shift_TRELLIS_FF_Q_3",
+   "total_ns": 8.472,
+   "logic_ns": 1.672,
+   "route_ns": 6.8,
+   "segments": 17,
+   "types": [
+    "clk-to-q",
+    "logic",
+    "routing",
+    "setup"
+   ]
+  },
+  {
+   "source": "sig_q_TRELLIS_FF_Q_14",
+   "dest": "sig_o[1]$tr_io",
+   "total_ns": 5.518,
+   "logic_ns": 0.236,
+   "route_ns": 5.282,
+   "segments": 4,
+   "types": [
+    "clk-to-q",
+    "logic",
+    "routing"
+   ]
+  }
+ ],
+ "multi_seed": [
+  {
+   "seed": 1,
+   "fmax_mhz": 111.148
+  }
+ ],
+ "arch": {
+  "additions": 48,
+  "comparators_eq": 76,
+  "comparators_ne": 2,
+  "total_cells": 0,
+  "wire_bits": 363
+ },
+ "fingerprint": "52531a789d973435",
+ "tool_versions": "yosys=Yosys 0.52 (git sha1 fee39a3284c90249e1d9684cf6944ffbbcbb8f90); nextpnr=\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.9-3); iverilog=Icarus Verilog version 12.0 (stable) (); python=Python 3.14.4; host=Linux-7.0.0-28-generic-x86_64-with-glibc2.43"
+}

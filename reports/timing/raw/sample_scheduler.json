@@ -1,0 +1,69 @@
+{
+ "module": "sample_scheduler",
+ "file": "rtl/core/sample_scheduler.sv",
+ "kind": "low-rate-control",
+ "mode": "wrapper",
+ "clock": "clk",
+ "clock_target_mhz": 125.0,
+ "latency": "1 clk (phase accumulator, sample_ce generated continuously)",
+ "throughput": "1 sample_ce per 134 clk (930 kSa/s at 125 MHz)",
+ "config": "production-defaults",
+ "notes": "Rate generator; single accumulator add on the clk path.",
+ "commit": "2620d80383ae",
+ "date": "2026-09-11T21:03:02Z",
+ "target_device": "LFE5U-45F-7BG256I",
+ "speed_grade": "-7",
+ "seed": 1,
+ "fmax_mhz": 141.323,
+ "worst_slack_ns": 0.924,
+ "timing_met": true,
+ "lut4": 161,
+ "ff": 138,
+ "ebr18": 0,
+ "mult18x18d": 0,
+ "pll": 0,
+ "ramw": 0,
+ "critical_path_summary": "sig_trim_inc_TRELLIS_FF_Q_23 -> dut.sample_ce_TRELLIS_FF_Q [6.55 ns: logic 3.22 + route 3.33, 83 segs]",
+ "critical_paths": [
+  {
+   "source": "sig_trim_inc_TRELLIS_FF_Q_23",
+   "dest": "dut.sample_ce_TRELLIS_FF_Q",
+   "total_ns": 6.551,
+   "logic_ns": 3.223,
+   "route_ns": 3.328,
+   "segments": 83,
+   "types": [
+    "clk-to-q",
+    "logic",
+    "routing",
+    "setup"
+   ]
+  },
+  {
+   "source": "sig_ctr_TRELLIS_FF_Q_3",
+   "dest": "sig_o[12]$tr_io",
+   "total_ns": 5.015,
+   "logic_ns": 0.236,
+   "route_ns": 4.779,
+   "segments": 4,
+   "types": [
+    "clk-to-q",
+    "logic",
+    "routing"
+   ]
+  }
+ ],
+ "multi_seed": [
+  {
+   "seed": 1,
+   "fmax_mhz": 141.323
+  }
+ ],
+ "arch": {
+  "additions": 8,
+  "total_cells": 0,
+  "wire_bits": 231
+ },
+ "fingerprint": "711e49f49d2feec7",
+ "tool_versions": "yosys=Yosys 0.52 (git sha1 fee39a3284c90249e1d9684cf6944ffbbcbb8f90); nextpnr=\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.9-3); iverilog=Icarus Verilog version 12.0 (stable) (); python=Python 3.14.4; host=Linux-7.0.0-28-generic-x86_64-with-glibc2.43"
+}

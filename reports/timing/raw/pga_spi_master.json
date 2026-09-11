@@ -1,0 +1,72 @@
+{
+ "module": "pga_spi_master",
+ "file": "rtl/platform/pga_spi_master.sv",
+ "kind": "io-interface",
+ "mode": "wrapper",
+ "clock": "clk",
+ "clock_target_mhz": 125.0,
+ "latency": "N/A (bit-banged SPI FSM)",
+ "throughput": "1 gain word per SPI frame",
+ "config": "production-defaults",
+ "notes": "SPI clock is divided from clk; internal paths are clk-domain.",
+ "commit": "2620d80383ae",
+ "date": "2026-09-11T21:13:25Z",
+ "target_device": "LFE5U-45F-7BG256I",
+ "speed_grade": "-7",
+ "seed": 1,
+ "fmax_mhz": 214.5,
+ "worst_slack_ns": 3.338,
+ "timing_met": true,
+ "lut4": 117,
+ "ff": 75,
+ "ebr18": 0,
+ "mult18x18d": 0,
+ "pll": 0,
+ "ramw": 0,
+ "critical_path_summary": "dut.bit_index_TRELLIS_FF_Q -> dut.shift_word_TRELLIS_FF_Q [3.71 ns: logic 1.12 + route 2.60, 13 segs]",
+ "critical_paths": [
+  {
+   "source": "dut.bit_index_TRELLIS_FF_Q",
+   "dest": "dut.shift_word_TRELLIS_FF_Q",
+   "total_ns": 3.713,
+   "logic_ns": 1.115,
+   "route_ns": 2.598,
+   "segments": 13,
+   "types": [
+    "clk-to-q",
+    "logic",
+    "routing",
+    "setup"
+   ]
+  },
+  {
+   "source": "sig_ctr_TRELLIS_FF_Q_14",
+   "dest": "sig_o[1]$tr_io",
+   "total_ns": 4.934,
+   "logic_ns": 0.236,
+   "route_ns": 4.698,
+   "segments": 4,
+   "types": [
+    "clk-to-q",
+    "logic",
+    "routing"
+   ]
+  }
+ ],
+ "multi_seed": [
+  {
+   "seed": 1,
+   "fmax_mhz": 214.5
+  }
+ ],
+ "arch": {
+  "additions": 10,
+  "comparators_eq": 12,
+  "comparators_ne": 10,
+  "subtractions": 2,
+  "total_cells": 0,
+  "wire_bits": 160
+ },
+ "fingerprint": "552359b894580911",
+ "tool_versions": "yosys=Yosys 0.52 (git sha1 fee39a3284c90249e1d9684cf6944ffbbcbb8f90); nextpnr=\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.9-3); iverilog=Icarus Verilog version 12.0 (stable) (); python=Python 3.14.4; host=Linux-7.0.0-28-generic-x86_64-with-glibc2.43"
+}

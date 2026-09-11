@@ -1,0 +1,75 @@
+{
+ "module": "ml_decoder_controller",
+ "file": "rtl/ml_decoder/ml_decoder_controller.sv",
+ "kind": "low-rate-control",
+ "mode": "wrapper",
+ "clock": "clk",
+ "clock_target_mhz": 125.0,
+ "latency": "N/A (frame continuity FSM)",
+ "throughput": "1 decision per minute",
+ "config": "production-defaults",
+ "notes": "Control path.",
+ "commit": "2620d80383ae",
+ "date": "2026-09-11T21:16:57Z",
+ "target_device": "LFE5U-45F-7BG256I",
+ "speed_grade": "-7",
+ "seed": 1,
+ "fmax_mhz": 92.61,
+ "worst_slack_ns": -2.798,
+ "timing_met": false,
+ "lut4": 896,
+ "ff": 315,
+ "ebr18": 0,
+ "mult18x18d": 0,
+ "pll": 0,
+ "ramw": 0,
+ "critical_path_summary": "dut.minute_TRELLIS_FF_Q_5 -> dut.alt_month_TRELLIS_FF_Q_2 [10.27 ns: logic 2.75 + route 7.52, 25 segs]",
+ "critical_paths": [
+  {
+   "source": "dut.minute_TRELLIS_FF_Q_5",
+   "dest": "dut.alt_month_TRELLIS_FF_Q_2",
+   "total_ns": 10.273,
+   "logic_ns": 2.753,
+   "route_ns": 7.52,
+   "segments": 25,
+   "types": [
+    "clk-to-q",
+    "logic",
+    "routing",
+    "setup"
+   ]
+  },
+  {
+   "source": "sig_ctr_TRELLIS_FF_Q_13",
+   "dest": "sig_o[2]$tr_io",
+   "total_ns": 5.318,
+   "logic_ns": 0.236,
+   "route_ns": 5.082,
+   "segments": 4,
+   "types": [
+    "clk-to-q",
+    "logic",
+    "routing"
+   ]
+  }
+ ],
+ "multi_seed": [
+  {
+   "seed": 1,
+   "fmax_mhz": 92.61
+  }
+ ],
+ "arch": {
+  "additions": 60,
+  "comparators_eq": 76,
+  "comparators_ge": 10,
+  "comparators_le": 4,
+  "comparators_lt": 6,
+  "comparators_ne": 6,
+  "subtractions": 8,
+  "total_cells": 0,
+  "wire_bits": 1631
+ },
+ "fingerprint": "b7b64e9d61f28cbd",
+ "tool_versions": "yosys=Yosys 0.52 (git sha1 fee39a3284c90249e1d9684cf6944ffbbcbb8f90); nextpnr=\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.9-3); iverilog=Icarus Verilog version 12.0 (stable) (); python=Python 3.14.4; host=Linux-7.0.0-28-generic-x86_64-with-glibc2.43"
+}

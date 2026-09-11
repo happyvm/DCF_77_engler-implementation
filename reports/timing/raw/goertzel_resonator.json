@@ -1,0 +1,75 @@
+{
+ "module": "goertzel_resonator",
+ "file": "rtl/goertzel/goertzel_resonator.sv",
+ "kind": "single-cycle",
+ "mode": "wrapper",
+ "clock": "clk",
+ "clock_target_mhz": 125.0,
+ "latency": "1 clk per sample (II=1)",
+ "throughput": "1 sample per clk (gated by sample_ce)",
+ "config": "production-defaults",
+ "notes": "Single multiply-accumulate per enabled cycle.",
+ "commit": "2620d80383ae",
+ "date": "2026-09-11T21:13:30Z",
+ "target_device": "LFE5U-45F-7BG256I",
+ "speed_grade": "-7",
+ "seed": 1,
+ "fmax_mhz": 34.661,
+ "worst_slack_ns": -20.851,
+ "timing_met": false,
+ "lut4": 544,
+ "ff": 183,
+ "ebr18": 0,
+ "mult18x18d": 6,
+ "pll": 0,
+ "ramw": 0,
+ "critical_path_summary": "dut.state_1_TRELLIS_FF_Q_6 -> dut.state_1_TRELLIS_FF_Q_14 [28.33 ns: logic 14.40 + route 13.93, 139 segs]",
+ "critical_paths": [
+  {
+   "source": "dut.state_1_TRELLIS_FF_Q_6",
+   "dest": "dut.state_1_TRELLIS_FF_Q_14",
+   "total_ns": 28.326,
+   "logic_ns": 14.4,
+   "route_ns": 13.926,
+   "segments": 139,
+   "types": [
+    "clk-to-q",
+    "logic",
+    "routing",
+    "setup"
+   ]
+  },
+  {
+   "source": "sig_q_TRELLIS_FF_Q_7",
+   "dest": "sig_o[8]$tr_io",
+   "total_ns": 5.64,
+   "logic_ns": 0.236,
+   "route_ns": 5.404,
+   "segments": 4,
+   "types": [
+    "clk-to-q",
+    "logic",
+    "routing"
+   ]
+  }
+ ],
+ "multi_seed": [
+  {
+   "seed": 1,
+   "fmax_mhz": 34.661
+  }
+ ],
+ "arch": {
+  "additions": 10,
+  "comparators_eq": 2,
+  "comparators_gt": 6,
+  "comparators_lt": 6,
+  "multiplications": 6,
+  "comparators_ne": 6,
+  "subtractions": 2,
+  "total_cells": 0,
+  "wire_bits": 1197
+ },
+ "fingerprint": "5043ba3cd3f645a7",
+ "tool_versions": "yosys=Yosys 0.52 (git sha1 fee39a3284c90249e1d9684cf6944ffbbcbb8f90); nextpnr=\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.9-3); iverilog=Icarus Verilog version 12.0 (stable) (); python=Python 3.14.4; host=Linux-7.0.0-28-generic-x86_64-with-glibc2.43"
+}

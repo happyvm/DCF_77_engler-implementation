@@ -1,37 +1,37 @@
 {
- "module": "calendar_candidate_search",
- "file": "rtl/ml_decoder/calendar_candidate_search.sv",
+ "module": "hour_candidate_search",
+ "file": "rtl/ml_decoder/hour_candidate_search.sv",
  "kind": "multicycle",
  "mode": "wrapper",
  "clock": "clk",
  "clock_target_mhz": 125.0,
  "latency": "N clk (score accumulation)",
- "throughput": "1 search per minute boundary",
+ "throughput": "1 search per hour boundary",
  "config": "production-defaults",
- "notes": "Search FSM; owned by BEA-36 for timing closure.",
+ "notes": "Search FSM.",
  "commit": "2620d80383ae",
- "date": "2026-09-11T21:03:26Z",
+ "date": "2026-09-11T21:16:50Z",
  "target_device": "LFE5U-45F-7BG256I",
  "speed_grade": "-7",
  "seed": 1,
- "fmax_mhz": 38.824,
- "worst_slack_ns": -17.757,
+ "fmax_mhz": 45.971,
+ "worst_slack_ns": -13.753,
  "timing_met": false,
- "lut4": 1893,
- "ff": 397,
+ "lut4": 1694,
+ "ff": 415,
  "ebr18": 0,
  "mult18x18d": 0,
  "pll": 0,
  "ramw": 0,
- "critical_path_summary": "dut.candidate_TRELLIS_FF_Q_5 -> dut.quality_gap_TRELLIS_FF_Q_1 [25.23 ns: logic 9.73 + route 15.51, 119 segs]",
+ "critical_path_summary": "dut.evidence[1]_TRELLIS_FF_Q_23 -> dut.quality_gap_TRELLIS_FF_Q [21.23 ns: logic 8.35 + route 12.88, 127 segs]",
  "critical_paths": [
   {
-   "source": "dut.candidate_TRELLIS_FF_Q_5",
-   "dest": "dut.quality_gap_TRELLIS_FF_Q_1",
-   "total_ns": 25.232,
-   "logic_ns": 9.725,
-   "route_ns": 15.507,
-   "segments": 119,
+   "source": "dut.evidence[1]_TRELLIS_FF_Q_23",
+   "dest": "dut.quality_gap_TRELLIS_FF_Q",
+   "total_ns": 21.228,
+   "logic_ns": 8.347,
+   "route_ns": 12.881,
+   "segments": 127,
    "types": [
     "clk-to-q",
     "logic",
@@ -40,11 +40,11 @@
    ]
   },
   {
-   "source": "sig_q_TRELLIS_FF_Q_10",
-   "dest": "sig_o[5]$tr_io",
-   "total_ns": 5.066,
+   "source": "sig_ctr_TRELLIS_FF_Q_8",
+   "dest": "sig_o[7]$tr_io",
+   "total_ns": 6.403,
    "logic_ns": 0.236,
-   "route_ns": 4.83,
+   "route_ns": 6.167,
    "segments": 4,
    "types": [
     "clk-to-q",
@@ -56,19 +56,19 @@
  "multi_seed": [
   {
    "seed": 1,
-   "fmax_mhz": 38.824
+   "fmax_mhz": 45.971
   }
  ],
  "arch": {
-  "additions": 30,
-  "comparators_eq": 10,
-  "comparators_ge": 18,
+  "additions": 24,
+  "comparators_eq": 2,
+  "comparators_ge": 4,
   "comparators_gt": 4,
-  "comparators_ne": 2,
-  "subtractions": 20,
+  "comparators_lt": 2,
+  "subtractions": 6,
   "total_cells": 0,
-  "wire_bits": 1292
+  "wire_bits": 1180
  },
- "fingerprint": "80a9fb7308e02c54",
+ "fingerprint": "0513340b8f98fffa",
  "tool_versions": "yosys=Yosys 0.52 (git sha1 fee39a3284c90249e1d9684cf6944ffbbcbb8f90); nextpnr=\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.9-3); iverilog=Icarus Verilog version 12.0 (stable) (); python=Python 3.14.4; host=Linux-7.0.0-28-generic-x86_64-with-glibc2.43"
 }

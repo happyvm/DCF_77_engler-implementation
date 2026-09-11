@@ -1,0 +1,91 @@
+{
+ "module": "dcf77_hat_top",
+ "file": "rtl/top/dcf77_hat_top.sv",
+ "kind": "composition",
+ "mode": "direct",
+ "clock": "clk_25m",
+ "clock_target_mhz": 125.0,
+ "latency": "whole-system latency",
+ "throughput": "1 sample per clk at 125 MHz (PLL-derived)",
+ "config": "production-defaults",
+ "notes": "Full HAT top; contains the ECP5 PLL, benchmarked in direct mode with the production LPF (clk_25m 25 MHz -> clk 125 MHz).",
+ "commit": "2620d80383ae",
+ "date": "2026-09-11T21:07:13Z",
+ "target_device": "LFE5U-45F-7BG256I",
+ "speed_grade": "-7",
+ "seed": 1,
+ "fmax_mhz": 28.914,
+ "worst_slack_ns": -26.585,
+ "timing_met": false,
+ "lut4": 17253,
+ "ff": 6178,
+ "ebr18": 8,
+ "mult18x18d": 28,
+ "pll": 1,
+ "ramw": 6,
+ "critical_path_summary": "core_i.detector_i.observables_i.detector_i.carrier_i.state_1_TRELLIS_FF_Q_29 -> core_i.detector_i.observables_i.detector_i.carrier_i.overflow_TRELLIS_FF_Q [34.06 ns: logic 14.67 + route 19.39, 131 segs]",
+ "critical_paths": [
+  {
+   "source": "core_i.detector_i.observables_i.detector_i.carrier_i.state_1_TRELLIS_FF_Q_29",
+   "dest": "core_i.detector_i.observables_i.detector_i.carrier_i.overflow_TRELLIS_FF_Q",
+   "total_ns": 34.06,
+   "logic_ns": 14.67,
+   "route_ns": 19.39,
+   "segments": 131,
+   "types": [
+    "clk-to-q",
+    "logic",
+    "routing",
+    "setup"
+   ]
+  },
+  {
+   "source": "reset_n$tr_io",
+   "dest": "reset_n_LUT4_D_Z_TRELLIS_FF_LSR_2",
+   "total_ns": 6.539,
+   "logic_ns": 0.236,
+   "route_ns": 6.303,
+   "segments": 5,
+   "types": [
+    "logic",
+    "routing",
+    "setup",
+    "source"
+   ]
+  },
+  {
+   "source": "adc_i.sample_valid_TRELLIS_FF_Q",
+   "dest": "diag_sample_valid$tr_io",
+   "total_ns": 6.194,
+   "logic_ns": 0,
+   "route_ns": 6.194,
+   "segments": 2,
+   "types": [
+    "clk-to-q",
+    "routing"
+   ]
+  }
+ ],
+ "multi_seed": [
+  {
+   "seed": 1,
+   "fmax_mhz": 28.914
+  }
+ ],
+ "arch": {
+  "additions": 322,
+  "comparators_eq": 606,
+  "comparators_ge": 100,
+  "comparators_gt": 76,
+  "comparators_le": 22,
+  "comparators_lt": 94,
+  "comparators_ne": 192,
+  "subtractions": 138,
+  "multiplications": 24,
+  "divisions": 16,
+  "total_cells": 0,
+  "wire_bits": 1316
+ },
+ "fingerprint": "7f3a4c5a4d19cfc0",
+ "tool_versions": "yosys=Yosys 0.52 (git sha1 fee39a3284c90249e1d9684cf6944ffbbcbb8f90); nextpnr=\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.9-3); iverilog=Icarus Verilog version 12.0 (stable) (); python=Python 3.14.4; host=Linux-7.0.0-28-generic-x86_64-with-glibc2.43"
+}
