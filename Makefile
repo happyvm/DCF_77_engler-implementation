@@ -323,6 +323,11 @@ synth:
 	mkdir -p $(BUILD_DIR)
 	$(YOSYS) -s synth/release_reference.ys
 
+# Standalone ECP5 synthesis with its own JSON/stat artefact (BEA-26).
+synth-ecp5:
+	mkdir -p $(BUILD_DIR)
+	$(YOSYS) -s synth/synth_ecp5.ys
+
 # Keep the isolated detector build as a diagnostic target.
 synth-core:
 	mkdir -p $(BUILD_DIR)
@@ -333,6 +338,12 @@ resource-check: synth
 	bash -o pipefail -c '$(PYTHON) tools/check_resource_budget.py \
 		$(BUILD_DIR)/release_reference.json --profile release_reference | \
 		tee $(BUILD_DIR)/reports/resource-budget.txt'
+
+resource-check-ecp5: synth-ecp5
+	mkdir -p $(BUILD_DIR)/reports
+	bash -o pipefail -c '$(PYTHON) tools/check_resource_budget.py \
+		$(BUILD_DIR)/synth_ecp5.json --profile release_reference | \
+		tee $(BUILD_DIR)/reports/resource-budget-ecp5.txt'
 
 # This is a device-level implementation used for a reproducible timing estimate.
 # It is not a board bitstream: pin locations are still pending (see
