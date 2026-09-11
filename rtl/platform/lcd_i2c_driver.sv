@@ -112,7 +112,7 @@ module lcd_i2c_driver #(
 
     typedef enum logic [3:0] {
         RESET_LOW, POWERUP, INIT_ADDR, INIT_CTRL, INIT_CMD, INIT_WAIT,
-        IDLE, SCAN, ADDR_A, ADDR_C, ADDR_V, DATA_A, DATA_C, DATA_V, FLUSH
+        IDLE, SCAN, SCAN_DECIDE, ADDR_A, ADDR_C, ADDR_V, DATA_A, DATA_C, DATA_V, FLUSH
     } state_t;
     state_t state;
     logic [WAIT_W-1:0] wait_count;
@@ -122,7 +122,15 @@ module lcd_i2c_driver #(
     logic shadow_valid [0:39];
     logic pending_tick;
 
-    wire pos_dirty = !shadow_valid[pos] || (shadow[pos] != frame[pos]);
+    // The cell the sequencer is looking at is read into registers one clk
+    // before the dirty decision. Scanning a 40-entry frame/shadow pair
+    // combinationally (index mux *and* compare) from `pos` to the next-state
+    // logic was the isolated critical path here (pos -> state, 32.7 ns); the
+    // registered read cuts the mux out of that path. The scan is off the sample
+    // path, so the extra clk per position is free.
+    logic [7:0] frame_q, shadow_q;
+    logic valid_q;
+    wire pos_dirty = !valid_q || (shadow_q != frame_q);
     wire [7:0] ddram_address = (pos < 6'd20) ? 8'h80 + {2'b0, pos} : 8'hC0 + {2'b0, pos - 6'd20};
 
     task automatic send(input logic first, input logic last, input logic [7:0] byte_value);
@@ -136,6 +144,7 @@ module lcd_i2c_driver #(
             state <= RESET_LOW; wait_count <= '0; init_index <= '0; pos <= '0;
             lcd_rst_n <= 1'b0; ready <= 1'b0; ack_error <= 1'b0; pending_tick <= 1'b0;
             i2c_start <= 1'b0; i2c_do_start <= 1'b0; i2c_do_stop <= 1'b0; i2c_data <= '0;
+            frame_q <= '0; shadow_q <= '0; valid_q <= 1'b0;
             for (int i = 0; i < 40; i = i + 1) shadow_valid[i] <= 1'b0;
         end else begin
             i2c_start <= 1'b0;
@@ -172,9 +181,18 @@ module lcd_i2c_driver #(
                     pending_tick <= 1'b0; pos <= '0; state <= SCAN;
                 end
                 SCAN: begin
+                    // Registered read of the cell under inspection; SCAN_DECIDE
+                    // then sees a short registered compare instead of the
+                    // 40-entry index mux.
+                    frame_q  <= frame[pos];
+                    shadow_q <= shadow[pos];
+                    valid_q  <= shadow_valid[pos];
+                    state    <= SCAN_DECIDE;
+                end
+                SCAN_DECIDE: begin
                     if (pos_dirty) state <= ADDR_A;
                     else if (pos == 6'd39) state <= IDLE;
-                    else pos <= pos + 1'b1;
+                    else begin pos <= pos + 1'b1; state <= SCAN; end
                 end
                 ADDR_A: begin send(1'b1, 1'b0, SLAVE_WRITE); state <= ADDR_C; end
                 ADDR_C: if (i2c_done) begin send(1'b0, 1'b0, CTRL_COMMAND); state <= ADDR_V; end
