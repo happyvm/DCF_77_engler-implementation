@@ -75,7 +75,14 @@ module lcd_i2c_driver_tb;
         end
     endtask
 
-    logic [7:0] expected_init [0:8] = '{8'h38, 8'h39, 8'h14, 8'h78, 8'h5E, 8'h6D, 8'h0C, 8'h01, 8'h06};
+    logic [7:0] expected_init_vals [0:8];
+    initial begin
+        expected_init_vals[0] = 8'h38; expected_init_vals[1] = 8'h39;
+        expected_init_vals[2] = 8'h14; expected_init_vals[3] = 8'h78;
+        expected_init_vals[4] = 8'h5E; expected_init_vals[5] = 8'h6D;
+        expected_init_vals[6] = 8'h0C; expected_init_vals[7] = 8'h01;
+        expected_init_vals[8] = 8'h06;
+    end
     string line1, line2;
     integer init_bytes, after_first, k;
 
@@ -86,7 +93,7 @@ module lcd_i2c_driver_tb;
         init_bytes = nbytes;
         if (init_bytes != 27) $fatal(1, "init sent %0d bytes, expected 27", init_bytes);
         for (i = 0; i < 9; i = i + 1) begin
-            if (!starts[3*i] || bytes[3*i] != 8'h78 || bytes[3*i+1] != 8'h00 || bytes[3*i+2] != expected_init[i])
+            if (!starts[3*i] || bytes[3*i] != 8'h78 || bytes[3*i+1] != 8'h00 || bytes[3*i+2] != expected_init_vals[i])
                 $fatal(1, "init transaction %0d: %h %h %h", i, bytes[3*i], bytes[3*i+1], bytes[3*i+2]);
         end
         if (stops != 9) $fatal(1, "init produced %0d STOPs", stops);
