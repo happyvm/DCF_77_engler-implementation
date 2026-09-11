@@ -94,6 +94,7 @@ module engeler_detector #(
     logic observable_valid;
     logic unused_prn_active;
     logic unused_prn_done;
+    logic unused_minute_busy;
     logic [16:0] unused_am_position;
     logic signed [17:0] pm_phase_error_cycles;
     logic pm_phase_error_valid;
@@ -202,6 +203,10 @@ module engeler_detector #(
     ) minute_sync_i (
         .clk(clk), .rst(rst), .pm_second_soft(pm_correlation),
         .pm_second_valid(pm_correlation_valid),
+        // Sequencer handshake is observed by the production cadence monitor
+        // only in simulation; the core drives pm_correlation_valid at the
+        // natural one-per-second rate, far slower than the 4-cycle latency.
+        .busy(unused_minute_busy),
         .result_valid(minute_result_valid), .locked(minute_locked),
         .best_window_end(minute_window_end),
         .pm_polarity_inverted(pm_polarity_inverted),

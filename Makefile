@@ -213,7 +213,8 @@ test-minute-sync: $(BUILD_DIR)/pm_minute_sync_tb.vvp
 	$(VVP) $<
 
 $(BUILD_DIR)/pm_minute_sync_tb.vvp: \
-		rtl/sync/pm_minute_sync.sv sim/pm_minute_sync_tb.sv
+		rtl/sync/pm_minute_sync.sv sim/pm_minute_sync_contract.sv \
+		sim/pm_minute_sync_tb.sv
 	mkdir -p $(BUILD_DIR)
 	$(IVERILOG) -g2012 -Wall -s pm_minute_sync_tb -o $@ $^
 
@@ -301,7 +302,8 @@ test-qualification-disabled: $(BUILD_DIR)/qualification_disabled_tb.vvp
 $(BUILD_DIR)/qualification_disabled_tb.vvp: \
 		rtl/sync/pm_minute_sync.sv \
 		rtl/ml_decoder/minute_candidate_search.sv \
-		rtl/ml_decoder/hour_candidate_search.sv sim/qualification_disabled_tb.sv
+		rtl/ml_decoder/hour_candidate_search.sv \
+		sim/pm_minute_sync_contract.sv sim/qualification_disabled_tb.sv
 	mkdir -p $(BUILD_DIR)
 	$(IVERILOG) -g2012 -Wall -s qualification_disabled_tb -o $@ $^
 
