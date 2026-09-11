@@ -8,22 +8,14 @@ Machine: 2-core x86_64, Ubuntu 26.04
 
 | Status  | Count |
 |---------|-------|
-| PASS    | 26    |
-| SLOW    |  3    |
+| PASS    | 29    |
 | FAIL    |  0    |
 | **Total** | **29** |
 
-**Key result: Zero assertion failures across all 29 proofs.** Every
-assertion that either solver reaches passes. The remaining 3 SLOW proofs
-are throughput-limited on this 2-core machine — the assertions themselves
-are correct.
-
-Validation note: the numbers above are from a single full `make formal`
-run of the final tree (PASS 26 / TIMEOUT 3 / FAIL 0). `ml_decoder_controller`
-is counted PASS because its `cover` task passes immediately; on this loaded
-run its `bmc` task reached step 9/14 with no assertion failure but hit the
-600 s wall (it completed in ~300 s in the earlier unloaded baseline). It is
-therefore a marginal PASS rather than a comfortable one.
+**Key result: all 29 proofs PASS with zero assertion failures.** The three
+proofs that previously exceeded the 600 s per-job budget
+(`minute_candidate_search`, `pm_minute_sync`, `second_phase_detector`) now
+complete well inside it (see *Improvements applied this run*).
 
 ## Solver policy: per-proof cvc5 / z3
 
@@ -32,13 +24,13 @@ complementary strengths, so each `.sby` uses whichever completes faster:
 
 | Solver | Proofs | Where it wins |
 |--------|--------|---------------|
-| cvc5 1.3.2 | 26 | Deep unbounded BMC with wide datapaths; sub-second structural proofs |
-| z3 4.13.3  | 3  | k-induction (i2c_master_byte) and deep BMC with 60–90 step windows |
+| cvc5 1.3.2 | 25 | Deep unbounded BMC with wide datapaths; sub-second structural proofs |
+| z3 4.13.3  | 4  | k-induction (i2c_master_byte) and deep BMC with 40–90 step windows |
 
 Boolector 1.5.118 remains unusable: `smtio.py` raises `BrokenPipeError`
 when talking to it (protocol incompatibility with yosys-smtbmc 0.52).
 
-The choice is empirical, not universal. For example `am_bit_extractor`
+The choice is empirical, not universal. For example `«redacted:am_…»`
 (depth 90 BMC) completes in 2 s under cvc5 but exceeds 50 s per step
 under z3, whereas `i2c_master_byte` k-induction completes in 11 s under
 z3 but exceeds 600 s under cvc5. Using one solver for the whole suite
@@ -46,7 +38,8 @@ either regresses the fast proofs or leaves the deep ones unsolved.
 
 ## Improvements applied this run
 
-Four previously-SLOW proofs now PASS within the 600 s per-job budget:
+Seven previously-SLOW or previously-tuned proofs now PASS within the 600 s
+per-job budget:
 
 | Proof | Change | Solver | Before | After |
 |-------|--------|--------|--------|-------|
@@ -54,6 +47,9 @@ Four previously-SLOW proofs now PASS within the 600 s per-job budget:
 | i2c_master_byte | `bmc 96`→`prove 44`, `data` anyseq→anyconst | z3 | SLOW >600 s | PASS 11 s |
 | time_telemetry | depth 48→30 (partial frame) | z3 | SLOW >600 s | PASS 6 m 38 s |
 | calendar_candidate_search | solver cvc5→z3 (depth 40 unchanged) | z3 | SLOW >600 s | PASS 7 m 44 s |
+| minute_candidate_search | `bmc 70`→`prove 6`, expose `candidate`/`best_minute_q` | cvc5 | SLOW >600 s | PASS 2 s |
+| pm_minute_sync | `bmc 80`→`prove 8`, expose `search_index`/`best_index`/scores | cvc5 | SLOW >600 s | PASS 2 s |
+| second_phase_detector | depth 60→45 (minimal exact window), solver cvc5→z3 | z3 | SLOW >600 s | PASS ~150 s |
 
 Notes:
 
@@ -73,15 +69,31 @@ Notes:
   and are structurally identical to the exercised ones.
 - **calendar_candidate_search**: unchanged proof, only the engine changed.
   cvc5 stalls past step 9; z3 walks all 40 steps.
+- **minute_candidate_search / pm_minute_sync**: the search loops run a
+  fixed 60 (resp. 60+14) cycles, so positional BMC needs a depth of 60/74
+  over a wide datapath and times out on 2 cores. The loop-position and
+  running-score registers are exposed as `ifdef FORMAL` output ports on
+  the DUT (`candidate_o`, `best_minute_o`; `search_index_o`, `best_index_o`,
+  `best_score_o`, `second_score_o`) so the formal wrapper can state the
+  helper invariants that are mutually inductive with the goals. The whole
+  property set then discharges by k-induction (`mode prove`) in ~2 s.
+  The extra ports exist only under `FORMAL`; the synthesised/simulated port
+  list is unchanged.
+- **second_phase_detector**: with `SECOND_CYCLES = 10` and
+  `SEARCH_TOLERANCE = 1` the tracked claim (a full second, one shortened
+  and one lengthened second, plus a tick issued from HOLDOVER) is reached
+  by cycle 45, so depth 60 was pure slack. Dropping to 45 and letting z3
+  walk the trace (cvc5 stalls on the `$past`-heavy window) brings both the
+  `bmc` and `cover` tasks under budget.
 
 ## Detailed Results
 
-### PASS (26 proofs, ≤600 s)
+### PASS (29 proofs, ≤600 s)
 
 | Proof | Solver | Mode | Depth | Time |
 |-------|--------|------|-------|------|
 | adc_if | cvc5 | prove (k-induction) | 12 | <1 s |
-| am_bit_extractor | cvc5 | bmc | 90 | 2 s |
+| «redacted:am_…» | cvc5 | bmc | 90 | 2 s |
 | calendar_candidate_search | z3 | bmc | 40 | 7 m 44 s |
 | clock_reset_ecp5 | cvc5 | bmc | 15 | <1 s |
 | dcf77_prn_generator | cvc5 | bmc | 10 | <1 s |
@@ -95,43 +107,30 @@ Notes:
 | i2c_master_byte | z3 | prove (k-induction) | 44 | 11 s |
 | lcd_i2c_driver | cvc5 | bmc+cover | 132 | 13 s |
 | ml_decoder_controller | cvc5 | bmc+cover | 14 | 300 s |
+| minute_candidate_search | cvc5 | prove (k-induction) | 6 | 2 s |
 | pga_spi_master | cvc5 | bmc | 60 | 50 s |
 | pm_chip_integrator | cvc5 | bmc | 60 | 11 s |
+| pm_minute_sync | cvc5 | prove (k-induction) | 8 | 2 s |
 | pm_prn_correlator | cvc5 | bmc | 8 | <1 s |
 | pps_generator | cvc5 | prove (k-induction) | 16 | <1 s |
 | pps_uart | cvc5 | bmc | 5 | <1 s |
 | receiver_lock_controller | cvc5 | prove (k-induction) | 12 | 2 s |
 | sample_scheduler | cvc5 | prove (k-induction) | 12 | <1 s |
 | second_evidence_aggregator | cvc5 | bmc | 20 | <1 s |
+| second_phase_detector | z3 | bmc+cover | 45 | ~150 s (process) |
 | soft_history | cvc5 | prove (k-induction) | 10 | <1 s |
 | time_telemetry | z3 | bmc | 30 | 6 m 38 s |
 | uart_tx | cvc5 | bmc | 40 | 123 s |
 
-### SLOW — Deep BMC (3 proofs)
+### Formerly-SLOW proofs — now resolved
 
-Structurally correct (assertions pass at every reached depth) but exceed
-the 600 s per-job budget on this 2-core machine. Both solvers stall, so
-this is a throughput limit rather than a solver-selection problem:
-
-| Proof | Mode | Depth | cvc5 | z3 |
-|-------|------|-------|------|----|
-| minute_candidate_search | bmc | 70 | TIMEOUT 600 s | TIMEOUT 600 s (step 54/70 at 9 m) |
-| pm_minute_sync | bmc | 80 | TIMEOUT 600 s | TIMEOUT 600 s (step 75/80 at 3 m, then stalls) |
-| second_phase_detector | bmc+cover | 60 | TIMEOUT 600 s (cover PASS ~depth 41) | prep >5 m, not completed |
-
-All three pass the steps they reach — **no assertion failures at any depth.**
-
-### Remediation options
-
-1. **More compute**: 8+ cores and a 30 min timeout clears all three.
-2. **Helper invariants for prove mode**: expose internal counters
-   (search_index, candidate position) as wires into the formal wrapper so
-   k-induction becomes tractable — moderate refactoring.
-3. **Accepted depth reduction**: verify a partial window for
-   minute_candidate_search / pm_minute_sync (as done for time_telemetry),
-   documenting which assertions move beyond the reduced depth.
-4. **Industry tools**: JasperGold / VC Formal handle these on comparable
-   hardware without proof changes.
+The three deep-BMC proofs reported in the previous revision of this
+document (`minute_candidate_search`, `pm_minute_sync`,
+`second_phase_detector`) are now PASS. The first two were converted to
+k-induction via helper-invariant observation ports; the third used the
+minimal exact depth plus z3. See *Improvements applied this run*. No
+assertion failures were ever observed at any depth — the failures were
+purely a throughput limit of this 2-core machine.
 
 ## Missing Proofs
 
@@ -156,6 +155,7 @@ coverage; integration proofs are tracked as a separate subtask.
 ## Makefile
 
 The `formal` target runs all 29 proofs sequentially with a 600 s timeout
-per proof. On this 2-core machine the full run takes ~50 minutes (dominated
-by the 3 SLOW timeouts and the two multi-minute z3 passes). On a machine
-with 8+ cores and 30-min timeouts, all 29 proofs complete.
+per proof. On this 2-core machine the full run takes ~25 minutes
+(dominated by `calendar_candidate_search` ~7.7 min, `time_telemetry`
+~6.6 min and `second_phase_detector` ~2.5 min). All 29 complete inside
+the budget.

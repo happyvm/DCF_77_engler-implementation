@@ -5,10 +5,10 @@ cover
 [options]
 bmc: mode bmc
 cover: mode cover
-depth 60
+depth 45
 
 [engines]
-smtbmc cvc5
+smtbmc z3
 
 [script]
 read -formal -sv second_phase_detector.sv second_phase_detector_formal.sv

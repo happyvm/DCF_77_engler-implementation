@@ -24,15 +24,29 @@ module minute_candidate_search #(
     output logic [5:0] minute,
     output logic signed [SCORE_BITS-1:0] best_score,
     output logic [SCORE_BITS-1:0] quality_gap
+`ifdef FORMAL
+    // Formal-only observability: the search loop index and the retained
+    // best-minute register, exposed so a proof can state the reachability
+    // invariants that make the 60-cycle search k-inductive instead of
+    // needing 60-step BMC (see formal/minute_candidate_search.sby).
+    , output logic [5:0] candidate_o
+    , output logic [5:0] best_minute_o
+`endif
 );
 
     logic signed [SOFT_BITS-1:0] evidence [0:7];
     logic [5:0] candidate;
+`ifdef FORMAL
+    assign candidate_o = candidate;
+`endif
     logic [7:0] candidate_bits;
     logic signed [SCORE_BITS-1:0] candidate_score;
     logic signed [SCORE_BITS-1:0] best_q, second_q;
     logic signed [SCORE_BITS-1:0] updated_best, updated_second;
     logic [5:0] best_minute_q, updated_minute;
+`ifdef FORMAL
+    assign best_minute_o = best_minute_q;
+`endif
     logic [3:0] units;
     logic [2:0] tens;
 

@@ -39,6 +39,15 @@ module pm_minute_sync #(
     output logic pm_polarity_inverted,
     output logic [INPUT_BITS+4:0] best_magnitude,
     output logic [INPUT_BITS+4:0] quality_gap
+`ifdef FORMAL
+    // Formal-only observability: the search loop index, exposed so a
+    // proof can discharge the 60-position search by k-induction instead
+    // of 74-step BMC (see formal/pm_minute_sync.sby).
+    , output logic [5:0] search_index_o
+    , output logic [5:0] best_index_o
+    , output logic [INPUT_BITS+5-1:0] best_score_o
+    , output logic [INPUT_BITS+5-1:0] second_score_o
+`endif
 );
 
     localparam int SCORE_BITS = INPUT_BITS + 5;
@@ -46,10 +55,20 @@ module pm_minute_sync #(
     logic signed [INPUT_BITS-1:0] history [0:13];
     logic [3:0] history_count;
     logic [5:0] search_index;
+`ifdef FORMAL
+    assign search_index_o = search_index;
+`endif
     logic signed [SCORE_BITS-1:0] candidate_score;
     logic [SCORE_BITS-1:0] candidate_magnitude;
     logic [SCORE_BITS-1:0] best_score_q, second_score_q;
+`ifdef FORMAL
+    assign best_score_o = best_score_q;
+    assign second_score_o = second_score_q;
+`endif
     logic [5:0] best_index_q;
+`ifdef FORMAL
+    assign best_index_o = best_index_q;
+`endif
     logic best_polarity_q;
     logic [SCORE_BITS-1:0] updated_best, updated_second;
     logic [5:0] updated_index;

@@ -315,10 +315,11 @@ FORMAL_JOBS := $(wildcard formal/*.sby)
 # failing sby would be silently reported as success.
 # Solver choice is per-proof: cvc5 for most, z3 where its k-induction /
 # BMC is markedly faster (i2c_master_byte, time_telemetry,
-# calendar_candidate_search).  Deep BMC proofs (minute_candidate_search,
-# pm_minute_sync, second_phase_detector) may still time out on this 2-core
-# box; they are correct but solver-limited.  See
-# docs/formal-validation-results.md.
+# calendar_candidate_search, second_phase_detector).  The three former
+# deep-BMC stragglers (minute_candidate_search, pm_minute_sync,
+# second_phase_detector) now PASS: the first two via k-induction over
+# FORMAL-only observation ports, the third via its minimal exact depth.
+# See docs/formal-validation-results.md.
 formal:
 	@bash -o pipefail -c 'pass=0; fail=0; timeouts=0; for job in $(FORMAL_JOBS); do \
 		echo "== $$job"; \

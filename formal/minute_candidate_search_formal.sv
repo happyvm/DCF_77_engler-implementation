@@ -2,6 +2,11 @@
 // clocks, result_valid is a single-cycle pulse that ends it, the result
 // is always a legal minute, the runner-up gap never exceeds the winner,
 // and a confident result has really cleared both floors.
+//
+// The four helper invariants (busy -> run == candidate_o, candidate_o <= 59,
+// best_minute_o <= 59, result_valid -> !busy) are mutually inductive with the
+// goals, so the whole property set discharges by k-induction (prove mode,
+// depth 6) instead of needing a 60-step BMC that times out on a 2-core box.
 module minute_candidate_search_formal;
     localparam int SOFT_BITS = 4;
     localparam int SCORE_BITS = SOFT_BITS + 4;
@@ -19,6 +24,9 @@ module minute_candidate_search_formal;
     logic [5:0] minute;
     logic signed [SCORE_BITS-1:0] best_score;
     logic [SCORE_BITS-1:0] quality_gap;
+    // Connected to the FORMAL-only observation ports on the DUT via (.*).
+    logic [5:0] candidate_o;
+    logic [5:0] best_minute_o;
 
     minute_candidate_search #(
         .SOFT_BITS(SOFT_BITS), .SCORE_BITS(SCORE_BITS), .QUALIFICATION_ENABLED(1'b1),
@@ -34,6 +42,13 @@ module minute_candidate_search_formal;
         else run <= run + 1'b1;
 
         if (past_valid) begin
+            // helper invariants: mutually inductive with the goals
+            assert(!busy || run == {1'b0, candidate_o});
+            assert(candidate_o <= 6'd59);
+            assert(best_minute_o <= 6'd59);
+            assert(!result_valid || !busy);
+
+            // goals
             assert(minute < 60);
             assert(run <= 60);
         end
