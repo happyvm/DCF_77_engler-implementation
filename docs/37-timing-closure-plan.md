@@ -12,7 +12,9 @@ cible `make timing`) : sans cela la Fmax rapportée varie de plusieurs MHz entre
 deux exécutions du même netlist et toute comparaison avant/après n'a pas de sens.
 
 Chaîne d'outils : OSS CAD Suite 2025-02-13 (Yosys 0.50, nextpnr-ecp5 0.7,
-Icarus 13, Verilator 5.032), comme la CI `.github/workflows/rtl.yml`.
+Icarus 13, Verilator 5.032), comme la CI `.github/workflows/rtl.yml`. Les
+mesures de cette section ont été reproduites sur le HEAD local (Yosys 0.52,
+nextpnr-ecp5 0.9-3).
 
 ## 1. Baseline (commit `e25f05b`, avant modification)
 
@@ -41,7 +43,7 @@ de retenue d'un additionneur se retrouve dispersée sur plusieurs colonnes. Le
 design n'a par ailleurs **aucun plan de broches ni floorplan**
 (`docs/27-ecp5-pin-plan-hat.md`), donc les I/O sont placées automatiquement.
 
-## 2. Optimisations effectuées (arbres d'addition équilibrés + constantes)
+## 2. Optimisations effectuées (commit `28ae137`)
 
 ### 2.1 Recherche ML (minute / heure / calendrier)
 
@@ -80,88 +82,157 @@ formelle `formal/frequency_discipline.sby` passe.
 
 Effet secondaire : 2 `MULT18X18D` libérés (30 → 28).
 
-## 3. Résultats après optimisation (seed 1, mêmes contraintes)
+## 3. Actuateur PI multi-cycle de `frequency_discipline` (commit `2955a86`, vérifié)
 
-| Mesure | Baseline | Après | Δ |
+Après §2, le pire chemin était devenu le **calcul PI 64 bits mono-cycle** de
+`frequency_discipline` (≈ 41 ns, `second_phase_detector.phase_error_cycles` →
+`frequency_discipline.trim_inc`) : une chaîne de ≈ 7 opérations 64 bits en série.
+
+La boucle de discipline est cadencée à **une observation par seconde** alors que
+`clk_sys` tourne à 125 MHz : un échantillon accepté dispose de ~10⁸ cycles oisifs.
+Le calcul PI a donc été réécrit en **machine à états séquentielle** exécutant
+**une réduction 64 bits par cycle** (`S_RAW` → `S_COMMIT`), la mise à jour de
+`estimated_offset`, `trim_inc`, `integrator`, du compteur de verrouillage et de
+l'horodatage étant **atomique** dans l'état terminal.
+
+- **Sémantique et précision DSP strictement préservées** : chaque expression,
+  largeur d'opérande, constante, convention de signe, saturation, anti-windup et
+  limite de slew est identique à la version mono-cycle ; seules les frontières de
+  registres entre réductions indépendantes ont bougé.
+- **Latence : 10 cycles** après `measurement_ce`. Un `busy` explicite gèle le
+  calcul : `measurement_ce` présenté pendant `busy` est **ignoré**, il ne peut pas
+  écraser un calcul en vol (assertions dans `formal/frequency_discipline_formal.sv`,
+  banc `sim/frequency_discipline_tb.sv`).
+- Le chemin holdover/rejet reste mono-cycle dans `S_IDLE`.
+
+Vérification sur le HEAD local :
+
+| Contrôle | Résultat |
+|---|---|
+| `make test-frequency-discipline` | PASS (contrat multi-cycle inclus) |
+| `make test` (suite complète, `dcf77_system_tb` 10 scénarios) | PASS |
+| `make lint` | PASS |
+| `sby -f formal/frequency_discipline.sby` | PASS (PASS, rc=0) |
+| `make resource-check` | PASS (LUT4 9 336, FF 6 218, EBR 8, MULT 28, PLL 1) |
+
+### Résultat post-route (`make timing`, seed 1)
+
+| Mesure | Baseline | §2 | §3 (HEAD) |
 |---|---:|---:|---:|
-| Fmax `clk_sys` | 21,54 MHz | **25,57 MHz** | +18,7 % |
-| Pire chem. reg→reg | 46,43 ns | 39,11 ns | −7,3 ns |
-| Bloc du pire chemin | `calendar_candidate_search` | `frequency_discipline` (via `second_phase_detector`) | — |
-| LUT4 (logic) | 8 474 | 9 660 | +1 186 |
-| FF | 5 359 | 5 359 | 0 |
-| EBR18 | 8 | 8 | 0 |
-| MULT18X18D | 30 | **28** | −2 |
-| PLL | 1 | 1 | 0 |
+| Fmax `clk_sys` | 21,54 MHz | 25,57 MHz | **27,53 MHz** |
+| Pire chem. reg→reg | 46,43 ns | 39,11 ns | 36,32 ns |
+| Bloc du pire chemin | `calendar_candidate_search` | `frequency_discipline` | **`goertzel` (`observables_i.detector_i.pm_i`)** |
+| LUT4 (logic) | 8 474 | 9 660 | 9 336 |
+| FF | 5 359 | 5 359 | 6 218 |
+| EBR18 | 8 | 8 | 8 |
+| MULT18X18D | 30 | 28 | 28 |
+| PLL | 1 | 1 | 1 |
 
-Toutes les limites du profil `release_reference` restent respectées
-(`make resource-check` PASS).
+Toutes les limites du profil `release_reference` restent respectées. Gain cumulé
+depuis le baseline : **+27,8 %** (21,54 → 27,53 MHz). L'objectif **125 MHz n'est
+pas atteint**.
 
-Validation : `make test` (suite complète, dont `dcf77_system_tb` 10 scénarios),
-`make test-calendar-ml` / `test-minute-ml` / `test-hour-ml` /
-`test-frequency-discipline`, et les preuves formelles
-`calendar_candidate_search.sby`, `minute_candidate_search.sby`,
-`hour_candidate_search.sby`, `frequency_discipline.sby` passent sur la révision
-modifiée.
+### Rapport de timing versionné (HEAD, `make timing`, seed 1)
 
-## 4. Chemins restants et architecture minimale nécessaire
+| Champ | Valeur |
+|---|---|
+| Commit testé | `2955a86` (RTL) — ce document |
+| Cible | `LFE5U-45F-7BG256I`, `release_reference`, 125 MHz |
+| Fmax obtenu | **27,53 MHz** |
+| Slack pire chemin | **−28,32 ns** (8,00 ns − 36,32 ns) |
+| Chemin critique final | `observables_i.detector_i.pm_i.state_1` → `overflow` (résonateur PM) |
+| LUT4 | 9 336 |
+| FF | 6 218 |
+| EBR18 | 8 |
+| MULT18X18D | 28 |
+| PLL | 1 |
 
-À 24 MHz, il reste ≈ 46 points de terminaison en slack négatif à 8 ns. Le pire
-chemin restant est le **calcul PI de `frequency_discipline`** (≈ 41 ns,
-`second_phase_detector.phase_error_cycles` → `frequency_discipline.trim_inc`).
+## 4. Chemin critique restant : le banc Goertzel (analyse BEA-36)
 
-### 4.1 `frequency_discipline` — calcul PI multi-cycle (priorité 1)
+Le pire chemin est maintenant, à 36,32 ns (logic ≈ 15 ns + routage ≈ 21 ns) :
 
-Le chemin est une chaîne de ≈ 7 opérations **64 bits** en série
-(Soustraction+shift+addition pour `estimate_next`, puis `integrator + i_delta`,
-puis deux additions pour `requested`, puis les bornages et le slew). Chaque
-additionneur 64 bits se mappe sur une longue chaîne de retenue ; la profondeur
-ne peut pas descendre sous 8 ns en un cycle.
+```
+core_i.detector_i.observables_i.detector_i.pm_i.state_1  (FF)
+  → feedback_product  (MULT18X18D, state_1 × RESONATOR_COEFF)
+  → recurrence_wide   (add/sub 51 bits + saturation)
+  → scale_product_1   (MULT18X18D, recurrence_sat × SCALE_COEFF)
+  → scaled_wide/scaled_sat → overflow FF
+```
 
-**Architecture minimale proposée** — machine à états séquentielle :
+Deux **multiplications de constantes 32×19 mises en série** plus l'additionneur
+de récurrence ne peuvent pas descendre sous 8 ns dans un seul cycle : la
+profondeur logique seule est d'environ 15 ns, et le routage (le FF de `state_1`
+est placé à ~10 colonnes du DSP) ajoute ~21 ns.
 
-1. `busy`/`done` explicites ; pendant `busy`, accepter une nouvelle mesure ne
-   peut pas écraser les opérandes en cours (registre d'entrée séparé + assertion
-   SVA, ou mise en file et traitement après `done`).
-2. Étaler le calcul sur ≈ 5 cycles, un opérande 64 bits par cycle :
-   `raw_frequency` → `estimate_next` → `proportional`/`i_delta` →
-   `integrator_candidate`/`requested` (anti-windup) → bornage + slew + mise à
-   jour de `trim_inc`.
-3. Profondeur par cycle = un additionneur 64 bits ≈ 3–5 ns < 8 ns.
-4. **Latence documentée** : ≈ 5 cycles après `measurement_ce`. La boucle est
-   cadencée à 1 Hz : c'est négligeable.
+### 4.1 Tentative : résonateur pipeliné multi-cycle (prototype, reverté)
 
-Conséquence : le contrat du bloc change (il faut attendre `done` plutôt que
-supposer une mise à jour en un cycle). Le banc `sim/frequency_discipline_tb.sv`
-doit être adapté pour **attendre la fin de calcul** (pas affaibli : les valeurs
-attendues restent identiques). La cadence réelle (1 mesure/s) rend la propriété
-« pas d'écrasement » triviale à tenir, mais elle doit être **assertée**.
+Comme pour `frequency_discipline`, la récurrence a été réécrite en pipeline
+explicite (une réduction par cycle, `S_MUL → S_REC → S_COMMIT/S_SCALE_*`). Le
+prototype était **bit-exact** :
 
-### 4.2 Autres blocs profonds identifiés
+- `formal/goertzel_resonator_formal.sv` étendu au contrat `busy` : PASS ;
+- banc d'équivalence 240 échantillons aléatoires contre un modèle golden
+  mono-cycle verbatim (y compris saturation/overflow collant) : PASS ;
+- banc `engeler_goertzel_bank_tb` (valeurs exactes 47 995 / 41 565 …) : PASS.
 
-- `sample_scheduler` : deux additions 40 bits en cascade sur un cycle
-  (`increment_ext` puis `phase_sum`). Pipeline possible sur 2 cycles avec
-  `sample_ce` en sortie, ou réduction de largeur démontrée.
-- `second_phase_detector` : la portion amont du chemin restant (phase →
-  `phase_error`).
-- `pm_chip_integrator`, `goertzel/*` : à confirmer par mesure (les MULT ont déjà
-  été time-sharés dans le commit `77487ec`).
-- `ml_field_sequencer` / `dcf77_receiver_core` : chemins de composition à
-  ré-évaluer après chaque correction de bloc.
+**Mais il a dû être reverté** : `sim/dcf77_system_tb.sv` présente **un
+échantillon par cycle** au cœur (`sample_ce <= 1'b1` à chaque `posedge clk`,
+le scheduler et l'ADC étant hors de ce chemin de test ; voir l'en-tête du banc,
+« the core sees one sample per clock »). Un résonateur multi-cycle y **perd des
+échantillons**, casse la fréquence du banc de Goertzel et le récepteur ne
+s'acquiert plus (`dcf77_system_tb: FAIL (8 scénarios)`).
 
-### 4.3 Améliorations sans coût logique
+Autrement dit : la boucle de récurrence d'un filtre de Goertzel est **séquentielle
+par construction** (s[n] dépend de s[n−1]) ; son débit est limité par sa latence.
+On ne peut pas la pipeliner *et* la faire tourner à un échantillon par cycle. Le
+contrat de simulation actuel exige ce débit.
 
-- **Plan de broches / floorplan** (`docs/27-ecp5-pin-plan-hat.md`) : le routage
-  représente ~60–65 % du délai des pires chemins, et aucun placement physique
-  n'est contraint aujourd'hui. Contraindre les I/O et un floorplan grossier
-  (colonnes des chaînes de retenue, DSP, EBR) peut améliorer la Fmax sans
-  toucher au RTL.
-- Poursuivre la campagne **chemin critique par chemin critique** : chaque
-  correction révèle le suivant (mesure `make timing`, graine fixée).
+### 4.2 Architecture minimale nécessaire
+
+Le résonateur **doit** être multi-cycle par échantillon en matériel : à
+`Fs = 930 kS/s` et `clk_sys = 125 MHz` il y a **~134 cycles `clk_sys` par
+échantillon**. La solution correcte est le pipeline multi-cycle (prototype
+ci-dessus, bit-exact et prouvé). Pour l'adopter sans casser la simulation, il
+faut **une** des deux voies :
+
+1. **Modéliser la cadence réelle dans le banc système.** Faire piloter
+   `sample_ce` du cœur à la cadence réelle (p. ex. via `sample_scheduler`, ou un
+   strobe espacé) au lieu d'un échantillon par cycle. Coût : le banc
+   `dcf77_system_tb` ralentit proportionnellement à l'espacement des échantillons
+   (aujourd'hui ~210 s ; ×6 à ×8 inacceptable en CI). C'est la voie *propre* si
+   l'on accepte de repenser la compression temporelle du banc.
+2. **Optimisation mono-cycle du résonateur** (préserve le débit 1 échantillon/cycle) :
+   - **Décomposer les multiplications par constante en décalages/soustractions.**
+     `SCALE_COEFF = 2^17 − δ` avec δ petit (13 / 79 / 4915 selon le bin), donc
+     `scale(x) = x − x·δ/2^17` = `x` moins quelques `x >>> k` : plus de DSP sur
+     le chemin de scaling. Ne s'applique pas à `RESONATOR_COEFF = 227023`
+     (≈ √3·2^17, non décomposable).
+   - **Floorplan / plan de broches** (`docs/27-ecp5-pin-plan-hat.md`) : ~21 des
+     36 ns sont du routage, et rien n'est contraint physiquement aujourd'hui.
+     Placer les DSP et les FF de récurrence dans une même colonne peut réduire
+     fortement ce terme sans toucher au RTL.
+
+Ces deux voies mono-cycle restent **limitées** : l'additionneur de récurrence
+51 bits + la saturation + la multiplication de récurrence restent sur le chemin,
+donc la cible 125 MHz pour ce bloc est incertaine sans la voie 1.
+
+### 4.3 Autres blocs profonds identifiés
+
+- `sample_scheduler` : deux additions 40 bits en cascade sur un cycle.
+- `second_phase_detector` : portion amont (phase → `phase_error`).
+- `pm_chip_integrator`, `pm_correlator`, `observables` : à confirmer après
+  correction du résonateur (ces blocs tournent eux aussi à 1 échantillon/cycle).
+- `ml_field_sequencer` / `dcf77_receiver_core` : composition à ré-évaluer.
 
 ## 5. Statut
 
-L'objectif **125 MHz n'est pas encore atteint**. Le design est passé de 21,5 à
-25,6 MHz (+18,7 %) avec une sémantique et une précision DSP préservées, et sans
-sortir de l'enveloppe historique. La fermeture complète nécessite la campagne de
-pipelining décrite en §4 (au premier chef le calcul PI multi-cycle de
-`frequency_discipline`), que le présent travail a instrumentée et priorisée.
+L'objectif **125 MHz n'est pas atteint**. Le design est passé de 21,5 à
+**27,5 MHz (+27,8 %)** avec sémantique et précision DSP préservées et sans sortir
+de l'enveloppe historique. L'acteur PI de `frequency_discipline` est désormais
+multi-cycle et **vérifié** (tests, lint, preuve formelle, budget, post-route).
+
+Le verrou de la cible 125 MHz est le **banc Goertzel** (§4) : sa récurrence est
+séquentielle et non pipelinable *tout en conservant le débit d'un échantillon par
+cycle* exigé par le modèle de simulation du cœur. La fermeture requiert soit de
+modéliser la cadence d'échantillonnage réelle dans `dcf77_system_tb` (§4.2 voie 1),
+soit les optimisations mono-cycle de la voie 2, dont le gain reste à mesurer.
