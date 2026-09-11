@@ -313,9 +313,12 @@ FORMAL_JOBS := $(wildcard formal/*.sby)
 # Every formal/*.sby is run with a per-job timeout of 600s (10 min).
 # pipefail matters: without it the pipeline's status is tail's and a
 # failing sby would be silently reported as success.
-# Deep BMC proofs (i2c_master_byte, minute_candidate_search, pm_minute_sync,
-# second_phase_detector, time_telemetry) may time out on slow machines; they
-# are correct but solver-limited.  See docs/formal-validation-results.md.
+# Solver choice is per-proof: cvc5 for most, z3 where its k-induction /
+# BMC is markedly faster (i2c_master_byte, time_telemetry,
+# calendar_candidate_search).  Deep BMC proofs (minute_candidate_search,
+# pm_minute_sync, second_phase_detector) may still time out on this 2-core
+# box; they are correct but solver-limited.  See
+# docs/formal-validation-results.md.
 formal:
 	@bash -o pipefail -c 'pass=0; fail=0; timeouts=0; for job in $(FORMAL_JOBS); do \
 		echo "== $$job"; \

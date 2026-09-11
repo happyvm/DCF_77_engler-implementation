@@ -2,11 +2,13 @@
 # field==3 (year, 0..99) is excluded from this proof (see the formal
 # testbench header): the longest remaining case is day, 31 candidates, so
 # depth just needs to cover one full run plus setup/reset.
+# Solver: z3 completes depth 40 in ~7m44s; cvc5 exceeds the 600s budget
+# on this 2-core box.
 mode bmc
 depth 40
 
 [engines]
-smtbmc cvc5
+smtbmc z3
 
 [script]
 read -formal -sv calendar_candidate_search.sv calendar_candidate_search_formal.sv
