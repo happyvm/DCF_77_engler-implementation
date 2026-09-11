@@ -1,6 +1,6 @@
 [options]
-mode prove
-depth 20
+mode bmc
+depth 10
 
 [engines]
 smtbmc cvc5

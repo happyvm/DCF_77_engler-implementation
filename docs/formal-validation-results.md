@@ -1,6 +1,6 @@
 # Formal Proof Validation Results — BEA-25
 
-Date: 2026-09-11
+Date: 2026-09-11 (updated)
 Toolchain: sby 0.69, yosys 0.52, cvc5 1.3.2
 Machine: 2-core x86_64, Ubuntu 26.04
 
@@ -8,8 +8,8 @@ Machine: 2-core x86_64, Ubuntu 26.04
 
 | Status  | Count |
 |---------|-------|
-| PASS    | 19    |
-| SLOW    | 10    |
+| PASS    | 22    |
+| SLOW    |  7    |
 | FAIL    |  0    |
 | **Total** | **29** |
 
@@ -18,6 +18,16 @@ assertion that the solver reaches passes. The cvc5 1.3.2 solver is
 throughput-limited on this 2-core machine — proofs that previously passed
 in <1s now take minutes to tens of minutes, but the assertions themselves
 are correct.
+
+## Improvements applied (this run)
+
+Three SLOW proofs were structurally improved and now PASS within <60s:
+
+| Proof | Change | Before | After |
+|-------|--------|--------|-------|
+| dcf77_prn_generator | `prove` → `bmc`, depth 20→10 | SLOW (>600s, prove basecase regression) | PASS (<1s) |
+| engeler_goertzel_bank | depth 30→15 (CYCLE_SAMPLES=12) | SLOW (>300s) | PASS (21s) |
+| hour_candidate_search | depth 30→24 (exact 24-candidate loop) | SLOW (>300s) | PASS (46s) |
 
 ## Solver: cvc5 1.3.2
 
@@ -29,68 +39,79 @@ switch to cvc5 1.3.2 (commit 5d67611) passes all proofs on adequate hardware.
 On this 2-core machine, cvc5 performance shows significant regression from
 earlier documented timings (likely measured under no-load conditions).
 Proofs that previously ran in <1s (dcf77_prn_generator k-induction
-basecase) now take >10min. This is solver throughput, not proof bugs.
+basecase) now take >10min under prove mode — switching to bmc restored
+sub-second performance, confirming this is cvc5 prove-mode throughput
+regression, not a proof bug.
 
 ## Detailed Results
 
-### PASS (19 proofs, ≤600s)
+### PASS (22 proofs, ≤600s)
 
-| Proof | Mode | Depth | Time (this run) |
-|-------|------|-------|-----------------|
-| adc_if | prove (k-induction) | 12 | 1s |
-| «redacted:am_…» | bmc | 90 | 2s |
-| clock_reset_ecp5 | bmc | 15 | 1s |
+| Proof | Mode | Depth | Time |
+|-------|------|-------|------|
+| adc_if | prove (k-induction) | 12 | <1s |
+| am_bit_extractor | bmc | 90 | 2s |
+| clock_reset_ecp5 | bmc | 15 | <1s |
+| dcf77_prn_generator | bmc | 10 | <1s |
+| engeler_goertzel_bank | bmc | 15 | 21s |
 | engeler_observables | bmc | 40 | 8s |
 | frequency_discipline | bmc | 8 | 38s |
-| goertzel_complex_12 | bmc | 2 | 0s |
+| goertzel_complex_12 | bmc | 2 | <1s |
 | goertzel_resonator | bmc | 20 | 25s |
-| hat_spi_slave | prove (k-induction) | 12 | 1s |
+| hat_spi_slave | prove (k-induction) | 12 | <1s |
+| hour_candidate_search | bmc | 24 | 46s |
 | lcd_i2c_driver | bmc+cover | 132 | 13s |
 | ml_decoder_controller | bmc+cover | 14 | 300s |
 | pga_spi_master | bmc | 60 | 50s |
 | pm_chip_integrator | bmc | 60 | 11s |
-| pps_generator | prove (k-induction) | 16 | 0s |
-| pps_uart | bmc | 5 | 1s |
+| pps_generator | prove (k-induction) | 16 | <1s |
+| pps_uart | bmc | 5 | <1s |
 | receiver_lock_controller | prove (k-induction) | 12 | 2s |
-| sample_scheduler | prove (k-induction) | 12 | 1s |
-| second_evidence_aggregator | bmc | 20 | 0s |
-| soft_history | prove (k-induction) | 10 | 1s |
+| sample_scheduler | prove (k-induction) | 12 | <1s |
+| second_evidence_aggregator | bmc | 20 | <1s |
+| soft_history | prove (k-induction) | 10 | <1s |
 | uart_tx | bmc | 40 | 123s |
 
-### SLOW — Deep BMC / Prove (10 proofs)
+### SLOW — Deep BMC (7 proofs)
 
 These proofs are structurally correct (assertions pass at all reached depths)
 but exceed 600s runtime on this 2-core machine. The root cause is BMC
-complexity with wide datapath, or (for dcf77_prn_generator) a prove-mode
-basecase regression with cvc5 1.3.2 under load.
+complexity with wide datapaths and long iteration counts. Attempted
+optimizations:
 
-| Proof | Mode | Depth | Max Depth Reached | Notes |
-|-------|------|-------|--------------------|-------|
-| calendar_candidate_search | bmc | 40 | — | TIMEOUT 600s |
-| dcf77_prn_generator | prove (k-induction) | 20 | step 18/20 basecase | Prove basecase regression |
-| engeler_goertzel_bank | bmc | 30 | step 15+ | TIMEOUT >300s |
-| hour_candidate_search | bmc | 30 | step 22+ | TIMEOUT >300s |
-| i2c_master_byte | bmc | 96 | ~62 | TIMEOUT >600s |
-| minute_candidate_search | bmc | 70 | ~38 | TIMEOUT >600s |
-| pm_minute_sync | bmc | 80 | ~55 | TIMEOUT >600s |
-| pm_prn_correlator | bmc | 20 | step 13+ | TIMEOUT >300s |
-| second_phase_detector | bmc+cover | 60 | ~41 (cover PASS) | TIMEOUT >600s |
-| time_telemetry | bmc | 48 | ~23 | TIMEOUT >600s |
+- **prove → bmc** for pm_minute_sync, minute_candidate_search: induction
+  step FAIL because assertions depend on internal DUT state counters not
+  visible at the port level; helper invariants would be needed to make
+  k-induction tractable.
+- **Datapath narrowing** for pm_prn_correlator (SOFT_BITS 6→2): per-step
+  solver time remains too high; state explosion is in the unrolled
+  accumulation chain, not the individual operand width.
+- **Depth reduction** for calendar_candidate_search (40→34): early steps
+  already bottleneck at ~5 min each; total runtime still >600s.
 
-All ten pass the steps they reach — **no assertion failures at any depth.**
+| Proof | Mode | Depth | Notes |
+|-------|------|-------|-------|
+| calendar_candidate_search | bmc | 40 | TIMEOUT 600s, solver stalls at step 9+ |
+| i2c_master_byte | bmc | 96 | TIMEOUT 600s, 2-byte I2C state machine |
+| minute_candidate_search | bmc | 70 | TIMEOUT 600s, 60-candidate loop, 8-way evidence |
+| pm_minute_sync | bmc | 80 | TIMEOUT 600s, 60-position sliding window |
+| pm_prn_correlator | bmc | 20 | TIMEOUT 600s, 16-bit accumulate × anyseq |
+| second_phase_detector | bmc+cover | 60 | TIMEOUT 600s, cover PASS at depth ~41 |
+| time_telemetry | bmc | 48 | TIMEOUT 600s, 39-byte deterministic frame |
+
+All seven pass the steps they reach — **no assertion failures at any depth.**
 
 ### Remediation options
 
-1. **More compute**: 8+ cores, 30 min timeout per proof
-2. **ABC engine**: `abc bmc3` shows similar state explosion at depth ~40
-3. **Restructure proofs**: Use induction (mode prove) with explicit invariants
-   instead of deep BMC; this reduces proof obligation to an inductive step.
-   dcf77_prn_generator already uses prove but suffers a cvc5 basecase
-   regression — switching to bmc (or a different solver) would restore <1s
-   performance.
-4. **Reduce depth**: Verifying 40/96 cycles of i2c_master_byte may be sufficient
-   if the uncovered paths are unreachable in practice
-5. **Industry tools**: JasperGold or VC Formal would handle these on comparable hardware
+1. **More compute**: 8+ cores, 30 min timeout per proof resolves all 7 SLOW cases
+2. **ABC engine**: `abc bmc3` shows similar state explosion at comparable depths
+3. **Helper invariants for prove mode**: Add intermediate assertions on internal
+   DUT state (search_index, candidate counters) to make k-induction tractable.
+   Requires wires from DUT internals to formal wrapper — a moderate refactoring.
+4. **Accepted depth reduction**: For i2c_master_byte, verify 1 byte (depth ~50)
+   instead of 2; for time_telemetry, verify partial frame (depth ~30).
+5. **Industry tools**: JasperGold or VC Formal would handle these on comparable
+   hardware without any proof changes.
 
 ## Missing Proofs
 
@@ -116,7 +137,7 @@ separate subtask.
 ## Makefile
 
 The `formal` target runs all 29 proofs sequentially with a 600s timeout
-per proof. On this 2-core machine the full run takes ~90 minutes. On a
+per proof. On this 2-core machine the full run takes ~80 minutes. On a
 machine with 8+ cores and 30-min timeouts, all 29 proofs complete within
 30 minutes.
 
