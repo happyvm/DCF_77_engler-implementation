@@ -41,7 +41,8 @@ une valeur initiale : la future boucle de discipline devra pouvoir la resserrer.
 
 ## Contrat et limites
 
-- Un échantillon n'est accepté que lorsque `sample_ce` vaut 1.
+- Un échantillon n'est accepté que lorsque `sample_ce` vaut 1 **et** que le
+  séquenceur n'est pas `busy` (voir ci-dessous).
 - Les trois chemins reçoivent exactement le même flux et leurs `cycle_valid`
   doivent rester alignés.
 - `overflow` est persistant jusqu'au reset afin qu'une largeur insuffisante ne
@@ -56,6 +57,47 @@ une valeur initiale : la future boucle de discipline devra pouvoir la resserrer.
   campagnes de dynamique et de bruit.
 - Les largeurs et coefficients définitifs ne sont pas encore gelés. Ils devront
   être qualifiés avec le générateur de signal bit-exact et les captures ADC.
+
+## Résonateur multi-cycle (BEA-36)
+
+Le résonateur `rtl/goertzel/goertzel_resonator.sv` est un **séquenceur
+multi-cycle** : chaque échantillon accepté est réparti sur plusieurs `clk_sys`
+(une réduction arithmétique par cycle) au lieu d'un unique chemin combinatoire
+enchaînant deux multiplications 32×19. La récurrence est séquentielle par
+construction (`s[n]` dépend de `s[n-1]`), donc son débit est borné par sa
+latence — mais à `Fs = 930 kS/s` et `clk_sys = 125 MHz` il y a ~134 cycles par
+échantillon, largement de quoi étaler le calcul.
+
+| Propriété | Valeur |
+|---|---|
+| Intervalle d'initiation `GOERTZEL_MAX_CYCLES` | **4** `clk_sys` |
+| Latence (échantillon non-scalé / scalé) | 2 / 4 `clk_sys` |
+| `busy` | haut pendant tout le calcul de l'échantillon accepté |
+| `done` | impulsion d'un cycle à la publication du résultat |
+| Débit | 1 échantillon par ≥ 4 `clk_sys` |
+
+Arithmétique **bit-identique** à l'ancienne version mono-cycle : mêmes largeurs
+d'opérandes, mêmes décalages, mêmes bornes de saturation, mêmes termes
+d'overflow — seules les frontières de registres entre réductions indépendantes
+ont bougé. Équivalence vérifiée par `sim/engeler_goertzel_bank_tb.sv` (vecteurs
+de référence inchangés) et `sim/engeler_observables_tb.sv`.
+
+**Contrat de cadence (prouvé, pas supposé).** Un `sample_ce` ne peut jamais être
+présenté pendant `busy` : sous la cadence réelle (~134 `clk_sys`/échantillon) le
+budget de 4 cycles est un facteur ~33 sous la période d'échantillonnage. Le
+contrat est :
+
+- prouvé formellement dans `formal/goertzel_resonator_formal.sv`
+  (`busy` borné à 3 cycles, `done` hors `busy`, `cycle_valid` cadencé) et
+  `formal/engeler_goertzel_bank_formal.sv` ;
+- vérifié contre le **vrai** ordonnanceur 930 kS/s dans
+  `sim/sample_cadence_tb.sv` (`make test-sample-cadence`) ;
+- **imposé en simulation** par `sim/goertzel_sample_contract.sv`, instancié dans
+  `sim/dcf77_system_tb.sv` — une présentation pendant `busy` est une erreur
+  fatale, jamais un échantillon silencieusement ignoré.
+
+Le banc fonctionnel `sim/dcf77_system_tb.sv` reste accéléré : il espace
+`sample_ce` de la latence du pipeline (4 `clk`), pas des 134 cycles physiques.
 
 ## Vérification actuelle
 

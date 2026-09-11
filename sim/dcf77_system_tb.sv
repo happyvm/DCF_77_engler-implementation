@@ -28,6 +28,14 @@ module dcf77_system_tb;
     localparam int PRN_START_CYCLE  = SECOND_CYCLES / 5;
     localparam int CYCLES_PER_CHIP  = 120 / SCALE;
     localparam int CHIP_COUNT       = 512;
+    // BEA-36: the Goertzel front end is a multi-cycle sequencer with a
+    // GOERTZEL_MAX_CYCLES = 4 clk initiation interval. This bench compresses
+    // the second but still has to respect that contract, so sample_ce is
+    // strobed every SAMPLE_PERIOD clk instead of every clk. That is the
+    // pipeline latency, NOT the real ~134 clk/sample cadence: the arithmetic
+    // is verified identically, only slower in wall-clock. The real cadence
+    // contract is checked separately in sim/sample_cadence_tb.sv.
+    localparam int SAMPLE_PERIOD = 4;
     // 1-k scaled by SCALE for each bin (Q1.17, see engeler_goertzel_bank).
     localparam logic signed [18:0] CARRIER_SCALE = 19'sd131072 - 19'sd13   * SCALE;
     localparam logic signed [18:0] AM_SCALE      = 19'sd131072 - 19'sd79   * SCALE;
@@ -61,6 +69,13 @@ module dcf77_system_tb;
         .CONSISTENT_FRAMES(1), .ACQUIRE_RESULTS(1), .EXIT_FAILURES(1),
         .HOLDOVER_ENABLED(1'b1), .HOLDOVER_TICKS(5)
     ) dut (.*);
+
+    // BEA-36 contract monitor: fails hard if a sample is ever presented to
+    // the multi-cycle Goertzel sequencer while it is still busy.
+    goertzel_sample_contract contract_i (
+        .clk(clk), .rst(rst), .sample_ce(sample_ce),
+        .busy(dut.detector_i.observables_i.detector_i.busy)
+    );
 
     logic telemetry_seen = 1'b0, pps_seen = 1'b0;
     // PM-path probes for the +verbose progress lines.
@@ -353,12 +368,19 @@ module dcf77_system_tb;
 
     logic signed [13:0] next_val;
     logic generator_on = 1'b0;
+    logic [1:0] sample_gap = '0;   // counts 0..SAMPLE_PERIOD-1
     always @(posedge clk) begin
-        if (generator_on) begin
+        if (!generator_on) begin
+            sample_ce <= 1'b0;
+            sample_gap <= '0;
+        end else if (sample_gap == 2'(SAMPLE_PERIOD - 1)) begin
+            // One sample per SAMPLE_PERIOD clk: the Goertzel contract.
+            sample_gap <= '0;
             next_sample(next_val);
             sample <= next_val;
             sample_ce <= 1'b1;
         end else begin
+            sample_gap <= sample_gap + 1'b1;
             sample_ce <= 1'b0;
         end
     end
@@ -391,7 +413,7 @@ module dcf77_system_tb;
                 if (time_valid) locked = 1'b1;
             end
             // Let the PPS/UART path react to the lock before checking them.
-            if (locked) repeat (2 * SECOND_CYCLES * 12) @(posedge clk);
+            if (locked) repeat (2 * SECOND_CYCLES * 12 * SAMPLE_PERIOD) @(posedge clk);
         end
     endtask
 
@@ -537,7 +559,7 @@ module dcf77_system_tb;
             expect_lock("dropout_then_lock", 6);
             if (run_locked) begin
                 run_until_locked(7, run_locked); // ride through the dropout minute
-                repeat (4 * 60 * SECOND_CYCLES * 12) @(posedge clk);
+                repeat (4 * 60 * SECOND_CYCLES * 12 * SAMPLE_PERIOD) @(posedge clk);
                 report_decoded("dropout_reacquire");
                 if (!time_valid || !decoded_matches_current()) begin
                     $display("FAIL dropout_reacquire: time_valid=%0b after carrier returned", time_valid);
@@ -555,7 +577,7 @@ module dcf77_system_tb;
             set_reference_time(6'd57, 5'd1, 6'd31, 3'd7, 4'd3, 8'd24, 1'b0, 1'b1);
             expect_lock("cet_to_cest", 8);
             if (run_locked) begin
-                repeat (3 * 60 * SECOND_CYCLES * 12) @(posedge clk);
+                repeat (3 * 60 * SECOND_CYCLES * 12 * SAMPLE_PERIOD) @(posedge clk);
                 report_decoded("cet_to_cest_after");
                 if (!time_valid || !decoded_matches_current() || !decoded_cest) begin
                     $display("FAIL cet_to_cest_after: lock/decode lost across the DST step");
@@ -574,7 +596,7 @@ module dcf77_system_tb;
     end
 
     initial begin
-        #10_000_000_000;
+        #40_000_000_000;
         $fatal(1, "dcf77_system_tb: timeout");
     end
 endmodule

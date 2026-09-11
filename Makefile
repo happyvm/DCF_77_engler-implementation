@@ -22,7 +22,7 @@ test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
 	test-second-phase test-lock-controller test-qualification-disabled test-tools \
 	test-soft-history test-ml-controller test-frequency-discipline test-integration \
 	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator \
-	test-second-phase-ramp test-system test-pga test-hat-spi test-lcd
+	test-second-phase-ramp test-system test-pga test-hat-spi test-lcd test-sample-cadence
 
 test-integration: $(BUILD_DIR)/dcf77_hat_top_tb.vvp
 	$(VVP) $<
@@ -54,8 +54,8 @@ $(BUILD_DIR)/second_phase_ramp_tb.vvp: rtl/sync/second_phase_detector.sv sim/sec
 # it is built with Verilator (--binary --timing), ~60x faster. Run a single
 # scenario with `build/vl_system/dcf77_system_tb +scenario=N +verbose`.
 test-system: $(BUILD_DIR)/vl_system/dcf77_system_tb
-	timeout 900 $<
-$(BUILD_DIR)/vl_system/dcf77_system_tb: $(CORE_RTL) sim/dcf77_system_tb.sv
+	timeout 2400 $<
+$(BUILD_DIR)/vl_system/dcf77_system_tb: $(CORE_RTL) sim/goertzel_sample_contract.sv sim/dcf77_system_tb.sv
 	mkdir -p $(BUILD_DIR)/vl_system
 	$(VERILATOR) --binary --timing -O2 -Wno-fatal -Wno-lint -Wno-style \
 		--top-module dcf77_system_tb --Mdir $(BUILD_DIR)/vl_system \
@@ -139,6 +139,20 @@ lint-goertzel:
 	$(IVERILOG) -g2012 -Wall -s engeler_goertzel_bank -o /dev/null \
 		rtl/goertzel/goertzel_resonator.sv \
 		rtl/goertzel/engeler_goertzel_bank.sv
+
+# BEA-36 throughput test: the *real* fractional sample scheduler (930 kS/s at
+# 125 MHz) versus the multi-cycle Goertzel bank. Proves the configured cadence
+# (~134 clk between samples) never collides with the 4-clk initiation interval.
+test-sample-cadence: $(BUILD_DIR)/sample_cadence_tb.vvp
+	$(VVP) $<
+
+$(BUILD_DIR)/sample_cadence_tb.vvp: \
+		rtl/core/sample_scheduler.sv \
+		rtl/goertzel/goertzel_resonator.sv \
+		rtl/goertzel/engeler_goertzel_bank.sv \
+		sim/sample_cadence_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s sample_cadence_tb -o $@ $^
 
 test-observables: $(BUILD_DIR)/engeler_observables_tb.vvp
 	$(VVP) $<

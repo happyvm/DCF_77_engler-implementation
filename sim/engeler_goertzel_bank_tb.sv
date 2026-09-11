@@ -1,6 +1,15 @@
 `timescale 1ns/1ps
-
+// Three Goertzel resonators fed a 12-phase carrier.  The resonator is now a
+// multi-cycle sequencer (BEA-36): successive sample_ce pulses must be spaced
+// at least GOERTZEL_MAX_CYCLES apart (the initiation interval), so this bench
+// paces them at SAMPLE_PERIOD = 4 instead of one per clock.  The arithmetic is
+// bit-exact versus the former single-cycle datapath, so the reference state
+// vectors below are unchanged.  The bench also enforces the busy contract:
+// sample_ce must never be presented while busy, and busy must drop within the
+// documented budget.
 module engeler_goertzel_bank_tb;
+    localparam int SAMPLE_PERIOD = 4;   // == goertzel_resonator GOERTZEL_MAX_CYCLES
+
     logic clk = 0;
     logic rst = 1;
     logic sample_ce = 0;
@@ -10,6 +19,7 @@ module engeler_goertzel_bank_tb;
     logic signed [31:0] pm_s1, pm_s2;
     logic cycle_valid;
     logic overflow;
+    logic busy, done;
     integer sample_index;
     integer valid_count = 0;
 
@@ -37,6 +47,21 @@ module engeler_goertzel_bank_tb;
         if (cycle_valid)
             valid_count = valid_count + 1;
 
+    // Busy-contract monitor: how long busy may stay high, and a hard error if
+    // a sample is ever presented while the bank is still busy.
+    integer busy_run = 0, busy_max = 0;
+    always @(posedge clk) begin
+        if (rst) begin
+            busy_run = 0;
+        end else begin
+            if (busy) busy_run = busy_run + 1;
+            else busy_run = 0;
+            if (busy_run > busy_max) busy_max = busy_run;
+            if (busy && sample_ce)
+                $fatal(1, "sample_ce presented while busy (BEA-36 contract)");
+        end
+    end
+
     initial begin
         repeat (2) @(posedge clk);
         rst <= 0;
@@ -46,8 +71,12 @@ module engeler_goertzel_bank_tb;
             sample_ce <= 1;
             @(posedge clk);
             sample_ce <= 0;
-            @(posedge clk);
+            repeat (SAMPLE_PERIOD - 1) @(posedge clk);
         end
+        // Let the last accepted sample finish its boundary commit and be
+        // counted before checking (the commit trails the accept by up to
+        // SAMPLE_PERIOD-1 cycles now that the resonator is multi-cycle).
+        repeat (SAMPLE_PERIOD + 1) @(posedge clk);
         #1;
 
         if (valid_count != 4)
@@ -60,6 +89,8 @@ module engeler_goertzel_bank_tb;
             $fatal(1, "PM state mismatch: %0d %0d", pm_s1, pm_s2);
         if (overflow)
             $fatal(1, "unexpected resonator saturation");
+        if (busy_max > SAMPLE_PERIOD - 1)
+            $fatal(1, "busy exceeded the initiation interval: %0d", busy_max);
 
         $display("engeler_goertzel_bank_tb: PASS");
         $finish;

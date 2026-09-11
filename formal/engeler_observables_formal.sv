@@ -3,17 +3,25 @@
 // products are issued through the shared multiplier, and the dot/cross sums
 // are registered. observable_valid must therefore be cycle_valid delayed by
 // exactly 6 clocks (1 snapshot + 4 products + 1 sum), on every clock (not
-// just on sample_ce), since the sequencer runs unconditionally. The bank's
-// cycle_valid period is reconstructed the same way as in
-// engeler_goertzel_bank_formal.sv (mod-12, the resonator's real default).
+// just on sample_ce), since the sequencer runs unconditionally.
+//
+// BEA-36: the resonator is now a multi-cycle sequencer, so the bank's
+// cycle_valid is no longer one clock after the period-completing accepted
+// sample but four (S_IDLE -> S_REC -> S_SCALE -> S_COMMIT). sample_ce is
+// driven here at the minimum permitted spacing (4 clk, == GOERTZEL_MAX_CYCLES)
+// so every pulse is accepted; the period-completing sample is modelled the
+// same way as in engeler_goertzel_bank_formal.sv (mod-12, the resonator's
+// real default) and a matching 4-deep shift reconstructs the bank's
+// registered cycle_valid before the 6-deep output-latency shift.
 module engeler_observables_formal;
     localparam int SAMPLE_BITS = 6;
     localparam int STATE_BITS = 12;
-    localparam int CYCLE_SAMPLES = 12;
+    localparam int CYCLE_SAMPLES = 4;
     localparam int LATENCY = 6;
+    localparam int CV_LATENCY = 4;   // bank cycle_valid after the accept edge
 
     (* gclk *) logic clk;
-    (* anyseq *) logic sample_ce;
+    logic sample_ce;
     (* anyseq *) logic signed [SAMPLE_BITS-1:0] sample;
     logic rst = 1'b1;
     logic past_valid = 1'b0;
@@ -22,16 +30,21 @@ module engeler_observables_formal;
     logic observable_valid, overflow;
 
     engeler_observables #(
-        .SAMPLE_BITS(SAMPLE_BITS), .STATE_BITS(STATE_BITS)
+        .SAMPLE_BITS(SAMPLE_BITS), .STATE_BITS(STATE_BITS),
+        .CYCLE_SAMPLES(CYCLE_SAMPLES)
     ) dut (.*);
+
+    // Minimum spaced cadence: one sample every GOERTZEL_MAX_CYCLES clk.
+    logic [1:0] ce_phase = '0;
+    always_ff @(posedge clk) begin
+        if (rst) ce_phase <= '0;
+        else ce_phase <= ce_phase + 1'b1;
+    end
+    assign sample_ce = (ce_phase == 2'd0);
 
     logic [3:0] ref_count = '0;
     logic ref_cycle_valid;
-    // ref_cycle_valid is the mod-CYCLE_SAMPLES wrap condition itself; the
-    // bank/resonator only publish that as their registered cycle_valid one
-    // clock later (ref_c below), which is the signal the pipeline actually
-    // samples.
-    logic ref_c = 1'b0;
+    logic [CV_LATENCY-1:0] cv_sr = '0;
     logic [LATENCY-1:0] valid_sr = '0;
 
     assign ref_cycle_valid = sample_ce && (ref_count == 4'(CYCLE_SAMPLES - 1));
@@ -42,7 +55,7 @@ module engeler_observables_formal;
 
         if (rst) begin
             ref_count <= '0;
-            ref_c <= 1'b0;
+            cv_sr <= '0;
             valid_sr <= '0;
         end else begin
             if (sample_ce) begin
@@ -51,10 +64,9 @@ module engeler_observables_formal;
                 else
                     ref_count <= ref_count + 1'b1;
             end
-            ref_c <= ref_cycle_valid;
-            // Six sequencer clocks between the bank's cycle_valid (ref_c) and
-            // observable_valid (snapshot, four products, sums).
-            valid_sr <= {valid_sr[LATENCY-2:0], ref_c};
+            // cv_sr[CV_LATENCY-1] is the bank's registered cycle_valid.
+            cv_sr <= {cv_sr[CV_LATENCY-2:0], ref_cycle_valid};
+            valid_sr <= {valid_sr[LATENCY-2:0], cv_sr[CV_LATENCY-1]};
         end
 
         if (past_valid && !$past(rst))

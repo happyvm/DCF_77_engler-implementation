@@ -1,6 +1,6 @@
 [options]
 mode bmc
-depth 40
+depth 35
 
 [engines]
 smtbmc cvc5

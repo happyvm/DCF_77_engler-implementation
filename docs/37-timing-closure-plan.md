@@ -226,13 +226,98 @@ donc la cible 125 MHz pour ce bloc est incertaine sans la voie 1.
 
 ## 5. Statut
 
-L'objectif **125 MHz n'est pas atteint**. Le design est passé de 21,5 à
-**27,5 MHz (+27,8 %)** avec sémantique et précision DSP préservées et sans sortir
-de l'enveloppe historique. L'acteur PI de `frequency_discipline` est désormais
-multi-cycle et **vérifié** (tests, lint, preuve formelle, budget, post-route).
+Objectif **125 MHz non atteint**, mais le verrou identifié en §4 est levé.
 
-Le verrou de la cible 125 MHz est le **banc Goertzel** (§4) : sa récurrence est
-séquentielle et non pipelinable *tout en conservant le débit d'un échantillon par
-cycle* exigé par le modèle de simulation du cœur. La fermeture requiert soit de
-modéliser la cadence d'échantillonnage réelle dans `dcf77_system_tb` (§4.2 voie 1),
-soit les optimisations mono-cycle de la voie 2, dont le gain reste à mesurer.
+Le **résonateur Goertzel est passé en séquenceur multi-cycle** conformément à la
+décision architecturale de BEA-36 (JC, commentaire du 2026-09-11) : chaque
+échantillon accepté est étalé sur ≤ 4 `clk_sys` (`S_IDLE` → `S_REC` →
+`S_SCALE` → `S_COMMIT`), une réduction arithmétique par cycle, avec poignée de
+main `busy`/`done`. L'arithmétique reste **bit-identique** (mêmes largeurs,
+décalages, saturations, overflow) ; seules les frontières de registres entre
+réductions indépendantes ont bougé. Le contrat de cadence (« jamais de
+`sample_ce` pendant `busy` ») est prouvé (`formal/goertzel_resonator_formal.sv`,
+`formal/engeler_goertzel_bank_formal.sv`), exercé contre le vrai ordonnanceur
+930 kS/s (`sim/sample_cadence_tb.sv`) et **imposé en simulation**
+(`sim/goertzel_sample_contract.sv`). Le banc fonctionnel reste accéléré
+(`sample_ce` espacé de la latence du pipeline, 4 `clk`).
+
+Le chemin critique **a sauté hors du Goertzel** — c'est maintenant
+`lcd_i2c_driver` (§5.2), exactement le principe « traiter un bloc à la fois »
+demandé par JC.
+
+| Contrôle | Résultat |
+|---|---|
+| `make test-goertzel` / `test-observables` | PASS (vecteurs de référence inchangés) |
+| `make test-sample-cadence` (930 kS/s vs `busy`) | PASS (min_gap 134 clk, busy_max 3) |
+| `make test-system` (10 scénarios) | PASS |
+| suite rapide complète (30 cibles) | PASS |
+| `make lint` | PASS (0 avertissement) |
+| `sby -f formal/goertzel_resonator.sby` | PASS |
+| `sby -f formal/engeler_goertzel_bank.sby` | PASS |
+| `sby -f formal/engeler_observables.sby` | PASS |
+| `make resource-check` | PASS (LUT4 9 421, FF 6 671, EBR 8, MULT 28, PLL 1) |
+
+### 5.1 Rapport de timing versionné (`make timing`, seed 1)
+
+| Champ | Valeur |
+|---|---|
+| Commit testé | commit BEA-36 « Goertzel multi-cycle » (voir §5) |
+| Cible | `LFE5U-45F-7BG256I`, `release_reference`, 125 MHz |
+| Fmax obtenu | **28,24 MHz** (27,53 MHz au baseline §1/§3) |
+| Slack pire chemin | **−27,42 ns** (8,00 − 35,42 ns) |
+| Chemin critique final | `lcd_i2c_driver` (`lcd_i.pos` → `lcd_i.shadow_valid`) |
+| LUT4 | 9 421 |
+| FF | 6 671 |
+| EBR18 | 8 |
+| MULT18X18D | 28 |
+| PLL | 1 |
+
+Gain depuis le baseline : 21,54 → **28,24 MHz (+31,1 %)** sur la chaîne, toutes
+les limites du profil `release_reference` respectées, `MULT18X18D` inchangé
+(28/32), précision DSP préservée.
+
+### 5.2 Chemin critique restant : `lcd_i2c_driver`
+
+Un seul chemin reg→reg domine désormais à **35,42 ns** (logic ≈ 13 ns + routage
+≈ 22 ns) et il est **entièrement hors du chemin d'échantillonnage** :
+
+```
+lcd_i.pos (FF) → mux frame[pos] / shadow[pos] → comparaison pos_dirty
+  → logique de prochain-état → lcd_i.shadow_valid (FF)
+```
+
+`pos_dirty = !shadow_valid[pos] || (shadow[pos] != frame[pos])` place deux
+multiplexeurs 40×8 indexés par `pos` **et** la comparaison sur le chemin
+combinatoire du prochain état `SCAN`. Le chemin va du compteur `pos` au registre
+qui en dépend ; le routage domine parce que les 40 entrées de `frame`/`shadow`
+sont dispersées (pas de floorplan). C'est exactement le bloc signalé en
+`docs/39` §7 (P1, 29,3 MHz), hors du chemin critique des échantillons : une
+optimisation y est **sans risque fonctionnel** (un test `lcd_i2c_driver_tb`
+purement protocole le couvre).
+
+Pistes (par ordre de gain attendu, à mener sous le même principe) :
+
+1. **Pipeliner la lecture `frame[pos]`/`shadow[pos]`** : registrer la valeur lue
+   un cycle avant la décision `pos_dirty`, sortant les deux mux du chemin
+   `pos → prochain état`. Le scan coûte un cycle de plus par position, sans
+   conséquence (le scan n'est pas sur le chemin des échantillons).
+2. **Remplacer la comparaison 8 bits par un bit « sale » par position,**
+   recalculé une fois par seconde (ou à l'écriture), réduisant le chemin à une
+   lecture d'un bit.
+3. **Floorplan / plan de broches** (`docs/27`) pour ramener le terme de routage
+   (≈ 22 des 35 ns) en regroupant `pos`, le tableau `frame` et la logique de
+   prochain état.
+
+Après ce bloc, l'itération continue sur `second_phase_detector`,
+`pm_minute_sync`, `sample_scheduler` (déjà à 141 MHz, non bloquant), les
+corrélateurs PM, puis les compositions top — selon le principe de JC : budget de
+cycles explicite, assertion de contrat, test de cadence séparé lorsque la
+cadence le permet.
+
+### 5.3 Note CI
+
+`make test-system` (Verilator) passe mais coûte ~18 min de mur à `SAMPLE_PERIOD=4`
+(×4 vs la cadence accélérée historique) : le timeout mur a été porté de 900 à
+2400 s. La correction fonctionnelle n'est pas affectée ; une alternative plus
+rapide consisterait à piloter `sample_ce` par `ready` (espacement ~2,2 cycles en
+moyenne), à considérer si le temps CI devient un problème.

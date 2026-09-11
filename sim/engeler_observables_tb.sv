@@ -1,6 +1,8 @@
 `timescale 1ns/1ps
 
 module engeler_observables_tb;
+    localparam int SAMPLE_PERIOD = 4;   // goertzel_resonator GOERTZEL_MAX_CYCLES
+
     logic clk = 0;
     logic rst = 1;
     logic sample_ce = 0;
@@ -44,7 +46,7 @@ module engeler_observables_tb;
             sample_ce <= 1;
             @(posedge clk);
             sample_ce <= 0;
-            @(posedge clk);
+            repeat (SAMPLE_PERIOD - 1) @(posedge clk);
         end
 
         wait (observable_valid);

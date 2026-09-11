@@ -18,6 +18,9 @@
 module engeler_observables #(
     parameter int SAMPLE_BITS = 14,
     parameter int STATE_BITS = 32,
+    // Carrier-cycle length; exposed so a formal harness can shrink the period.
+    // Production keeps the resonator default of 12.
+    parameter int CYCLE_SAMPLES = 12,
     // Bank scaling constants, exposed so a time-compressed simulation can
     // widen the bins in proportion to a shortened second; hardware keeps
     // the bank's own defaults.
@@ -48,16 +51,26 @@ module engeler_observables #(
     logic signed [STATE_BITS:0] pm_real, pm_imag;
     logic signed [STATE_BITS:0] carrier_real_c, carrier_imag_c;
     logic cycle_valid;
+    // Bank sequencer handshake. The observables block does not consume it --
+    // the cadence contract is checked in sim/sample_cadence_tb.sv -- but it is
+    // explicitly wired (not left dangling) so the connection is visible.
+    logic bank_busy, bank_done;
 
     engeler_goertzel_bank #(
         .SAMPLE_BITS(SAMPLE_BITS), .STATE_BITS(STATE_BITS),
+        .CYCLE_SAMPLES(CYCLE_SAMPLES),
         .CARRIER_SCALE(CARRIER_SCALE), .AM_SCALE(AM_SCALE), .PM_SCALE(PM_SCALE)
     ) detector_i (
         .clk(clk), .rst(rst), .sample_ce(sample_ce), .sample(sample),
         .carrier_s1(carrier_s1), .carrier_s2(carrier_s2),
         .am_s1(am_s1), .am_s2(am_s2), .pm_s1(pm_s1), .pm_s2(pm_s2),
-        .cycle_valid(cycle_valid), .overflow(overflow)
+        .cycle_valid(cycle_valid), .overflow(overflow),
+        .busy(bank_busy), .done(bank_done)
     );
+
+    // Observables has no use for the handshake; fold it away so the wires are
+    // not flagged as unused (the value is deliberately not observable here).
+    wire unused_bank_handshake = bank_busy ^ bank_done;
 
     goertzel_complex_12 #(.STATE_BITS(STATE_BITS)) carrier_complex_i (
         .state_1(carrier_s1), .state_2(carrier_s2),
