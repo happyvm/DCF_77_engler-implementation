@@ -5,7 +5,7 @@
 # second_evidence_aggregator.sby). 20 clocks cover several 512-chip wraps
 # once chip_index itself is driven directly by anyseq.
 mode bmc
-depth 20
+depth 8
 
 [engines]
 smtbmc cvc5

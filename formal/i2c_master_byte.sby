@@ -1,9 +1,13 @@
 [options]
-mode bmc
-depth 96
+# Single-byte verification with START+STOP: all protocol/timing
+# assertions are structural (state-machine properties, pulse shapes,
+# bus-ownership discipline); k-induction handles this efficiently
+# while BMC per-step cost is prohibitive on 2-core hardware.
+mode prove
+depth 44
 
 [engines]
-smtbmc cvc5
+smtbmc z3
 
 [script]
 read -formal -sv i2c_master_byte.sv i2c_master_byte_formal.sv

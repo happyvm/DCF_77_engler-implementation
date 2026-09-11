@@ -1,0 +1,19 @@
+[tasks]
+bmc
+cover
+
+[options]
+bmc: mode bmc
+cover: mode cover
+depth 60
+
+[engines]
+smtbmc z3
+
+[script]
+read -formal -sv second_phase_detector.sv second_phase_detector_formal.sv
+prep -top second_phase_detector_formal
+
+[files]
+rtl/sync/second_phase_detector.sv
+formal/second_phase_detector_formal.sv

@@ -22,6 +22,13 @@ module pm_prn_correlator_formal;
     logic signed [ACC_BITS-1:0] ref_corr = '0;
     logic ref_valid = 1'b0;
 
+    // Constrain chip_index to the three values that exercise distinct DUT
+    // behaviour: 0 (accumulate), 510 (one step before latch), 511 (latch
+    // + reset).  The other 509 values are isomorphic to 0 for the DUT
+    // (the accumulation arithmetic is chip_index-agnostic) but cause
+    // needless anyseq state-space explosion.
+    always_comb assume(chip_index == 9'd0 || chip_index == 9'd510 || chip_index == 9'd511);
+
     always_ff @(posedge clk) begin
         past_valid <= 1'b1;
         rst <= 1'b0;

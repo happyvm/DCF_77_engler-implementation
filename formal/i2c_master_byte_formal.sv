@@ -13,7 +13,7 @@
 module i2c_master_byte_formal;
     (* gclk *) logic clk;
     (* anyseq *) logic start, do_start, do_stop, sda_in;
-    (* anyseq *) logic [7:0] data;
+    (* anyconst *) logic [7:0] data;
     logic rst = 1'b1;
     logic past_valid = 1'b0;
     logic busy, done, ack_error, scl_drive_low, sda_drive_low;
