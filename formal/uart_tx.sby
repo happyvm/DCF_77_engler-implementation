@@ -3,7 +3,7 @@ mode bmc
 depth 40
 
 [engines]
-smtbmc boolector
+smtbmc z3
 
 [script]
 read -formal -sv uart_tx.sv uart_tx_formal.sv

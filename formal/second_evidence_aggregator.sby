@@ -6,7 +6,7 @@ mode bmc
 depth 20
 
 [engines]
-smtbmc boolector
+smtbmc z3
 
 [script]
 read -formal -sv second_evidence_aggregator.sv second_evidence_aggregator_formal.sv

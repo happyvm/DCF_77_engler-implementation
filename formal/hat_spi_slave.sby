@@ -3,7 +3,7 @@ mode prove
 depth 12
 
 [engines]
-smtbmc boolector
+smtbmc z3
 
 [script]
 read -formal -sv hat_spi_slave.sv hat_spi_slave_formal.sv

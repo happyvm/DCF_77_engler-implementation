@@ -8,7 +8,7 @@ cover: mode cover
 depth 60
 
 [engines]
-smtbmc boolector
+smtbmc z3
 
 [script]
 read -formal -sv second_phase_detector.sv second_phase_detector_formal.sv

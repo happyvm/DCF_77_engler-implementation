@@ -3,7 +3,7 @@ mode bmc
 depth 8
 
 [engines]
-smtbmc boolector
+smtbmc z3
 
 [script]
 read -formal -sv frequency_discipline.sv frequency_discipline_formal.sv

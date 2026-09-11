@@ -54,7 +54,7 @@ $(BUILD_DIR)/second_phase_ramp_tb.vvp: rtl/sync/second_phase_detector.sv sim/sec
 # it is built with Verilator (--binary --timing), ~60x faster. Run a single
 # scenario with `build/vl_system/dcf77_system_tb +scenario=N +verbose`.
 test-system: $(BUILD_DIR)/vl_system/dcf77_system_tb
-	$<
+	timeout 900 $<
 $(BUILD_DIR)/vl_system/dcf77_system_tb: $(CORE_RTL) sim/dcf77_system_tb.sv
 	mkdir -p $(BUILD_DIR)/vl_system
 	$(VERILATOR) --binary --timing -O2 -Wno-fatal -Wno-lint -Wno-style \

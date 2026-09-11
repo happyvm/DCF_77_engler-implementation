@@ -3,7 +3,7 @@ mode prove
 depth 20
 
 [engines]
-smtbmc boolector
+smtbmc z3
 
 [script]
 read -formal -sv dcf77_prn_generator.sv dcf77_prn_generator_formal.sv

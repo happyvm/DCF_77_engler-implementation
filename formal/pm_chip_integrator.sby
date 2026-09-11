@@ -3,7 +3,7 @@ mode bmc
 depth 60
 
 [engines]
-smtbmc boolector
+smtbmc z3
 
 [script]
 read -formal -sv pm_chip_integrator.sv pm_chip_integrator_formal.sv

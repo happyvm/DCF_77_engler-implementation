@@ -3,7 +3,7 @@ mode bmc
 depth 70
 
 [engines]
-smtbmc boolector
+smtbmc z3
 
 [script]
 read -formal -sv minute_candidate_search.sv minute_candidate_search_formal.sv

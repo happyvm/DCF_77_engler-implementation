@@ -3,7 +3,7 @@ mode bmc
 depth 90
 
 [engines]
-smtbmc boolector
+smtbmc z3
 
 [script]
 read -formal -sv am_bit_extractor.sv am_bit_extractor_formal.sv
