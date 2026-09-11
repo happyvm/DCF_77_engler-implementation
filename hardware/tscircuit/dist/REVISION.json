@@ -1,13 +1,13 @@
 {
   "revision": "rev0",
   "board": "raspberry_pi_hatplus",
-  "generated_at": "2026-09-11T21:36:23.732Z",
+  "generated_at": "2026-09-11T22:01:48.793Z",
   "git": {
-    "commit": "afa5b3c9b93def68113f78c3fda35d23e40feb6f",
-    "commit_short": "afa5b3c",
+    "commit": "ebdb6846be0cf4fb42eb81b2b648010489998258",
+    "commit_short": "ebdb684",
     "branch": "main",
     "source_path": "hardware/tscircuit",
-    "source_dirty": true
+    "source_dirty": false
   },
   "toolchain": {
     "node": "v22.23.1",
@@ -22,14 +22,14 @@
     {
       "path": "dist/circuit-json/dcf77-hat.circuit.json",
       "present": true,
-      "bytes": 2675386,
-      "sha256": "8b71cb238df291dad3d7d329f4e5f99a329fbf3b7ec84bfa9b91dfd138c8e136"
+      "bytes": 2675221,
+      "sha256": "5ffa9e50fe50b272f0f545ff018d45f5a145ab400957592f5c589bf59059568e"
     },
     {
       "path": "dist/kicad-pre-quilter/dcf77-hat.zip",
       "present": true,
-      "bytes": 6679938,
-      "sha256": "ee7bd925b23606bc957a3feb3aee88a1f33113bcbc3ddbd323fbe6636075efd6"
+      "bytes": 6679958,
+      "sha256": "64b81aa89c2da14ee7dc04832428d0a0b59f0f8ee4c81f9a331a3c0178b7d240"
     },
     {
       "path": "dist/circuit-json/placement-regions.json",
