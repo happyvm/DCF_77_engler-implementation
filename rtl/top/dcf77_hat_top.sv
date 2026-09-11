@@ -13,6 +13,10 @@ module dcf77_hat_top #(
     parameter int SECOND_SEARCH_TOLERANCE = 1_000,
     parameter int SECOND_TRACK_WINDOW = 2_000,
     parameter int SECOND_ACQUIRE_HITS = 2,
+    // Exposed so that a time-compressed integration test can shorten the
+    // whole second coherently (see dcf77_hat_top_tb).
+    parameter int CYCLES_PER_CHIP = 120,
+    parameter int CHIP_COUNT = 512,
     parameter int PPS_PULSE_CYCLES = 12_500_000,
     parameter int HISTORY_DEPTH = 3600,
     // The release profile (this default) runs real qualification end to
@@ -96,6 +100,7 @@ module dcf77_hat_top #(
         .SECOND_SEARCH_TOLERANCE(SECOND_SEARCH_TOLERANCE),
         .SECOND_TRACK_WINDOW(SECOND_TRACK_WINDOW),
         .SECOND_ACQUIRE_HITS(SECOND_ACQUIRE_HITS),
+        .CYCLES_PER_CHIP(CYCLES_PER_CHIP), .CHIP_COUNT(CHIP_COUNT),
         .PPS_PULSE_CYCLES(PPS_PULSE_CYCLES), .HISTORY_DEPTH(HISTORY_DEPTH),
         .QUALIFICATION_ENABLED(QUALIFICATION_ENABLED),
         .CONSISTENT_FRAMES(CONSISTENT_FRAMES), .ACQUIRE_RESULTS(ACQUIRE_RESULTS),

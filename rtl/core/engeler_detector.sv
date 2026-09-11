@@ -18,7 +18,9 @@ module engeler_detector #(
     // time-compressed simulation shortening the second keeps the AM
     // windows (100 ms each) and the PRN burst start (200 ms) coherent.
     // The chip length and count are the standard 512-chip sequence.
-    parameter int AM_WINDOW_CYCLES = SECOND_CYCLES / 10,
+    // Guarded with a floor so that a time-compressed test SECOND_CYCLES < 10
+    // yields at least one cycle instead of zero (integer division).
+    parameter int AM_WINDOW_CYCLES = (SECOND_CYCLES / 10 > 0) ? SECOND_CYCLES / 10 : 1,
     parameter int PRN_START_CYCLE = SECOND_CYCLES / 5,
     parameter int CYCLES_PER_CHIP = 120,
     parameter int CHIP_COUNT = 512,

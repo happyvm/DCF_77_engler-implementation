@@ -26,7 +26,9 @@ module pm_phase_discriminator #(
     // Sub-chip offset for the early/late taps; must stay well inside one
     // chip so both taps remain in the same correlation lobe as the prompt
     // tap instead of aliasing into an unrelated one (a third of a chip).
-    parameter int OFFSET_CYCLES = CYCLES_PER_CHIP / 3,
+    // Guarded so a time-compressed test with CYCLES_PER_CHIP=1 still yields
+    // a valid offset instead of zero (integer division).
+    parameter int OFFSET_CYCLES = (CYCLES_PER_CHIP / 3 > 0) ? CYCLES_PER_CHIP / 3 : 1,
     parameter int PHASE_ERROR_BITS = 18,
     // A prompt correlation below this magnitude is too weak to steer
     // timing from at all (no real PM signal, or pure noise): the
