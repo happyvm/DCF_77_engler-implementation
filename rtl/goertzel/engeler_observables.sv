@@ -7,6 +7,13 @@
 //   PM raw = PM x carrier
 // Both are intentionally unnormalised soft metrics. Normalisation and output
 // saturation belong after SNR/range measurements with reference vectors.
+//
+// The four 33x33 products share one physical multiplier: they are issued one
+// per clock through `mul_p` and accumulated in a four-state sequencer. This
+// replaces four parallel multipliers with a single one, which is what keeps
+// the detector inside the XC3S1400AN's 32-hard-multiplier envelope. The extra
+// latency is harmless: observables only have meaning at observable_valid,
+// which is produced once per carrier cycle.
 
 module engeler_observables #(
     parameter int SAMPLE_BITS = 14,
@@ -36,20 +43,11 @@ module engeler_observables #(
     logic signed [STATE_BITS-1:0] carrier_s1, carrier_s2;
     logic signed [STATE_BITS-1:0] am_s1, am_s2;
     logic signed [STATE_BITS-1:0] pm_s1, pm_s2;
-    // Combinational bin rotations (state -> complex), then a three-stage
-    // register pipeline: bins, products, sums. Each stage holds one
-    // multiply or one add of the dot/cross products, so no clock has to
-    // absorb the coefficient multiply, the 33x33 product and the 67-bit
-    // sum back to back (that chain alone was ~40 ns on the ECP5).
+    // Combinational bin rotations (state -> complex).
     logic signed [STATE_BITS:0] am_real, am_imag;
     logic signed [STATE_BITS:0] pm_real, pm_imag;
     logic signed [STATE_BITS:0] carrier_real_c, carrier_imag_c;
-    logic signed [STATE_BITS:0] am_real_q, am_imag_q;
-    logic signed [STATE_BITS:0] pm_real_q, pm_imag_q;
     logic cycle_valid;
-    logic signed [PRODUCT_BITS-1:0] am_rr, am_ii;
-    logic signed [PRODUCT_BITS-1:0] pm_ir, pm_ri;
-    logic valid_s1, valid_s2;
 
     engeler_goertzel_bank #(
         .SAMPLE_BITS(SAMPLE_BITS), .STATE_BITS(STATE_BITS),
@@ -76,37 +74,78 @@ module engeler_observables #(
         .bin_real(pm_real), .bin_imag(pm_imag)
     );
 
-    // observable_valid marks am_inphase_raw/pm_quadrature_raw three clocks
-    // after the bank's cycle_valid (bins, products, sums). The pipeline
-    // runs every clock, so it is correct for any sample_ce cadence,
-    // including one sample per clock in simulation. carrier_real/imag are
-    // the stage-1 registers (two clocks ahead of observable_valid); they
-    // are diagnostic outputs, not sampled against observable_valid.
+    // The operand snapshot freezes one carrier cycle's bins so the serialised
+    // products all use the same inputs. carrier_real/carrier_imag expose the
+    // same snapshot as diagnostics.
+    logic signed [STATE_BITS:0] snap_am_real, snap_am_imag;
+    logic signed [STATE_BITS:0] snap_pm_real, snap_pm_imag;
+    logic signed [STATE_BITS:0] snap_carrier_real, snap_carrier_imag;
+
+    logic signed [STATE_BITS:0] mul_a, mul_b;
+    logic signed [PRODUCT_BITS-1:0] mul_p;
+    assign mul_p = mul_a * mul_b;
+
+    logic signed [PRODUCT_BITS-1:0] am_rr, am_ii, pm_ir, pm_ri;
+
+    typedef enum logic [2:0] {
+        ST_IDLE, ST_P0, ST_P1, ST_P2, ST_P3, ST_SUM
+    } state_t;
+    state_t state;
+
+    // Product operand select. Only the four product states drive the shared
+    // multiplier; every other state feeds zeros so the datapath is defined.
+    always_comb begin
+        case (state)
+            ST_P0: begin mul_a = snap_am_real; mul_b = snap_carrier_real; end
+            ST_P1: begin mul_a = snap_am_imag; mul_b = snap_carrier_imag; end
+            ST_P2: begin mul_a = snap_pm_imag; mul_b = snap_carrier_real; end
+            ST_P3: begin mul_a = snap_pm_real; mul_b = snap_carrier_imag; end
+            default: begin mul_a = '0; mul_b = '0; end
+        endcase
+    end
+
+    // One clock to latch the cycle's bins, four to issue the products, one to
+    // form the dot/cross sums: observable_valid trails cycle_valid by six.
     always_ff @(posedge clk) begin
         if (rst) begin
-            am_real_q <= '0; am_imag_q <= '0; pm_real_q <= '0; pm_imag_q <= '0;
+            state <= ST_IDLE;
+            snap_am_real <= '0; snap_am_imag <= '0;
+            snap_pm_real <= '0; snap_pm_imag <= '0;
+            snap_carrier_real <= '0; snap_carrier_imag <= '0;
             carrier_real <= '0; carrier_imag <= '0;
             am_rr <= '0; am_ii <= '0; pm_ir <= '0; pm_ri <= '0;
             am_inphase_raw <= '0; pm_quadrature_raw <= '0;
-            valid_s1 <= 1'b0; valid_s2 <= 1'b0; observable_valid <= 1'b0;
+            observable_valid <= 1'b0;
         end else begin
-            // Stage 1: complex bins.
-            am_real_q <= am_real; am_imag_q <= am_imag;
-            pm_real_q <= pm_real; pm_imag_q <= pm_imag;
-            carrier_real <= carrier_real_c; carrier_imag <= carrier_imag_c;
-            valid_s1 <= cycle_valid;
-            // Stage 2: the four products.
-            am_rr <= am_real_q * carrier_real;
-            am_ii <= am_imag_q * carrier_imag;
-            pm_ir <= pm_imag_q * carrier_real;
-            pm_ri <= pm_real_q * carrier_imag;
-            valid_s2 <= valid_s1;
-            // Stage 3: dot and cross products.
-            am_inphase_raw <=
-                {am_rr[PRODUCT_BITS-1], am_rr} + {am_ii[PRODUCT_BITS-1], am_ii};
-            pm_quadrature_raw <=
-                {pm_ir[PRODUCT_BITS-1], pm_ir} - {pm_ri[PRODUCT_BITS-1], pm_ri};
-            observable_valid <= valid_s2;
+            observable_valid <= 1'b0;
+            case (state)
+                ST_IDLE: begin
+                    if (cycle_valid) begin
+                        snap_am_real <= am_real; snap_am_imag <= am_imag;
+                        snap_pm_real <= pm_real; snap_pm_imag <= pm_imag;
+                        snap_carrier_real <= carrier_real_c;
+                        snap_carrier_imag <= carrier_imag_c;
+                        carrier_real <= carrier_real_c;
+                        carrier_imag <= carrier_imag_c;
+                        state <= ST_P0;
+                    end
+                end
+                ST_P0: begin am_rr <= mul_p; state <= ST_P1; end
+                ST_P1: begin am_ii <= mul_p; state <= ST_P2; end
+                ST_P2: begin pm_ir <= mul_p; state <= ST_P3; end
+                ST_P3: begin pm_ri <= mul_p; state <= ST_SUM; end
+                ST_SUM: begin
+                    am_inphase_raw <=
+                        {am_rr[PRODUCT_BITS-1], am_rr}
+                      + {am_ii[PRODUCT_BITS-1], am_ii};
+                    pm_quadrature_raw <=
+                        {pm_ir[PRODUCT_BITS-1], pm_ir}
+                      - {pm_ri[PRODUCT_BITS-1], pm_ri};
+                    observable_valid <= 1'b1;
+                    state <= ST_IDLE;
+                end
+                default: state <= ST_IDLE;
+            endcase
         end
     end
 
