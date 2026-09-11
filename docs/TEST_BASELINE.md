@@ -1,9 +1,24 @@
 # TEST BASELINE — DCF77 Engler Receiver
 
-**Date :** 2026-09-11  
-**Machine :** Paperclip (Linux 7.0.0-28-generic)  
-**Commit :** e9af3df  
-**Toolchain :** Icarus Verilog 12.0, Verilator 5.032, Yosys 0.52, Python 3.x
+**Date :** 2026-09-11 (ré-évalué)  
+**Machine :** Paperclip (Linux 7.0.0-28-generic, 2 cœurs)  
+**Commit :** c67262d (HEAD au moment de la vérification)  
+**Toolchain :** Icarus Verilog 12.0, Verilator 5.032, Yosys 0.52, SBY v0.69, Python 3.14
+
+## Ré-évaluation (heartbeat BEA-27, 2026-09-11)
+
+Suite re-exécutée intégralement sur le HEAD courant :
+
+- `make test` (cibles unitaires) : **29/29 PASS** — aucune erreur Icarus.
+- `make test-integration` (dcf77_hat_top_tb, Icarus) : **PASS**.
+- `make test-system` (dcf77_system_tb, Verilator) : **PASS**, 12/12 scénarios,
+  wall-time 877 s (~14.6 min) sur cette machine 2 cœurs.
+
+Les seules modifications RTL depuis la première baseline
+(`minute_candidate_search.sv`, `pm_minute_sync.sv`, commit c67262d) sont
+gardées par `` `ifdef FORMAL `` et n'ont donc aucun impact sur les simulations
+ni sur la synthèse : le baseline reste valide bit-à-bit.
+
 
 ## Résumé
 
