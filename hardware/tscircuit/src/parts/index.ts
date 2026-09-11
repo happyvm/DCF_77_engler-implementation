@@ -37,6 +37,8 @@ export const PARTS = {
   clockLdo: { opn: "TPS7A2033PDQNR", note: "3V3_CLK" },
   auxLdo: { opn: "TPS7A2025PDQNR", note: "2V5_AUX from 3V3_D" },
   idEeprom: { opn: "CAT24C32-compatible", note: "HAT+ ID EEPROM at 0x50" },
+  lcdBacklightFet: { opn: "BSS138", note: "logic-level N-MOSFET, SOT-23, Vgs(th) <= 1.5 V, LCD backlight switch" },
+  esdArray2: { opn: "USBLC6-2SC6", note: "2-line bidirectional ESD array, SOT-23-6, ~1.5 pF, on the external PPS/test header" },
 } as const;
 
 /** Placement helper: a component inside its constrained region. */

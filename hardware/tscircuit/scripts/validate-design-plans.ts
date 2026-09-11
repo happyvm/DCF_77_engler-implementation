@@ -53,6 +53,8 @@ type Ball = {
   signal: string | null;
   kind: string;
   bank: number | null;
+  pin_name?: string | null;
+  lattice_bank?: number | null;
   audit: string;
 };
 
@@ -94,7 +96,10 @@ ordered.forEach((b, i) => {
 check(seen.size === 256, `pin-plan covers ${seen.size}/256 ball names`);
 
 const canonical = ordered
-  .map((b) => `${b.pad}:${b.ball}:${b.row}${b.col}:${b.signal ?? ""}:${b.kind}`)
+  .map(
+    (b) =>
+      `${b.pad}:${b.ball}:${b.row}${b.col}:${b.pin_name ?? ""}:${b.lattice_bank ?? ""}:${b.signal ?? ""}:${b.kind}`,
+  )
   .join("\n");
 const digest = crypto.createHash("sha256").update(canonical, "utf8").digest("hex");
 check(

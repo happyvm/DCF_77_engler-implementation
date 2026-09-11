@@ -243,6 +243,7 @@ hardware/tscircuit/
       receiver_power.tsx
     board/
       raspberry_pi_hatplus.tsx
+      host_esd.tsx           HAT+/test-interface ESD freeze
       hatplus_constraints.ts locked placements, regions, courtyards, placer
       quilter.ts             Quilter handoff manifest + keepouts
     host/
@@ -250,8 +251,11 @@ hardware/tscircuit/
     power/
       hat_5v_input.tsx
     parts/
+  lattice/
+    bg256-identity.json      committed derivation from FPGA-SC-02034 (pad/ball/function/bank)
   scripts/
     verify-bga-identity.ts   BGA256 ball-identity gate (fails on renumbering)
+    import-lattice-pinout.ts folds a Lattice FPGA-SC-02034 export into pin-plan.json
     validate-design-plans.ts pin plan + power plan + placement regions gate
     measure-courtyards.ts    re-calibrates SIZE_MM from rendered footprints
     export-quilter-manifest.ts
@@ -285,6 +289,24 @@ npm run check:bga:release         # strict gate: blocks fabrication while the ba
 npm run archive                   # dist/REVISION.json (run after the source commit)
 ```
 
+Pre-routing ERC/DRC (item "run ERC/DRC and PDN/power-estimator checks before routing"):
+
+```bash
+npx tsci check source src/index.tsx      # ERC: 0 errors, 0 warnings
+npx tsci check netlist src/index.tsx     # connectivity: every net resolves
+npx tsci check shorts src/index.tsx      # no unintended copper shorts
+npx tsci check placement src/index.tsx   # placement DRC: 0 errors
+```
+
+Results at this revision: source 0/0, netlist clean, shorts none, placement 0 errors with two
+pre-existing informational `pcb_connector_not_in_accessible_orientation_warning` entries for
+`J1` (the HAT+ 40-pin header, whose orientation is fixed by the HAT+ mechanical spec) and
+`J2` (the JTAG recovery header, reachable from the board edge per the `ecp5_flash` region
+rule). The `1V1_CORE` buck switch node, the AFE clusters and the TCXO remain outside every
+host/ESD part. There is no dedicated PDN/power-estimator script in this workspace yet: the
+available substitute is the `power-plan.json` <-> `rail_*` net cross-check run by
+`npm run check:plans`, which currently matches 7 derived rails + 2 HAT input rails 1:1.
+
 `routingDisabled` in `tscircuit.config.json` is deliberate: this workspace stops at the
 pre-Quilter handoff, so unrouted `pcb_port_not_connected_error` entries are not defects here.
 Quilter (or the manual KiCad pass) owns routing.
@@ -292,21 +314,47 @@ Quilter (or the manual KiCad pass) owns routing.
 ### ECP5 ball-identity audit status
 
 `pin-plan.json` carries all 256 BG256 balls and a frozen SHA-256 over the ball identity.
-69 balls are cross-checked against the documented pinout; the remaining 187 currently carry a
-grid-derived identity. `npm run check:bga:release` therefore **fails on purpose** with
-`FABRICATION BLOCKED` until the full Lattice `FPGA-SC-02034` cross-check is supplied
-(`npm run check:bga:release -- --lattice <csv>`). Any export that renumbers or reorders the
-ball names also fails the gate.
+**All 256/256 balls are now cross-checked against Lattice `FPGA-SC-02034` Rev 3.0
+(ECP5U-45 Pinout, caBGA256 column)**, so `npm run check:bga` and
+`npm run check:bga:release` both pass on the committed source and fabrication is no
+longer blocked by the ball audit.
+
+The raw Lattice export is not vendored; `pin-plan.json -> ball_audit.source` records the
+document, revision and SHA-256 of the download, and `lattice/bg256-identity.json` holds the
+committed derivation (pad, ball, function, bank) that
+`scripts/import-lattice-pinout.ts` produced from it. Re-running the cross-check against a
+freshly downloaded export needs no importer round-trip:
+
+```bash
+npm run check:bga:release -- --lattice <FPGA-SC-02034-*.csv>   # function + bank, ball by ball
+```
+
+Any export that renumbers or reorders the ball names, or that changes a pin function, still
+fails the gate. To fold a new export into the source of truth:
+
+```bash
+tsx scripts/import-lattice-pinout.ts --lattice <FPGA-SC-02034-*.csv> --write
+```
 
 ## Remaining schematic-freeze work
 
-- complete the 187 unverified BG256 ball identities from Lattice `FPGA-SC-02034`;
 - replace the supplier-part approximations flagged by `supplier_footprint_mismatch_warning`
-  with audited manufacturer footprints (the pad-geometry check is what matters here);
-- add the physical UART 33R/47k networks to the HAT TSX (declared, not yet wired);
-- calculate final LCD backlight current resistor/MOSFET values;
-- freeze HAT connector ESD/protection where needed;
+  with audited manufacturer land patterns. Tracked as a follow-up issue: the generic
+  `0402` footprint (0.54 x 0.64 mm pads, 1.02 mm pitch) is currently declared for both
+  resistors and capacitors, while the JLCPCB land patterns differ per class, so the copper
+  bounding-box IoU settles at ~0.77 (R) / ~0.72 (C) against a threshold of 0.80. The fix is
+  a per-class passive land-pattern library pinned to explicit `supplierPartNumbers`, which
+  needs the supplier footprint geometry from the parts engine.
 - run ERC/DRC and PDN/power-estimator checks before routing.
+
+Closed in this revision:
+
+- 256/256 BG256 ball identities verified against Lattice `FPGA-SC-02034`;
+- UART 33 ohm series + 47 kOhm idle-high networks physically wired (`src/host/rpi_spi.tsx`);
+- LCD backlight final values fixed: RBL1 = 68 ohm, RBL2 = 10 kOhm, RBL3 = 100 kOhm
+  pull-down, LCD_BLQ = BSS138 (`src/core/display.tsx`);
+- HAT+/test-interface ESD freeze: `src/board/host_esd.tsx`;
+- ERC/DRC results recorded below.
 
 Supporting docs:
 

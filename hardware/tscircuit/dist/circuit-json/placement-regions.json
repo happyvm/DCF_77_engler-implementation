@@ -263,9 +263,9 @@
       "quilter": "optimise",
       "bounds": {
         "x": -3,
-        "y": 4,
+        "y": 3,
         "width": 15,
-        "height": 17
+        "height": 18
       },
       "rules": [
         "HAT SPI/UART stays in the digital/top region",
@@ -296,7 +296,9 @@
         "CEE1",
         "CVD1",
         "CVD2",
-        "CVD3"
+        "CVD3",
+        "D_ESD_PPS",
+        "D_ESD_REF"
       ]
     },
     {
@@ -420,7 +422,8 @@
         "RLCD_SCL",
         "RLCD_SDA",
         "CBL1",
-        "CBL2"
+        "CBL2",
+        "RBL3"
       ]
     }
   ],

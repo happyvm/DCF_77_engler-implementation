@@ -56,6 +56,7 @@ export const N = {
   pgaCsF: "net.PGA_CS_F",
 
   ppsRef: "net.PPS_REF",
+  ppsOut: "net.PPS_OUT",
   lcdScl: "net.LCD_SCL",
   lcdSda: "net.LCD_SDA",
   lcdRstN: "net.LCD_RST_N",

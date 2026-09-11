@@ -57,11 +57,28 @@ export function LocalDisplay() {
         connections={{ pin1: N.v3v3d, pin2: N.lcdSda }} />
 
       {/* Backlight: fixed current limiting from 5V_SYS, switched by a small N-MOSFET.
-          The ECP5 drives the gate with a static ON/OFF signal, never PWM. */}
-      <resistor name="RBL1" resistance="56" footprint="0805" {...at("lcd", "RBL1")}
+          The ECP5 drives the gate with a static ON/OFF signal, never PWM.
+
+          Final Rev.0 values (docs/24: VLED ~3.0 V typ, Iled ~30 mA typ, 35 mA max):
+            target ~28 mA nominal, hard ceiling <= 35 mA over PI_5V 4.75..5.25 V
+            and Vf 2.9..3.2 V with Vds(on) ~0.15 V at 30 mA
+              RBL1 = (5.00 - 3.00 - 0.15) / 0.028 = 66.1 ohm -> 68 ohm (E24)
+            worst case  = (5.25 - 2.90 - 0.05) / 68 = 33.8 mA  (<= 35 mA)
+            dimmest     = (4.75 - 3.20 - 0.15) / 68 = 20.6 mA
+            RBL1 power  = 33.8 mA^2 * 68 = 78 mW -> 0805 (125 mW) with margin.
+          A shorted LED would dissipate ~0.4 W in RBL1; the thick-film part fails
+          open, i.e. fail-safe with the backlight off, which is acceptable here.
+
+          LCD_BLQ is a logic-level N-MOSFET (BSS138, Vgs(th) <= 1.5 V) so the 3V3_D
+          gate fully enhances it. RBL2 is the series gate resistor; RBL3 holds the
+          gate low so the backlight stays OFF while the ECP5 is unconfigured, in
+          reset, or tri-stated — OFF is the safe precision-RF state. */}
+      <resistor name="RBL1" resistance="68" footprint="0805" {...at("lcd", "RBL1")}
         connections={{ pin1: N.v5sys, pin2: N.lcdBlA }} />
       <resistor name="RBL2" resistance="10k" footprint="0402" {...at("lcd", "RBL2")}
         connections={{ pin1: N.lcdBlEn, pin2: N.lcdBlGate }} />
+      <resistor name="RBL3" resistance="100k" footprint="0402" {...at("lcd", "RBL3")}
+        connections={{ pin1: N.lcdBlGate, pin2: GND }} />
       <chip
         name="LCD_BLQ"
         footprint="sot23"

@@ -15,6 +15,7 @@ import { ReceiverCore } from "./core/receiver_core";
 import { AnalogRailBranch, CoreBuck, DigitalRails } from "./core/receiver_power";
 import { Hat5vInput } from "./power/hat_5v_input";
 import { HatHeader, HatIdEeprom } from "./board/raspberry_pi_hatplus";
+import { HostEsdProtection } from "./board/host_esd";
 import { RaspberryPiSpi } from "./host/rpi_spi";
 import {
   BOARD_MM,
@@ -98,6 +99,7 @@ export default function Dcf77HatPlus() {
       {/* HAT+ mechanics and Raspberry Pi interface */}
       <HatHeader />
       <HatIdEeprom />
+      <HostEsdProtection />
       <RaspberryPiSpi />
 
       {/* power tree */}

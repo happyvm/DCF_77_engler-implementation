@@ -182,7 +182,11 @@ export const REGIONS: Region[] = [
   {
     id: "host_debug",
     name: "Raspberry Pi host / PPS / ID-EEPROM region",
-    x: 4.5, y: 12.5, width: 15.0, height: 17.0,
+    // Height extended from 17.0 to 18.0 mm (top edge unchanged at y = 21.0, bounded by
+    // the HAT header courtyard) to seat D_ESD_PPS, the ESD clamp at the external
+    // PPS/test header J3. The bottom edge moves onto the power_1v1 boundary at
+    // y = 3.0, reclaiming the 1 mm strip that was previously unused.
+    x: 4.5, y: 12.0, width: 15.0, height: 18.0,
     quilter: "optimise",
     rules: [
       "HAT SPI/UART stays in the digital/top region",
@@ -196,6 +200,9 @@ export const REGIONS: Region[] = [
       "RS_SPI_SCLK", "RS_SPI_MOSI", "RS_SPI_MISO", "RS_SPI_CS",
       "RRST", "RIRQ", "RTPS_UP", "RTPS_DN",
       "REESD", "REESC", "REEWP", "CEE1", "CVD1", "CVD2", "CVD3",
+      // Clamps are listed last so the first-fit placer tucks them into residual
+      // space instead of fragmenting the scan for the host interface parts.
+      "D_ESD_PPS", "D_ESD_REF",
     ],
   },
   {
@@ -263,7 +270,7 @@ export const REGIONS: Region[] = [
       "keep backlight return current out of the analog input region",
       "module is wider than the HAT+ outline; overhang is intentional",
     ],
-    members: ["DS1", "LCD_BLQ", "RBL1", "RBL2", "RLCD_SCL", "RLCD_SDA", "CBL1", "CBL2"],
+    members: ["DS1", "LCD_BLQ", "RBL1", "RBL2", "RLCD_SCL", "RLCD_SDA", "CBL1", "CBL2", "RBL3"],
   },
 ];
 
@@ -292,9 +299,10 @@ const SIZE_MM: Record<string, [number, number]> = {
   COUT_CORE2: [3.55, 2.10], CPGA1: [3.20, 1.65], CPGA2: [2.30, 1.35], CREF1: [3.20, 1.70], CSET_ADC: [3.20, 1.70],
   CT_SW: [3.20, 1.65], CVCM1: [3.60, 2.10], CVCM2: [3.15, 1.65], CVCM3: [2.30, 1.35], CVD1: [2.30, 1.35],
   CVD2: [3.15, 1.65], CVD3: [3.55, 2.15], CVIO8: [2.30, 1.35], CVIOBANK: [3.15, 1.65], C_ADCIN: [3.20, 1.70],
+  D_ESD_PPS: [1.80, 1.40], D_ESD_REF: [1.80, 1.40],
   C_BUF: [3.15, 1.65], C_PGAIN: [3.20, 1.65], DS1: [14.10, 2.10], J1: [50.80, 5.05], J2: [16.25, 3.55], J3: [11.20, 3.55], LCD_BLQ: [4.30, 3.40], L_CORE: [2.30, 1.35], R1: [3.15, 1.65], R2: [3.15, 1.65],
   R21: [3.20, 1.65], R22: [3.20, 1.70], R23: [3.20, 1.70], R24: [3.20, 1.70], R3V3D_LINK: [3.60, 2.10],
-  RANT: [3.15, 1.65], RBL1: [3.60, 2.10], RBL2: [2.30, 1.35], RCFG0: [2.30, 1.35], RCFG1: [2.30, 1.35],
+  RANT: [3.15, 1.65], RBL1: [3.60, 2.10], RBL2: [2.30, 1.35], RBL3: [2.30, 1.35], RCFG0: [2.30, 1.35], RCFG1: [2.30, 1.35],
   RDONE: [2.30, 1.35], REESC: [2.30, 1.35], REESD: [2.30, 1.35], REEWP: [2.30, 1.35], RFB_BOT: [2.30, 1.35],
   RFB_TOP: [2.30, 1.35], RFLASH1: [2.30, 1.35], RFLASH2: [2.30, 1.35], RFLASH3: [2.30, 1.35], RFLASH4: [2.30, 1.35],
   RFLASH5: [2.30, 1.35], RFLASH6: [2.30, 1.35], RFSET: [2.30, 1.35], RIN1: [3.20, 1.65], RIN2: [3.20, 1.65],

@@ -103,6 +103,28 @@ LCD backlight cathode
 
 The ECP5 drives the MOSFET with a static ON/OFF signal. Backlight current is intentionally not taken from the Pi 3.3 V rail.
 
+## Rev.0 backlight design values (frozen)
+
+Using the Newhaven figures above (VLED ~3.0 V typ, Iled ~30 mA typ, 35 mA max) and a small
+logic-level N-MOSFET with Vds(on) ~0.15 V at 30 mA:
+
+```text
+target ~28 mA nominal, hard ceiling <= 35 mA over PI_5V 4.75..5.25 V and Vf 2.9..3.2 V
+
+RBL1 = (5.00 - 3.00 - 0.15) / 0.028 = 66.1 ohm -> 68 ohm (E24), 0805
+worst case = (5.25 - 2.90 - 0.05) / 68 = 33.8 mA   (<= 35 mA)
+dimmest    = (4.75 - 3.20 - 0.15) / 68 = 20.6 mA
+RBL1 power = 33.8 mA^2 * 68 = 78 mW (0805 = 125 mW, margin held)
+
+RBL2 = 10 kOhm series gate resistor
+RBL3 = 100 kOhm gate pull-down, holds the backlight OFF while the ECP5 is
+       unconfigured, in reset or tri-stated (OFF is the safe precision-RF state)
+LCD_BLQ = BSS138 logic-level N-MOSFET (Vgs(th) <= 1.5 V), SOT-23
+```
+
+A shorted LED would dissipate ~0.4 W in RBL1; the thick-film part fails open, i.e. fail-safe
+with the backlight off, which is acceptable for this instrument.
+
 ## Mechanical policy
 
 Approximate module dimensions:

@@ -13,6 +13,7 @@
     "check:bga": "tsx scripts/verify-bga-identity.ts --allow-incomplete-audit",
     "check:bga:release": "tsx scripts/verify-bga-identity.ts",
     "check:plans": "tsx scripts/validate-design-plans.ts",
+    "import:lattice": "tsx scripts/import-lattice-pinout.ts",
     "check": "npm run check:plans && npm run check:bga",
     "archive": "tsx scripts/archive-revision.ts",
     "release": "npm run export:circuit && npm run export:kicad && npm run manifest && npm run check && npm run archive"

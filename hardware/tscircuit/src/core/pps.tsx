@@ -25,16 +25,17 @@ export function PpsInterface() {
       />
 
       <resistor name="RPS1" resistance="33" footprint="0402" {...at("host_debug", "RPS1")}
-        connections={{ pin1: ".U_PPS > .A", pin2: "net.PPS_OUT" }} />
+        connections={{ pin1: ".U_PPS > .A", pin2: N.ppsOut }} />
 
-      {/* External PPS / test interface: PPS out, 3V3_D reference, two grounds. */}
+      {/* External PPS / test interface: PPS out, 3V3_D reference, two grounds.
+          ESD-clamped by D_ESD_PPS (src/board/host_esd.tsx). */}
       <chip
         name="J3"
         footprint="pinheader4"
         {...at("host_debug", "J3")}
         pinLabels={{ pin1: "PPS_OUT", pin2: "3V3_D_REF", pin3: "GND", pin4: "GND" }}
         pinAttributes={{ "3V3_D_REF": { requiresPower: true }, GND: { requiresGround: true } }}
-        connections={{ PPS_OUT: "net.PPS_OUT", "3V3_D_REF": N.v3v3d, GND: GND, pin4: GND }}
+        connections={{ PPS_OUT: N.ppsOut, "3V3_D_REF": N.v3v3d, GND: GND, pin4: GND }}
       />
       {/* PPS_REF is also observable directly on the locked buffer input. */}
       <trace from={N.ppsRef} to=".U_PPS > .A" />

@@ -1,0 +1,1553 @@
+{
+  "source": {
+    "document": "FPGA-SC-02034",
+    "title": "ECP5U-45 Pinout",
+    "revision": "3.0",
+    "date": "2021-09-17",
+    "format": "CSV",
+    "vendor": "Lattice Semiconductor",
+    "package": "caBGA256",
+    "column": "CABGA256",
+    "sha256": "327deb708c605b8bc3cb0788537eb8bbd6a2b5396f558b1b99c0fb81c76ef1c5",
+    "retrieved": "2026-09-11"
+  },
+  "extraction": "pad,ball,function,lattice_bank",
+  "balls": [
+    {
+      "pad": 1,
+      "ball": "A1",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 2,
+      "ball": "A2",
+      "function": "PT4A",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 3,
+      "ball": "A3",
+      "function": "PT6A",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 4,
+      "ball": "A4",
+      "function": "PT6B",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 5,
+      "ball": "A5",
+      "function": "PT18A",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 6,
+      "ball": "A6",
+      "function": "PT18B",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 7,
+      "ball": "A7",
+      "function": "PT38A",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 8,
+      "ball": "A8",
+      "function": "PT38B",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 9,
+      "ball": "A9",
+      "function": "PT51A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 10,
+      "ball": "A10",
+      "function": "PT51B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 11,
+      "ball": "A11",
+      "function": "PT71A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 12,
+      "ball": "A12",
+      "function": "PT71B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 13,
+      "ball": "A13",
+      "function": "PT83A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 14,
+      "ball": "A14",
+      "function": "PT83B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 15,
+      "ball": "A15",
+      "function": "PT85B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 16,
+      "ball": "A16",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 17,
+      "ball": "B1",
+      "function": "PL11A",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 18,
+      "ball": "B2",
+      "function": "PL11B",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 19,
+      "ball": "B3",
+      "function": "PT4B",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 20,
+      "ball": "B4",
+      "function": "PT11B",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 21,
+      "ball": "B5",
+      "function": "PT15B",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 22,
+      "ball": "B6",
+      "function": "PT31B",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 23,
+      "ball": "B7",
+      "function": "PT36B",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 24,
+      "ball": "B8",
+      "function": "PT44B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 25,
+      "ball": "B9",
+      "function": "PT47A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 26,
+      "ball": "B10",
+      "function": "PT53A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 27,
+      "ball": "B11",
+      "function": "PT58A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 28,
+      "ball": "B12",
+      "function": "PT74A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 29,
+      "ball": "B13",
+      "function": "PT78A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 30,
+      "ball": "B14",
+      "function": "PT85A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 31,
+      "ball": "B15",
+      "function": "PR11B",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 32,
+      "ball": "B16",
+      "function": "PR11A",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 33,
+      "ball": "C1",
+      "function": "PL14A",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 34,
+      "ball": "C2",
+      "function": "PL14B",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 35,
+      "ball": "C3",
+      "function": "PL11C",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 36,
+      "ball": "C4",
+      "function": "PT11A",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 37,
+      "ball": "C5",
+      "function": "PT15A",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 38,
+      "ball": "C6",
+      "function": "PT31A",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 39,
+      "ball": "C7",
+      "function": "PT36A",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 40,
+      "ball": "C8",
+      "function": "PT44A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 41,
+      "ball": "C9",
+      "function": "PT47B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 42,
+      "ball": "C10",
+      "function": "PT53B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 43,
+      "ball": "C11",
+      "function": "PT58B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 44,
+      "ball": "C12",
+      "function": "PT74B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 45,
+      "ball": "C13",
+      "function": "PT78B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 46,
+      "ball": "C14",
+      "function": "PR11C",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 47,
+      "ball": "C15",
+      "function": "PR14B",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 48,
+      "ball": "C16",
+      "function": "PR14A",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 49,
+      "ball": "D1",
+      "function": "PL17A",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 50,
+      "ball": "D2",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 51,
+      "ball": "D3",
+      "function": "PL11D",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 52,
+      "ball": "D4",
+      "function": "PT9B",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 53,
+      "ball": "D5",
+      "function": "PT13B",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 54,
+      "ball": "D6",
+      "function": "PT20B",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 55,
+      "ball": "D7",
+      "function": "PT33B",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 56,
+      "ball": "D8",
+      "function": "PT42B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 57,
+      "ball": "D9",
+      "function": "PT49A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 58,
+      "ball": "D10",
+      "function": "PT56A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 59,
+      "ball": "D11",
+      "function": "PT69A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 60,
+      "ball": "D12",
+      "function": "PT76A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 61,
+      "ball": "D13",
+      "function": "PT80A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 62,
+      "ball": "D14",
+      "function": "PR11D",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 63,
+      "ball": "D15",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 64,
+      "ball": "D16",
+      "function": "PR17A",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 65,
+      "ball": "E1",
+      "function": "PL20D",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 66,
+      "ball": "E2",
+      "function": "PL17B",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 67,
+      "ball": "E3",
+      "function": "PL14C",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 68,
+      "ball": "E4",
+      "function": "PT9A",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 69,
+      "ball": "E5",
+      "function": "PT13A",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 70,
+      "ball": "E6",
+      "function": "PT20A",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 71,
+      "ball": "E7",
+      "function": "PT33A",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 72,
+      "ball": "E8",
+      "function": "PT42A",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 73,
+      "ball": "E9",
+      "function": "PT49B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 74,
+      "ball": "E10",
+      "function": "PT56B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 75,
+      "ball": "E11",
+      "function": "PT69B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 76,
+      "ball": "E12",
+      "function": "PT76B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 77,
+      "ball": "E13",
+      "function": "PT80B",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 78,
+      "ball": "E14",
+      "function": "PR14C",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 79,
+      "ball": "E15",
+      "function": "PR17B",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 80,
+      "ball": "E16",
+      "function": "PR20D",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 81,
+      "ball": "F1",
+      "function": "PL23A",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 82,
+      "ball": "F2",
+      "function": "PL20C",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 83,
+      "ball": "F3",
+      "function": "PL14D",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 84,
+      "ball": "F4",
+      "function": "PL17C",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 85,
+      "ball": "F5",
+      "function": "PL17D",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 86,
+      "ball": "F6",
+      "function": "VCCIO0",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 87,
+      "ball": "F7",
+      "function": "VCCIO0",
+      "lattice_bank": 0
+    },
+    {
+      "pad": 88,
+      "ball": "F8",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 89,
+      "ball": "F9",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 90,
+      "ball": "F10",
+      "function": "VCCIO1",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 91,
+      "ball": "F11",
+      "function": "VCCIO1",
+      "lattice_bank": 1
+    },
+    {
+      "pad": 92,
+      "ball": "F12",
+      "function": "PR17D",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 93,
+      "ball": "F13",
+      "function": "PR17C",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 94,
+      "ball": "F14",
+      "function": "PR14D",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 95,
+      "ball": "F15",
+      "function": "PR20C",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 96,
+      "ball": "F16",
+      "function": "PR23A",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 97,
+      "ball": "G1",
+      "function": "PL29A",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 98,
+      "ball": "G2",
+      "function": "PL23B",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 99,
+      "ball": "G3",
+      "function": "PL23C",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 100,
+      "ball": "G4",
+      "function": "PL20B",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 101,
+      "ball": "G5",
+      "function": "PL20A",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 102,
+      "ball": "G6",
+      "function": "VCC",
+      "lattice_bank": null
+    },
+    {
+      "pad": 103,
+      "ball": "G7",
+      "function": "VCC",
+      "lattice_bank": null
+    },
+    {
+      "pad": 104,
+      "ball": "G8",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 105,
+      "ball": "G9",
+      "function": "VCC",
+      "lattice_bank": null
+    },
+    {
+      "pad": 106,
+      "ball": "G10",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 107,
+      "ball": "G11",
+      "function": "VCCAUX",
+      "lattice_bank": null
+    },
+    {
+      "pad": 108,
+      "ball": "G12",
+      "function": "PR20A",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 109,
+      "ball": "G13",
+      "function": "PR20B",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 110,
+      "ball": "G14",
+      "function": "PR23C",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 111,
+      "ball": "G15",
+      "function": "PR23B",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 112,
+      "ball": "G16",
+      "function": "PR29A",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 113,
+      "ball": "H1",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 114,
+      "ball": "H2",
+      "function": "PL29B",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 115,
+      "ball": "H3",
+      "function": "PL23D",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 116,
+      "ball": "H4",
+      "function": "PL26B",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 117,
+      "ball": "H5",
+      "function": "PL26A",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 118,
+      "ball": "H6",
+      "function": "VCCIO7",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 119,
+      "ball": "H7",
+      "function": "VCCIO7",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 120,
+      "ball": "H8",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 121,
+      "ball": "H9",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 122,
+      "ball": "H10",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 123,
+      "ball": "H11",
+      "function": "VCCIO2",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 124,
+      "ball": "H12",
+      "function": "PR26A",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 125,
+      "ball": "H13",
+      "function": "PR26B",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 126,
+      "ball": "H14",
+      "function": "PR23D",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 127,
+      "ball": "H15",
+      "function": "PR29B",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 128,
+      "ball": "H16",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 129,
+      "ball": "J1",
+      "function": "PL32A",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 130,
+      "ball": "J2",
+      "function": "PL32B",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 131,
+      "ball": "J3",
+      "function": "PL29C",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 132,
+      "ball": "J4",
+      "function": "PL26C",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 133,
+      "ball": "J5",
+      "function": "PL26D",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 134,
+      "ball": "J6",
+      "function": "VCCIO6",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 135,
+      "ball": "J7",
+      "function": "VCCIO6",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 136,
+      "ball": "J8",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 137,
+      "ball": "J9",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 138,
+      "ball": "J10",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 139,
+      "ball": "J11",
+      "function": "VCCIO2",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 140,
+      "ball": "J12",
+      "function": "PR26D",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 141,
+      "ball": "J13",
+      "function": "PR26C",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 142,
+      "ball": "J14",
+      "function": "PR29C",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 143,
+      "ball": "J15",
+      "function": "PR32B",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 144,
+      "ball": "J16",
+      "function": "PR32A",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 145,
+      "ball": "K1",
+      "function": "PL32C",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 146,
+      "ball": "K2",
+      "function": "PL32D",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 147,
+      "ball": "K3",
+      "function": "PL29D",
+      "lattice_bank": 7
+    },
+    {
+      "pad": 148,
+      "ball": "K4",
+      "function": "PL38A",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 149,
+      "ball": "K5",
+      "function": "PL38B",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 150,
+      "ball": "K6",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 151,
+      "ball": "K7",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 152,
+      "ball": "K8",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 153,
+      "ball": "K9",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 154,
+      "ball": "K10",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 155,
+      "ball": "K11",
+      "function": "VCCIO3",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 156,
+      "ball": "K12",
+      "function": "PR38B",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 157,
+      "ball": "K13",
+      "function": "PR38A",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 158,
+      "ball": "K14",
+      "function": "PR29D",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 159,
+      "ball": "K15",
+      "function": "PR32D",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 160,
+      "ball": "K16",
+      "function": "PR32C",
+      "lattice_bank": 2
+    },
+    {
+      "pad": 161,
+      "ball": "L1",
+      "function": "PL35A",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 162,
+      "ball": "L2",
+      "function": "PL35B",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 163,
+      "ball": "L3",
+      "function": "PL41C",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 164,
+      "ball": "L4",
+      "function": "PL38C",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 165,
+      "ball": "L5",
+      "function": "PL38D",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 166,
+      "ball": "L6",
+      "function": "VCCIO8",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 167,
+      "ball": "L7",
+      "function": "VCCAUX",
+      "lattice_bank": null
+    },
+    {
+      "pad": 168,
+      "ball": "L8",
+      "function": "VCC",
+      "lattice_bank": null
+    },
+    {
+      "pad": 169,
+      "ball": "L9",
+      "function": "VCC",
+      "lattice_bank": null
+    },
+    {
+      "pad": 170,
+      "ball": "L10",
+      "function": "VCC",
+      "lattice_bank": null
+    },
+    {
+      "pad": 171,
+      "ball": "L11",
+      "function": "VCCIO3",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 172,
+      "ball": "L12",
+      "function": "PR38D",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 173,
+      "ball": "L13",
+      "function": "PR38C",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 174,
+      "ball": "L14",
+      "function": "PR41C",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 175,
+      "ball": "L15",
+      "function": "PR35B",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 176,
+      "ball": "L16",
+      "function": "PR35A",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 177,
+      "ball": "M1",
+      "function": "PL35C",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 178,
+      "ball": "M2",
+      "function": "PL35D",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 179,
+      "ball": "M3",
+      "function": "PL41D",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 180,
+      "ball": "M4",
+      "function": "PL44C",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 181,
+      "ball": "M5",
+      "function": "PL65C",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 182,
+      "ball": "M6",
+      "function": "PL68A",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 183,
+      "ball": "M7",
+      "function": "PB9B",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 184,
+      "ball": "M8",
+      "function": "PB15B",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 185,
+      "ball": "M9",
+      "function": "PB18A",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 186,
+      "ball": "M10",
+      "function": "TDO",
+      "lattice_bank": 40
+    },
+    {
+      "pad": 187,
+      "ball": "M11",
+      "function": "PR68A",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 188,
+      "ball": "M12",
+      "function": "PR65C",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 189,
+      "ball": "M13",
+      "function": "PR44C",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 190,
+      "ball": "M14",
+      "function": "PR41D",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 191,
+      "ball": "M15",
+      "function": "PR35D",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 192,
+      "ball": "M16",
+      "function": "PR35C",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 193,
+      "ball": "N1",
+      "function": "PL41A",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 194,
+      "ball": "N2",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 195,
+      "ball": "N3",
+      "function": "PL44D",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 196,
+      "ball": "N4",
+      "function": "PL59A",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 197,
+      "ball": "N5",
+      "function": "PL65D",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 198,
+      "ball": "N6",
+      "function": "PL68B",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 199,
+      "ball": "N7",
+      "function": "PB9A",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 200,
+      "ball": "N8",
+      "function": "PB15A",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 201,
+      "ball": "N9",
+      "function": "CCLK",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 202,
+      "ball": "N10",
+      "function": "CFG_0",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 203,
+      "ball": "N11",
+      "function": "PR68B",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 204,
+      "ball": "N12",
+      "function": "PR65D",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 205,
+      "ball": "N13",
+      "function": "PR59A",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 206,
+      "ball": "N14",
+      "function": "PR44D",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 207,
+      "ball": "N15",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 208,
+      "ball": "N16",
+      "function": "PR41A",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 209,
+      "ball": "P1",
+      "function": "PL44A",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 210,
+      "ball": "P2",
+      "function": "PL41B",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 211,
+      "ball": "P3",
+      "function": "PL59B",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 212,
+      "ball": "P4",
+      "function": "PL62A",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 213,
+      "ball": "P5",
+      "function": "PL68D",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 214,
+      "ball": "P6",
+      "function": "PL68C",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 215,
+      "ball": "P7",
+      "function": "PB6B",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 216,
+      "ball": "P8",
+      "function": "PB13B",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 217,
+      "ball": "P9",
+      "function": "DONE",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 218,
+      "ball": "P10",
+      "function": "CFG_1",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 219,
+      "ball": "P11",
+      "function": "PR68C",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 220,
+      "ball": "P12",
+      "function": "PR68D",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 221,
+      "ball": "P13",
+      "function": "PR62A",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 222,
+      "ball": "P14",
+      "function": "PR59B",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 223,
+      "ball": "P15",
+      "function": "PR41B",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 224,
+      "ball": "P16",
+      "function": "PR44A",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 225,
+      "ball": "R1",
+      "function": "PL44B",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 226,
+      "ball": "R2",
+      "function": "PL59C",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 227,
+      "ball": "R3",
+      "function": "PL62B",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 228,
+      "ball": "R4",
+      "function": "PL62C",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 229,
+      "ball": "R5",
+      "function": "PL65A",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 230,
+      "ball": "R6",
+      "function": "PB4B",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 231,
+      "ball": "R7",
+      "function": "PB6A",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 232,
+      "ball": "R8",
+      "function": "PB13A",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 233,
+      "ball": "R9",
+      "function": "PROGRAMN",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 234,
+      "ball": "R10",
+      "function": "CFG_2",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 235,
+      "ball": "R11",
+      "function": "TDI",
+      "lattice_bank": 40
+    },
+    {
+      "pad": 236,
+      "ball": "R12",
+      "function": "PR65A",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 237,
+      "ball": "R13",
+      "function": "PR62C",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 238,
+      "ball": "R14",
+      "function": "PR62B",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 239,
+      "ball": "R15",
+      "function": "PR59C",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 240,
+      "ball": "R16",
+      "function": "PR44B",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 241,
+      "ball": "T1",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 242,
+      "ball": "T2",
+      "function": "PL59D",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 243,
+      "ball": "T3",
+      "function": "PL62D",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 244,
+      "ball": "T4",
+      "function": "PL65B",
+      "lattice_bank": 6
+    },
+    {
+      "pad": 245,
+      "ball": "T5",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 246,
+      "ball": "T6",
+      "function": "PB4A",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 247,
+      "ball": "T7",
+      "function": "PB11A",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 248,
+      "ball": "T8",
+      "function": "PB11B",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 249,
+      "ball": "T9",
+      "function": "INITN",
+      "lattice_bank": 8
+    },
+    {
+      "pad": 250,
+      "ball": "T10",
+      "function": "TCK",
+      "lattice_bank": 40
+    },
+    {
+      "pad": 251,
+      "ball": "T11",
+      "function": "TMS",
+      "lattice_bank": 40
+    },
+    {
+      "pad": 252,
+      "ball": "T12",
+      "function": "GND",
+      "lattice_bank": null
+    },
+    {
+      "pad": 253,
+      "ball": "T13",
+      "function": "PR65B",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 254,
+      "ball": "T14",
+      "function": "PR62D",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 255,
+      "ball": "T15",
+      "function": "PR59D",
+      "lattice_bank": 3
+    },
+    {
+      "pad": 256,
+      "ball": "T16",
+      "function": "GND",
+      "lattice_bank": null
+    }
+  ]
+}

@@ -12,7 +12,8 @@
  *   3. the geometric position of every pad of the generated BGA footprint;
  *   4. the footprint pitch (must stay 0.8 mm per the Lattice BG256 package);
  *   5. the SHA-256 fingerprint of the audited ball identity table;
- *   6. the coverage of the identity table (must reach 256 documented balls).
+ *   6. the coverage of the identity table (all 256 balls carry the Lattice
+ *      FPGA-SC-02034 pin function; an unresolved ball blocks release).
  *
  * The ECP5 chip wrapper (src/parts/ecp5_bg256.tsx) derives its pin labels from
  * this same file, so a failure here means the exported netlist/PCB no longer
@@ -23,11 +24,12 @@
  *   tsx scripts/verify-bga-identity.ts --lattice <FPGA-SC-02034.csv>
  *   tsx scripts/verify-bga-identity.ts --allow-incomplete-audit
  *
- * --lattice cross-checks every ball against the official Lattice pinout export
- * (the CSV cannot be redistributed here; it requires an authenticated Lattice
- * download). Without it, only the 69 balls named by docs/23, docs/27 and this
- * plan are treated as documented and the remaining 187 grid-derived balls keep
- * the audit incomplete, which blocks fabrication release.
+ * --lattice re-runs the cross-check against a freshly supplied official Lattice
+ * pinout export (FPGA-SC-02034, caBGA256 column): every ball's pin function and
+ * bank must still match. The raw export is not vendored here; the committed
+ * derivation and its SHA-256 live in pin-plan.json -> ball_audit.source and
+ * lattice/bg256-identity.json, and scripts/import-lattice-pinout.ts is the
+ * reproducible path that produced them.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -55,6 +57,8 @@ type Ball = {
   signal: string | null;
   kind: string;
   bank: number | null;
+  pin_name?: string | null;
+  lattice_bank?: number | null;
   audit: string;
 };
 
@@ -160,8 +164,16 @@ for (const [sig, ball] of Object.entries(frozen)) {
 // --------------------------------------------------------------------------
 // 4. SHA-256 fingerprint of the identity table
 // --------------------------------------------------------------------------
+// Every ball must carry the audited Lattice pin function before it counts as
+// documented: the fingerprint is what a renumbering exporter would break.
+for (const b of balls) {
+  if (!b.pin_name) fail(`ball ${b.ball} has no audited pin_name — identity is not resolved against FPGA-SC-02034`);
+}
 const canonical = ordered
-  .map((b) => `${b.pad}:${b.ball}:${b.row}${b.col}:${b.signal ?? ""}:${b.kind}`)
+  .map(
+    (b) =>
+      `${b.pad}:${b.ball}:${b.row}${b.col}:${b.pin_name ?? ""}:${b.lattice_bank ?? ""}:${b.signal ?? ""}:${b.kind}`,
+  )
   .join("\n");
 const digest = crypto.createHash("sha256").update(canonical, "utf8").digest("hex");
 const expected = plan.ball_audit?.identity_sha256;
@@ -217,20 +229,59 @@ if (latticeArg !== -1) {
   if (!csvPath || !fs.existsSync(csvPath)) {
     fail(`--lattice given but file not readable: ${csvPath}`);
   } else {
-    const text = fs.readFileSync(csvPath, "utf8");
-    const lines = text.split(/\r?\n/).filter((l) => l.trim().length);
-    // Lattice pinout CSVs are "Package,Ball,Signal,..." shaped; accept any header
-    // order and key off the Ball column, comparing against our ball set.
-    const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
-    const ballIdx = header.findIndex((h) => h === "ball" || h === "ball name" || h === "ballname");
-    if (ballIdx === -1) {
-      fail(`--lattice CSV has no "ball" column (header: ${lines[0]})`);
-    } else {
-      const official = new Set(lines.slice(1).map((l) => l.split(",")[ballIdx]?.trim()).filter(Boolean));
-      for (const b of balls) {
-        if (!official.has(b.ball)) fail(`ball ${b.ball} is not present in the supplied Lattice pinout export`);
+    const lines = fs
+      .readFileSync(csvPath, "utf8")
+      .split(/\r?\n/)
+      .filter((l) => l.trim().length);
+    const split = (line: string) => {
+      const out: string[] = [];
+      let cur = "";
+      let q = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (q) {
+          if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c;
+        } else if (c === '"') q = true;
+        else if (c === ",") { out.push(cur); cur = ""; }
+        else cur += c;
       }
-      notes.push(`cross-checked ${balls.length} balls against ${csvPath}`);
+      out.push(cur);
+      return out.map((f) => f.trim());
+    };
+    const rows = lines.map(split);
+    const headerIdx = rows.findIndex((r) => r[0] === "PAD");
+    if (headerIdx === -1) {
+      fail(`--lattice CSV has no "PAD" header row (first line: ${lines[0]})`);
+    } else {
+      const header = rows[headerIdx];
+      const iFn = header.indexOf("Pin/Ball Function");
+      const iBank = header.indexOf("Bank");
+      const iBall = header.indexOf("CABGA256");
+      if (iFn === -1 || iBank === -1 || iBall === -1) {
+        fail(`--lattice CSV is missing one of Pin/Ball Function, Bank, CABGA256 (header: ${header.join("|")})`);
+      } else {
+        const official = new Map<string, { fn: string; bank: number | null }>();
+        for (const r of rows.slice(headerIdx + 1)) {
+          if (!r[0] || !/^\d+$/.test(r[0])) continue;
+          const ball = (r[iBall] ?? "").trim();
+          if (!ball || ball === "-") continue;
+          official.set(ball, {
+            fn: (r[iFn] ?? "").trim(),
+            bank: /^\d+$/.test((r[iBank] ?? "").trim()) ? Number((r[iBank] ?? "").trim()) : null,
+          });
+        }
+        for (const b of balls) {
+          const o = official.get(b.ball);
+          if (!o) { fail(`ball ${b.ball} is not present in the supplied Lattice pinout export`); continue; }
+          const planFn = (b.pin_name ?? "").split("/")[0];
+          const offFn = o.fn.split("/")[0];
+          if (planFn !== offFn) fail(`ball ${b.ball}: plan function ${planFn || "∅"} != official ${offFn}`);
+          if (b.lattice_bank !== null && b.lattice_bank !== undefined && o.bank !== null && b.lattice_bank !== o.bank) {
+            fail(`ball ${b.ball}: plan lattice_bank ${b.lattice_bank} != official bank ${o.bank}`);
+          }
+        }
+        notes.push(`cross-checked ${balls.length} balls (function + bank) against ${csvPath}`);
+      }
     }
   }
 }
