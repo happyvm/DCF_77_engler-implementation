@@ -3,7 +3,7 @@ mode bmc
 depth 96
 
 [engines]
-smtbmc z3
+smtbmc cvc5
 
 [script]
 read -formal -sv i2c_master_byte.sv i2c_master_byte_formal.sv

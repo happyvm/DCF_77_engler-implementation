@@ -3,7 +3,7 @@ mode prove
 depth 16
 
 [engines]
-smtbmc z3
+smtbmc cvc5
 
 [script]
 # sby copies [files] entries flat into its own src/ directory (see the

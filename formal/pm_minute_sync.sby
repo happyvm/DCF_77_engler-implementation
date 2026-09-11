@@ -3,7 +3,7 @@ mode bmc
 depth 80
 
 [engines]
-smtbmc z3
+smtbmc cvc5
 
 [script]
 read -formal -sv pm_minute_sync.sv pm_minute_sync_formal.sv

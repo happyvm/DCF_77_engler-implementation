@@ -3,7 +3,7 @@ mode prove
 depth 12
 
 [engines]
-smtbmc z3
+smtbmc cvc5
 
 [script]
 read -formal -sv receiver_lock_controller.sv receiver_lock_controller_formal.sv

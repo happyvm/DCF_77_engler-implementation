@@ -3,7 +3,7 @@ mode prove
 depth 10
 
 [engines]
-smtbmc z3
+smtbmc cvc5
 
 [script]
 read -formal -sv soft_history.sv soft_history_formal.sv

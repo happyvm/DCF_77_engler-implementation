@@ -3,7 +3,7 @@ mode bmc
 depth 2
 
 [engines]
-smtbmc z3
+smtbmc cvc5
 
 [script]
 read -formal -sv goertzel_complex_12.sv goertzel_complex_12_formal.sv

@@ -3,7 +3,7 @@ mode bmc
 depth 30
 
 [engines]
-smtbmc z3
+smtbmc cvc5
 
 [script]
 read -formal -sv hour_candidate_search.sv hour_candidate_search_formal.sv

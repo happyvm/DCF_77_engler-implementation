@@ -3,7 +3,7 @@ mode bmc
 depth 15
 
 [engines]
-smtbmc z3
+smtbmc cvc5
 
 [script]
 read -formal -sv clock_reset_ecp5.sv clock_reset_ecp5_formal.sv

@@ -3,7 +3,7 @@ mode bmc
 depth 5
 
 [engines]
-smtbmc z3
+smtbmc cvc5
 
 [script]
 read -formal -sv pps_generator.sv time_telemetry.sv uart_tx.sv pps_uart.sv pps_uart_formal.sv

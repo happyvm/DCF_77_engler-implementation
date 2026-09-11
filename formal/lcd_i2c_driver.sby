@@ -8,7 +8,7 @@ cover: mode cover
 depth 132
 
 [engines]
-smtbmc z3
+smtbmc cvc5
 
 [script]
 read -formal -sv i2c_master_byte.sv lcd_i2c_driver.sv lcd_i2c_driver_formal.sv

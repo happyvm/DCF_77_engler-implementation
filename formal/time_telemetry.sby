@@ -3,7 +3,7 @@ mode bmc
 depth 48
 
 [engines]
-smtbmc z3
+smtbmc cvc5
 
 [script]
 read -formal -sv time_telemetry.sv time_telemetry_formal.sv

@@ -8,7 +8,7 @@ cover: mode cover
 depth 14
 
 [engines]
-smtbmc z3
+smtbmc cvc5
 
 [script]
 read -formal -sv dcf77_calendar_pkg.sv ml_decoder_controller.sv ml_decoder_controller_formal.sv
