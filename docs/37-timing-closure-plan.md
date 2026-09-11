@@ -241,80 +241,106 @@ réductions indépendantes ont bougé. Le contrat de cadence (« jamais de
 (`sim/goertzel_sample_contract.sv`). Le banc fonctionnel reste accéléré
 (`sample_ce` espacé de la latence du pipeline, 4 `clk`).
 
-Le chemin critique **a sauté hors du Goertzel** — c'est maintenant
-`lcd_i2c_driver` (§5.2), exactement le principe « traiter un bloc à la fois »
-demandé par JC.
+Le chemin critique **a sauté hors du Goertzel** : il est `lcd_i2c_driver` puis,
+après la correction de celui-ci (§5.3), `pm_minute_sync` (§5.4) — exactement le
+principe « traiter un bloc à la fois » demandé par JC.
 
 | Contrôle | Résultat |
 |---|---|
 | `make test-goertzel` / `test-observables` | PASS (vecteurs de référence inchangés) |
 | `make test-sample-cadence` (930 kS/s vs `busy`) | PASS (min_gap 134 clk, busy_max 3) |
 | `make test-system` (10 scénarios) | PASS |
+| `make test-lcd` / `test-integration` | PASS |
 | suite rapide complète (30 cibles) | PASS |
 | `make lint` | PASS (0 avertissement) |
 | `sby -f formal/goertzel_resonator.sby` | PASS |
 | `sby -f formal/engeler_goertzel_bank.sby` | PASS |
 | `sby -f formal/engeler_observables.sby` | PASS |
-| `make resource-check` | PASS (LUT4 9 421, FF 6 671, EBR 8, MULT 28, PLL 1) |
+| `make resource-check` | PASS (LUT4 9 458, FF 6 682, EBR 8, MULT 28, PLL 1) |
 
 ### 5.1 Rapport de timing versionné (`make timing`, seed 1)
 
 | Champ | Valeur |
 |---|---|
-| Commit testé | commit BEA-36 « Goertzel multi-cycle » (voir §5) |
+| Commit testé | `747d565` (Goertzel) puis `4af7364` (LCD) |
 | Cible | `LFE5U-45F-7BG256I`, `release_reference`, 125 MHz |
-| Fmax obtenu | **28,24 MHz** (27,53 MHz au baseline §1/§3) |
-| Slack pire chemin | **−27,42 ns** (8,00 − 35,42 ns) |
-| Chemin critique final | `lcd_i2c_driver` (`lcd_i.pos` → `lcd_i.shadow_valid`) |
-| LUT4 | 9 421 |
-| FF | 6 671 |
+| Fmax obtenu | **29,21 MHz** (baseline §1 : 21,54 ; §3 : 27,53) |
+| Slack pire chemin | **−26,23 ns** (8,00 − 34,23 ns) |
+| Chemin critique final | `core_i.detector_i.minute_sync_i.locked` (`pm_minute_sync`) |
+| LUT4 | 9 458 |
+| FF | 6 682 |
 | EBR18 | 8 |
 | MULT18X18D | 28 |
 | PLL | 1 |
 
-Gain depuis le baseline : 21,54 → **28,24 MHz (+31,1 %)** sur la chaîne, toutes
-les limites du profil `release_reference` respectées, `MULT18X18D` inchangé
-(28/32), précision DSP préservée.
+Gain depuis le baseline : 21,54 → **29,21 MHz (+35,6 %)**, toutes les limites du
+profil `release_reference` respectées, `MULT18X18D` inchangé (28/32), précision
+DSP préservée.
 
-### 5.2 Chemin critique restant : `lcd_i2c_driver`
+### 5.2 Chemin critique n°1 : `lcd_i2c_driver` (corrigé, §5.3)
 
-Un seul chemin reg→reg domine désormais à **35,42 ns** (logic ≈ 13 ns + routage
-≈ 22 ns) et il est **entièrement hors du chemin d'échantillonnage** :
+Un chemin reg→reg dominait à **35,42 ns** (logic ≈ 13 ns + routage ≈ 22 ns),
+entièrement **hors du chemin d'échantillonnage** :
 
 ```
 lcd_i.pos (FF) → mux frame[pos] / shadow[pos] → comparaison pos_dirty
-  → logique de prochain-état → lcd_i.shadow_valid (FF)
+  → logique de prochain-état → lcd_i.state (FF)
 ```
 
-`pos_dirty = !shadow_valid[pos] || (shadow[pos] != frame[pos])` place deux
-multiplexeurs 40×8 indexés par `pos` **et** la comparaison sur le chemin
-combinatoire du prochain état `SCAN`. Le chemin va du compteur `pos` au registre
-qui en dépend ; le routage domine parce que les 40 entrées de `frame`/`shadow`
-sont dispersées (pas de floorplan). C'est exactement le bloc signalé en
-`docs/39` §7 (P1, 29,3 MHz), hors du chemin critique des échantillons : une
-optimisation y est **sans risque fonctionnel** (un test `lcd_i2c_driver_tb`
-purement protocole le couvre).
+Isolé (`make timing-block BLOCK=lcd_i2c_driver`) : 30,14 MHz,
+`pos → state` 32,66 ns (131 segments). `pos_dirty = !shadow_valid[pos] ||
+(shadow[pos] != frame[pos])` plaçait le multiplexeur 40×8 indexé par `pos` **et**
+la comparaison sur le chemin combinatoire du prochain état `SCAN` ; le routage
+domine parce que les 40 entrées de `frame`/`shadow` sont dispersées (pas de
+floorplan). C'est le bloc signalé en `docs/39` §7 (P1, 29,3 MHz).
 
-Pistes (par ordre de gain attendu, à mener sous le même principe) :
+### 5.3 Correction `lcd_i2c_driver` (commit `4af7364`)
 
-1. **Pipeliner la lecture `frame[pos]`/`shadow[pos]`** : registrer la valeur lue
-   un cycle avant la décision `pos_dirty`, sortant les deux mux du chemin
-   `pos → prochain état`. Le scan coûte un cycle de plus par position, sans
-   conséquence (le scan n'est pas sur le chemin des échantillons).
-2. **Remplacer la comparaison 8 bits par un bit « sale » par position,**
-   recalculé une fois par seconde (ou à l'écriture), réduisant le chemin à une
-   lecture d'un bit.
-3. **Floorplan / plan de broches** (`docs/27`) pour ramener le terme de routage
-   (≈ 22 des 35 ns) en regroupant `pos`, le tableau `frame` et la logique de
-   prochain état.
+**Lu puis décidé sur deux cycles** : `SCAN` registre la cellule
+(`frame_q`/`shadow_q`/`valid_q <= frame[pos]/shadow[pos]/shadow_valid[pos]`) et
+`SCAN_DECIDE` prend la décision sur des valeurs **registrées**. Le multiplexeur
+40×8 sort du chemin `pos → prochain état`. Le scan est hors chemin
+d'échantillonnage : le cycle supplémentaire par position est gratuit.
 
-Après ce bloc, l'itération continue sur `second_phase_detector`,
-`pm_minute_sync`, `sample_scheduler` (déjà à 141 MHz, non bloquant), les
-corrélateurs PM, puis les compositions top — selon le principe de JC : budget de
-cycles explicite, assertion de contrat, test de cadence séparé lorsque la
-cadence le permet.
+Résultat isolé : **30,14 → 31,02 MHz** (`pos → state` → `pos → shadow DPRAM`),
+et surtout le chemin **quitte le top** :
 
-### 5.3 Note CI
+| Niveau | Avant | Après |
+|---|---:|---:|
+| `lcd_i2c_driver` isolé | 30,14 MHz | 31,02 MHz |
+| `dcf77_hat_top` (post-route, seed 1) | 28,24 MHz | **29,21 MHz** |
+
+Le gain top est plus grand que le gain isolé parce que le bloc cesse d'être le
+chemin limitant ; ce qui reste dans `lcd_i2c_driver` est désormais dominé par le
+**routage du tableau `shadow` (LUTRAM) indexé par `pos`** (≈ 19 des 31 ns) : la
+suite (bit « sale » par position, ou floorplan `docs/27`) est consignée ici mais
+non implémentée à ce stade.
+
+`lcd_i2c_driver_tb` (protocole octet-par-octet, DDRAM, rafraîchissements
+partiels) et `dcf77_hat_top_tb` restent PASS.
+
+### 5.4 Chemin critique n°2 (nouveau) : `pm_minute_sync`
+
+Après §5.3, le pire chemin top est **34,23 ns** et se situe dans
+`core_i.detector_i.minute_sync_i` (`pm_minute_sync`), signalé en `docs/39` §7
+(P1, 39,8 MHz isolé). C'est un **filtre apparié 1 résultat/seconde** : comme
+`frequency_discipline`, il dispose de ~10⁸ cycles oisifs par mise à jour et le
+même traitement s'applique — **budget de cycles explicite, calcul séquentiel
+multi-cycle, assertion de contrat**. C'est le prochain bloc, non commencé à ce
+stade.
+
+Après lui, l'itération continue (par ordre de Fmax isolé décroissant, `docs/39`
+§7) sur `second_phase_detector` (59,7), `pm_minute_sync`/`calendar`/`minute`/
+`hour` (≈ 38–40), `pm_phase_discriminator` (69,8) et les **corrélateurs PM /
+`engeler_pm_pipeline` (95–120 MHz — sous la cible de peu)**, puis les
+compositions top, selon le principe de JC : budget de cycles explicite,
+assertion de contrat, test de cadence séparé lorsque la cadence le permet.
+
+> Note de périmètre : même les blocs les plus rapides hors Goertzel restent
+> sous 125 MHz (`engeler_pm_correlator` 119,9, `pm_prn_correlator` 112,4) — la
+> fermeture complète est une campagne multi-bloc, pas un correctif unique.
+
+### 5.5 Note CI
 
 `make test-system` (Verilator) passe mais coûte ~18 min de mur à `SAMPLE_PERIOD=4`
 (×4 vs la cadence accélérée historique) : le timeout mur a été porté de 900 à
