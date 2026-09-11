@@ -74,20 +74,24 @@ The USB item above is a **historical unknown from Engeler's demonstrator**, not 
 
 ## Missing DSP constants
 
-Still to reconstruct and validate:
+Resolved — each constant set is now documented in a dedicated decision record
+under `docs/decisions/`. See:
 
-- fixed-point word widths;
-- Goertzel scaling;
-- carrier-loop bandwidth schedule;
-- CORDIC precision if used;
-- AGC thresholds/time constants;
-- correlation normalization;
-- ML confidence thresholds;
-- overflow/saturation policy;
-- memory organization;
-- randomized-processing schedule.
+- `docs/decisions/dsp-01-fixed-point-word-widths.md` — fixed-point word widths
+- `docs/decisions/dsp-02-goertzel-scaling.md` — Goertzel scaling
+- `docs/decisions/dsp-03-carrier-loop-bandwidth-schedule.md` — carrier-loop bandwidth schedule
+- `docs/decisions/dsp-04-cordic-precision.md` — CORDIC precision (not used; implicit rotation instead)
+- `docs/decisions/dsp-05-agc-thresholds-time-constants.md` — AGC thresholds/time constants
+- `docs/decisions/dsp-06-correlation-normalization.md` — correlation normalization
+- `docs/decisions/dsp-07-ml-confidence-thresholds.md` — ML confidence thresholds
+- `docs/decisions/dsp-08-overflow-saturation-policy.md` — overflow/saturation policy
+- `docs/decisions/dsp-09-memory-organization.md` — memory organization
+- `docs/decisions/dsp-10-randomized-processing-schedule.md` — randomized-processing schedule (deferred)
 
-These must be solved by simulation plus regression against stored DCF77 captures.
+All constants are implemented as Verilog parameters/localparams in the RTL
+modules and verified by simulation (iverilog) and formal proof (SymbiYosys).
+Some are calibration constants that must be re-validated once real DCF77
+signal captures and hardware noise-floor measurements are available.
 
 ## Measurement questions
 
