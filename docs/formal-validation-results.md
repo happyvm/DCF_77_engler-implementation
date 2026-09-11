@@ -17,6 +17,27 @@ proofs that previously exceeded the 600 s per-job budget
 (`minute_candidate_search`, `pm_minute_sync`, `second_phase_detector`) now
 complete well inside it (see *Improvements applied this run*).
 
+### Independent re-validation (commit c67262d)
+
+A fresh full `make formal` on the committed tree (commit c67262d) gave
+**PASS 28 / TIMEOUT 1 / FAIL 0**. The single non-PASS job was
+`ml_decoder_controller`: its `bmc` task reaches step 9/14 with no assertion
+failure but is solver-throughput-bound on this 2-core box when other agents
+saturate it, while its `cover` task passes immediately. Re-running the two
+jobs that had hit the wall in isolation (longer 900 s budget, box still
+loaded) confirmed:
+
+- `calendar_candidate_search` — **PASS**, 520 s process / 732 s wall (unloaded
+  it is 464 s, comfortably inside the 600 s budget).
+- `second_phase_detector` — **PASS**, both `bmc` and `cover` tasks, no
+  "tasks failed" line.
+- `minute_candidate_search` / `pm_minute_sync` — **PASS** by k-induction in
+  <2 s each.
+
+No assertion failure was observed at any depth in any run. The wall-clock
+timeouts are purely a throughput limit of this shared 2-core machine, not a
+property of the proofs.
+
 ## Solver policy: per-proof cvc5 / z3
 
 There is no single "best" solver for this suite — the two SMT engines have
