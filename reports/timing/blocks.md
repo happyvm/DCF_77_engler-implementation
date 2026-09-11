@@ -36,7 +36,7 @@ Post-route measurements from `nextpnr-ecp5 --report`. Raw records in `raw/`.
 | time_telemetry | low-rate-control | 151.194 | 1.386 | 581 | 233 | 0 | 0 | 0 |
 | uart_tx | io-interface | 229.2 | 3.637 | 102 | 68 | 0 | 0 | 0 |
 | hat_spi_slave | io-interface | 111.148 | -0.997 | 515 | 253 | 0 | 0 | 0 |
-| lcd_i2c_driver | io-interface | 29.347 | -26.075 | 1016 | 172 | 0 | 0 | 0 |
+| lcd_i2c_driver | io-interface | 31.021 | -24.236 | 1110 | 181 | 0 | 0 | 0 |
 | i2c_master_byte | io-interface | 216.216 | 3.375 | 117 | 78 | 0 | 0 | 0 |
 | engeler_detector | composition | 28.461 | -27.136 | 9967 | 3752 | 0 | 28 | 0 |
 | dcf77_receiver_core | composition | 26.914 | -29.156 | 15564 | 5796 | 8 | 28 | 0 |
@@ -51,7 +51,7 @@ Bands: >=200 excellent, 175-200 very-good, 150-175 acceptable, 125-150 weak, <12
 - `engeler_observables`: 28.1 MHz — failing (single-cycle)
 - `engeler_detector`: 28.5 MHz — failing (single-cycle)
 - `dcf77_hat_top`: 28.9 MHz — failing (single-cycle)
-- `lcd_i2c_driver`: 29.3 MHz — failing (single-cycle)
+- `lcd_i2c_driver`: 31.0 MHz — failing (single-cycle)
 - `goertzel_resonator`: 34.7 MHz — failing (single-cycle)
 - `calendar_candidate_search`: 38.8 MHz — failing (architectural-multicycle)
 - `minute_candidate_search`: 39.7 MHz — failing (architectural-multicycle)
@@ -110,10 +110,10 @@ Bands: >=200 excellent, 175-200 very-good, 150-175 acceptable, 125-150 weak, <12
 2. `reset_n$tr_io` -> `reset_n_LUT4_D_Z_TRELLIS_FF_LSR_2` : 6.54 ns (logic 0.24 + route 6.30, 5 segs)
 3. `adc_i.sample_valid_TRELLIS_FF_Q` -> `diag_sample_valid$tr_io` : 6.19 ns (logic 0.00 + route 6.19, 2 segs)
 
-### lcd_i2c_driver — 29.3 MHz (io-interface)
+### lcd_i2c_driver — 31.0 MHz (io-interface)
 
-1. `dut.pos_TRELLIS_FF_Q_3` -> `dut.state_TRELLIS_FF_Q_2` : 33.55 ns (logic 13.23 + route 20.32, 117 segs)
-2. `sig_ctr_TRELLIS_FF_Q_7` -> `sig_o[8]$tr_io` : 6.37 ns (logic 0.24 + route 6.13, 4 segs)
+1. `dut.pos_TRELLIS_FF_Q_1` -> `dut.shadow.0.2$DPRAM_COMB0` : 31.71 ns (logic 12.70 + route 19.01, 125 segs)
+2. `sig_ctr_TRELLIS_FF_Q_12` -> `sig_o[3]$tr_io` : 5.13 ns (logic 0.24 + route 4.89, 4 segs)
 
 ### goertzel_resonator — 34.7 MHz (single-cycle)
 
@@ -270,7 +270,7 @@ Bands: >=200 excellent, 175-200 very-good, 150-175 acceptable, 125-150 weak, <12
 - `engeler_observables`: 28.1 MHz (composition)
 - `engeler_detector`: 28.5 MHz (composition)
 - `dcf77_hat_top`: 28.9 MHz (composition)
-- `lcd_i2c_driver`: 29.3 MHz (io-interface)
+- `lcd_i2c_driver`: 31.0 MHz (io-interface)
 - `goertzel_resonator`: 34.7 MHz (single-cycle)
 - `calendar_candidate_search`: 38.8 MHz (multicycle)
 - `minute_candidate_search`: 39.7 MHz (multicycle)

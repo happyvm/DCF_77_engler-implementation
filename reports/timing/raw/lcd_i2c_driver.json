@@ -9,29 +9,29 @@
  "throughput": "1 I2C transaction per display update",
  "config": "production-defaults",
  "notes": "Bit-banged I2C; scl/sda output registers.",
- "commit": "afa5b3c9b93d",
- "date": "2026-09-11T21:40:44Z",
+ "commit": "4af736453220",
+ "date": "2026-09-11T22:44:01Z",
  "target_device": "LFE5U-45F-7BG256I",
  "speed_grade": "-7",
  "seed": 1,
- "fmax_mhz": 29.347,
- "worst_slack_ns": -26.075,
+ "fmax_mhz": 31.021,
+ "worst_slack_ns": -24.236,
  "timing_met": false,
- "lut4": 1016,
- "ff": 172,
+ "lut4": 1110,
+ "ff": 181,
  "ebr18": 0,
  "mult18x18d": 0,
  "pll": 0,
- "ramw": 6,
- "critical_path_summary": "dut.pos_TRELLIS_FF_Q_3 -> dut.state_TRELLIS_FF_Q_2 [33.55 ns: logic 13.23 + route 20.32, 117 segs]",
+ "ramw": 24,
+ "critical_path_summary": "dut.pos_TRELLIS_FF_Q_1 -> dut.shadow.0.2$DPRAM_COMB0 [31.71 ns: logic 12.70 + route 19.01, 125 segs]",
  "critical_paths": [
   {
-   "source": "dut.pos_TRELLIS_FF_Q_3",
-   "dest": "dut.state_TRELLIS_FF_Q_2",
-   "total_ns": 33.55,
-   "logic_ns": 13.227,
-   "route_ns": 20.323,
-   "segments": 117,
+   "source": "dut.pos_TRELLIS_FF_Q_1",
+   "dest": "dut.shadow.0.2$DPRAM_COMB0",
+   "total_ns": 31.711,
+   "logic_ns": 12.697,
+   "route_ns": 19.014,
+   "segments": 125,
    "types": [
     "clk-to-q",
     "logic",
@@ -40,11 +40,11 @@
    ]
   },
   {
-   "source": "sig_ctr_TRELLIS_FF_Q_7",
-   "dest": "sig_o[8]$tr_io",
-   "total_ns": 6.366,
+   "source": "sig_ctr_TRELLIS_FF_Q_12",
+   "dest": "sig_o[3]$tr_io",
+   "total_ns": 5.131,
    "logic_ns": 0.236,
-   "route_ns": 6.13,
+   "route_ns": 4.895,
    "segments": 4,
    "types": [
     "clk-to-q",
@@ -56,19 +56,19 @@
  "multi_seed": [
   {
    "seed": 1,
-   "fmax_mhz": 29.347
+   "fmax_mhz": 31.021
   }
  ],
  "arch": {
   "additions": 66,
-  "comparators_eq": 148,
-  "comparators_ne": 48,
+  "comparators_eq": 150,
+  "comparators_ne": 46,
   "subtractions": 4,
   "divisions": 16,
   "comparators_lt": 2,
   "total_cells": 0,
   "wire_bits": 180
  },
- "fingerprint": "acba0ce401e380ab",
+ "fingerprint": "6424cd47362cfeb9",
  "tool_versions": "yosys=Yosys 0.52 (git sha1 fee39a3284c90249e1d9684cf6944ffbbcbb8f90); nextpnr=\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.9-3); iverilog=Icarus Verilog version 12.0 (stable) (); python=Python 3.14.4; host=Linux-7.0.0-28-generic-x86_64-with-glibc2.43"
 }
