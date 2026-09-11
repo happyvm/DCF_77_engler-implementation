@@ -1,0 +1,9 @@
+{
+  "$schema": "https://cdn.jsdelivr.net/npm/@tscircuit/cli/types/tscircuit.config.schema.json",
+  "mainEntrypoint": "src/index.tsx",
+  "build": {
+    "circuitJson": true,
+    "routingDisabled": true,
+    "previewImages": false
+  }
+}

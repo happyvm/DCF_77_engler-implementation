@@ -7,13 +7,21 @@
   "scripts": {
     "dev": "tsci dev src/index.tsx",
     "build": "tsci build src/index.tsx",
-    "check": "npm run check:plans",
-    "check:plans": "tsx scripts/validate-design-plans.ts"
+    "export:circuit": "tsci export src/index.tsx -f circuit-json -o \"$PWD/dist/circuit-json/dcf77-hat.circuit.json\"",
+    "export:kicad": "tsci export src/index.tsx -f kicad_zip -o \"$PWD/dist/kicad-pre-quilter/dcf77-hat.zip\"",
+    "manifest": "tsx scripts/export-quilter-manifest.ts",
+    "check:bga": "tsx scripts/verify-bga-identity.ts --allow-incomplete-audit",
+    "check:bga:release": "tsx scripts/verify-bga-identity.ts",
+    "check:plans": "tsx scripts/validate-design-plans.ts",
+    "check": "npm run check:plans && npm run check:bga",
+    "archive": "tsx scripts/archive-revision.ts",
+    "release": "npm run export:circuit && npm run export:kicad && npm run manifest && npm run check && npm run archive"
   },
   "dependencies": {
     "@tscircuit/core": "0.0.1845"
   },
   "devDependencies": {
+    "@types/node": "^22.20.2",
     "@types/react": "19.2.18",
     "tscircuit": "0.0.2465",
     "tsx": "4.23.13"

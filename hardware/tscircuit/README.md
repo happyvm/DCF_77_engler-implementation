@@ -221,36 +221,47 @@ Quilter may not freely place/reroute:
 
 No fast digital trace or switch node may run beneath or beside the ferrite/input network. SPI and UART routing stays in the HAT/digital region.
 
-## Planned source tree
+## Source tree
 
 ```text
 hardware/tscircuit/
-  pin-plan.json
-  power-plan.json
-  package.json
+  pin-plan.json              ECP5 BG256 ball identity + Pi GPIO/UART mapping (safety-critical)
+  power-plan.json            HAT-only rails, sequencing, ECP5 decoupling
+  package.json               pinned tscircuit / tsx versions
   tsconfig.json
+  tscircuit.config.json      build.routingDisabled = true (pre-Quilter: no routing here)
   src/
-    index.tsx
+    index.tsx                board root: constraints + region annotations
     core/
       receiver_core.tsx
-      afe.tsx
+      afe.tsx                ferrite + OPA810 + LTC1562 + LTC6912 + LTC1407A
       adc.tsx
-      ecp5.tsx
-      clock.tsx
-      display.tsx
+      ecp5.tsx               LFE5U-45F-7BG256I + W25Q64JV config flash
+      clock.tsx              SiT5356 25 MHz TCXO
       pps.tsx
+      display.tsx            LCD 20x2 transflective I2C
       receiver_power.tsx
     board/
       raspberry_pi_hatplus.tsx
-      hatplus_constraints.ts
-      quilter.ts
+      hatplus_constraints.ts locked placements, regions, courtyards, placer
+      quilter.ts             Quilter handoff manifest + keepouts
     host/
       rpi_spi.tsx
-      rpi_uart.tsx
     power/
       hat_5v_input.tsx
     parts/
   scripts/
+    verify-bga-identity.ts   BGA256 ball-identity gate (fails on renumbering)
+    validate-design-plans.ts pin plan + power plan + placement regions gate
+    measure-courtyards.ts    re-calibrates SIZE_MM from rendered footprints
+    export-quilter-manifest.ts
+    archive-revision.ts
+  dist/
+    REVISION.json            git SHA + pinned toolchain + artifact checksums
+    circuit-json/            dcf77-hat.circuit.json, placement-regions.json, board-rules.json
+    kicad-pre-quilter/       dcf77-hat.zip (gitignored, reproducible)
+    kicad-post-quilter/      filled in after a reviewed Quilter run
+    fabrication/             Gerbers/BOM/PnP after a reviewed Quilter run
 ```
 
 Platform RTL now also includes:
@@ -261,14 +272,40 @@ rtl/platform/uart_tx.sv
 
 The byte-level UART transmitter is intentionally separate from the future date/time formatter so calendar decoding remains owned by the receiver core.
 
+## Reproducing and verifying
+
+```bash
+npm ci                            # bun is required by the tsci CLI shebang: put ~/.bun/bin on PATH
+npx tsci build src/index.tsx      # AC1: writes dist/src/index/circuit.json
+npm run export:circuit            # dist/circuit-json/dcf77-hat.circuit.json
+npm run export:kicad              # dist/kicad-pre-quilter/dcf77-hat.zip
+npm run manifest                  # placement-regions.json + board-rules.json
+npm run check                     # pin/power plan + placement regions + BGA identity
+npm run check:bga:release         # strict gate: blocks fabrication while the ball audit is incomplete
+npm run archive                   # dist/REVISION.json (run after the source commit)
+```
+
+`routingDisabled` in `tscircuit.config.json` is deliberate: this workspace stops at the
+pre-Quilter handoff, so unrouted `pcb_port_not_connected_error` entries are not defects here.
+Quilter (or the manual KiCad pass) owns routing.
+
+### ECP5 ball-identity audit status
+
+`pin-plan.json` carries all 256 BG256 balls and a frozen SHA-256 over the ball identity.
+69 balls are cross-checked against the documented pinout; the remaining 187 currently carry a
+grid-derived identity. `npm run check:bga:release` therefore **fails on purpose** with
+`FABRICATION BLOCKED` until the full Lattice `FPGA-SC-02034` cross-check is supplied
+(`npm run check:bga:release -- --lattice <csv>`). Any export that renumbers or reorders the
+ball names also fails the gate.
+
 ## Remaining schematic-freeze work
 
-- create verified tscircuit part wrappers/footprints from manufacturer pinouts;
-- validate BGA256 pad identity through KiCad export;
-- add the physical UART 33R/47k networks to the HAT TSX;
+- complete the 187 unverified BG256 ball identities from Lattice `FPGA-SC-02034`;
+- replace the supplier-part approximations flagged by `supplier_footprint_mismatch_warning`
+  with audited manufacturer footprints (the pad-geometry check is what matters here);
+- add the physical UART 33R/47k networks to the HAT TSX (declared, not yet wired);
 - calculate final LCD backlight current resistor/MOSFET values;
 - freeze HAT connector ESD/protection where needed;
-- generate the first complete pin-accurate HAT TSX;
 - run ERC/DRC and PDN/power-estimator checks before routing.
 
 Supporting docs:

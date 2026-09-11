@@ -1,0 +1,64 @@
+name: Hardware (tscircuit)
+
+on:
+  pull_request:
+    paths:
+      - "hardware/tscircuit/**"
+      - ".github/workflows/hardware.yml"
+  push:
+    branches: [main]
+    paths:
+      - "hardware/tscircuit/**"
+      - ".github/workflows/hardware.yml"
+  workflow_dispatch:
+
+jobs:
+  tscircuit:
+    name: Circuit build, design plans and BGA identity
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: hardware/tscircuit
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: hardware/tscircuit/package-lock.json
+
+      # the pinned tsci CLI is a bun script (#!/usr/bin/env bun)
+      - name: Install bun for the tsci CLI
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
+
+      - name: Install pinned toolchain
+        run: npm ci
+
+      # AC1 — Circuit JSON builds
+      - name: Build Circuit JSON
+        run: npx tsci build src/index.tsx
+
+      # AC2 — importable pre-Quilter KiCad archive
+      - name: Export Circuit JSON and KiCad
+        run: |
+          npm run export:circuit
+          npm run export:kicad
+
+      # AC3/AC7 — pin plan, power plan, regions, BGA ball identity (fails on renumbering)
+      - name: Design-plan and BGA identity gates
+        run: npm run check
+
+      - name: Courtyard calibration (declared SIZE_MM >= rendered footprints)
+        run: npx tsx scripts/measure-courtyards.ts --check
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tscircuit-outputs
+          path: |
+            hardware/tscircuit/dist/circuit-json/
+            hardware/tscircuit/dist/kicad-pre-quilter/
+          if-no-files-found: error

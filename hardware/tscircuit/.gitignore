@@ -1,0 +1,11 @@
+# generated / installed — never commit
+node_modules/
+.tscircuit/
+
+# tscircuit build scratch (the committed Circuit JSON lives in dist/circuit-json/)
+dist/src/
+
+# large generated intermediates — reproducible with `npm run export:kicad`
+dist/kicad-pre-quilter/*.zip
+dist/kicad-post-quilter/
+dist/fabrication/

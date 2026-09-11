@@ -12,15 +12,45 @@
     "VCCIO8": "3V3_D"
   },
   "power_pins": {
-    "VCC": ["G6", "G7", "G9", "L8", "L9", "L10"],
-    "VCCAUX": ["G11", "L7"],
-    "VCCIO0": ["F6", "F7"],
-    "VCCIO1": ["F10", "F11"],
-    "VCCIO2": ["H11", "J11"],
-    "VCCIO3": ["K11", "L11"],
-    "VCCIO6": ["J6", "J7"],
-    "VCCIO7": ["H6", "H7"],
-    "VCCIO8": ["L6"]
+    "VCC": [
+      "G6",
+      "G7",
+      "G9",
+      "L8",
+      "L9",
+      "L10"
+    ],
+    "VCCAUX": [
+      "G11",
+      "L7"
+    ],
+    "VCCIO0": [
+      "F6",
+      "F7"
+    ],
+    "VCCIO1": [
+      "F10",
+      "F11"
+    ],
+    "VCCIO2": [
+      "H11",
+      "J11"
+    ],
+    "VCCIO3": [
+      "K11",
+      "L11"
+    ],
+    "VCCIO6": [
+      "J6",
+      "J7"
+    ],
+    "VCCIO7": [
+      "H6",
+      "H7"
+    ],
+    "VCCIO8": [
+      "L6"
+    ]
   },
   "bank_roles": {
     "0": "spare / low-rate future control",
@@ -32,18 +62,78 @@
     "8": "sysCONFIG/JTAG"
   },
   "common_signals": {
-    "CLK_25M": {"ball": "C9", "bank": 1, "pin_name": "PT47B/GR_PCLK1_1", "dir": "in"},
-    "ADC_SCK": {"ball": "J16", "bank": 2, "pin_name": "PR32A/PCLKT2_1", "dir": "out"},
-    "ADC_SDO": {"ball": "J15", "bank": 2, "pin_name": "PR32B/PCLKC2_1", "dir": "in"},
-    "ADC_CONV": {"ball": "K16", "bank": 2, "pin_name": "PR32C/PCLKT2_0", "dir": "out"},
-    "PGA_SCK": {"ball": "H12", "bank": 2, "pin_name": "PR26A", "dir": "out"},
-    "PGA_MOSI": {"ball": "H13", "bank": 2, "pin_name": "PR26B", "dir": "out"},
-    "PGA_CS_N": {"ball": "J12", "bank": 2, "pin_name": "PR26D", "dir": "out"},
-    "PPS_REF": {"ball": "R12", "bank": 3, "pin_name": "PR65A", "dir": "out"},
-    "LCD_SCL": {"ball": "M13", "bank": 3, "pin_name": "PR44C", "dir": "bidir_open_drain"},
-    "LCD_SDA": {"ball": "N14", "bank": 3, "pin_name": "PR44D", "dir": "bidir_open_drain"},
-    "LCD_RST_N": {"ball": "M14", "bank": 3, "pin_name": "PR41D", "dir": "out"},
-    "LCD_BL_EN": {"ball": "R13", "bank": 3, "pin_name": "PR62C", "dir": "out"}
+    "CLK_25M": {
+      "ball": "C9",
+      "bank": 1,
+      "pin_name": "PT47B/GR_PCLK1_1",
+      "dir": "in"
+    },
+    "ADC_SCK": {
+      "ball": "J16",
+      "bank": 2,
+      "pin_name": "PR32A/PCLKT2_1",
+      "dir": "out"
+    },
+    "ADC_SDO": {
+      "ball": "J15",
+      "bank": 2,
+      "pin_name": "PR32B/PCLKC2_1",
+      "dir": "in"
+    },
+    "ADC_CONV": {
+      "ball": "K16",
+      "bank": 2,
+      "pin_name": "PR32C/PCLKT2_0",
+      "dir": "out"
+    },
+    "PGA_SCK": {
+      "ball": "H12",
+      "bank": 2,
+      "pin_name": "PR26A",
+      "dir": "out"
+    },
+    "PGA_MOSI": {
+      "ball": "H13",
+      "bank": 2,
+      "pin_name": "PR26B",
+      "dir": "out"
+    },
+    "PGA_CS_N": {
+      "ball": "J12",
+      "bank": 2,
+      "pin_name": "PR26D",
+      "dir": "out"
+    },
+    "PPS_REF": {
+      "ball": "R12",
+      "bank": 3,
+      "pin_name": "PR65A",
+      "dir": "out"
+    },
+    "LCD_SCL": {
+      "ball": "M13",
+      "bank": 3,
+      "pin_name": "PR44C",
+      "dir": "bidir_open_drain"
+    },
+    "LCD_SDA": {
+      "ball": "N14",
+      "bank": 3,
+      "pin_name": "PR44D",
+      "dir": "bidir_open_drain"
+    },
+    "LCD_RST_N": {
+      "ball": "M14",
+      "bank": 3,
+      "pin_name": "PR41D",
+      "dir": "out"
+    },
+    "LCD_BL_EN": {
+      "ball": "R13",
+      "bank": 3,
+      "pin_name": "PR62C",
+      "dir": "out"
+    }
   },
   "hatplus": {
     "power": {
@@ -53,15 +143,80 @@
       "physical_4": "PI_5V"
     },
     "host_signals": {
-      "HAT_SPI_MOSI": {"pi_gpio": 10, "pi_physical": 19, "ball": "A10", "bank": 1, "pin_name": "PT51B", "dir": "pi_to_ecp5"},
-      "HAT_SPI_MISO": {"pi_gpio": 9, "pi_physical": 21, "ball": "D11", "bank": 1, "pin_name": "PT69A", "dir": "ecp5_to_pi"},
-      "HAT_SPI_SCLK": {"pi_gpio": 11, "pi_physical": 23, "ball": "A9", "bank": 1, "pin_name": "PT51A", "dir": "pi_to_ecp5"},
-      "HAT_SPI_CS_N": {"pi_gpio": 8, "pi_physical": 24, "ball": "E11", "bank": 1, "pin_name": "PT69B", "dir": "pi_to_ecp5"},
-      "HAT_IRQ": {"pi_gpio": 25, "pi_physical": 22, "ball": "C12", "bank": 1, "pin_name": "PT74B", "dir": "ecp5_to_pi"},
-      "HAT_RESET_N": {"pi_gpio": 24, "pi_physical": 18, "ball": "B12", "bank": 1, "pin_name": "PT74A", "dir": "pi_to_ecp5"},
-      "HAT_PPS": {"pi_gpio": 4, "pi_physical": 7, "ball": "A11", "bank": 1, "pin_name": "PT71A", "dir": "ecp5_to_pi"},
-      "HAT_UART_TX": {"pi_gpio": 15, "pi_physical": 10, "pi_function": "RXD", "ball": "A13", "bank": 1, "pin_name": "PT83A", "dir": "ecp5_to_pi"},
-      "HAT_UART_RX": {"pi_gpio": 14, "pi_physical": 8, "pi_function": "TXD", "ball": "A14", "bank": 1, "pin_name": "PT83B", "dir": "pi_to_ecp5"}
+      "HAT_SPI_MOSI": {
+        "pi_gpio": 10,
+        "pi_physical": 19,
+        "ball": "A10",
+        "bank": 1,
+        "pin_name": "PT51B",
+        "dir": "pi_to_ecp5"
+      },
+      "HAT_SPI_MISO": {
+        "pi_gpio": 9,
+        "pi_physical": 21,
+        "ball": "D11",
+        "bank": 1,
+        "pin_name": "PT69A",
+        "dir": "ecp5_to_pi"
+      },
+      "HAT_SPI_SCLK": {
+        "pi_gpio": 11,
+        "pi_physical": 23,
+        "ball": "A9",
+        "bank": 1,
+        "pin_name": "PT51A",
+        "dir": "pi_to_ecp5"
+      },
+      "HAT_SPI_CS_N": {
+        "pi_gpio": 8,
+        "pi_physical": 24,
+        "ball": "E11",
+        "bank": 1,
+        "pin_name": "PT69B",
+        "dir": "pi_to_ecp5"
+      },
+      "HAT_IRQ": {
+        "pi_gpio": 25,
+        "pi_physical": 22,
+        "ball": "C12",
+        "bank": 1,
+        "pin_name": "PT74B",
+        "dir": "ecp5_to_pi"
+      },
+      "HAT_RESET_N": {
+        "pi_gpio": 24,
+        "pi_physical": 18,
+        "ball": "B12",
+        "bank": 1,
+        "pin_name": "PT74A",
+        "dir": "pi_to_ecp5"
+      },
+      "HAT_PPS": {
+        "pi_gpio": 4,
+        "pi_physical": 7,
+        "ball": "A11",
+        "bank": 1,
+        "pin_name": "PT71A",
+        "dir": "ecp5_to_pi"
+      },
+      "HAT_UART_TX": {
+        "pi_gpio": 15,
+        "pi_physical": 10,
+        "pi_function": "RXD",
+        "ball": "A13",
+        "bank": 1,
+        "pin_name": "PT83A",
+        "dir": "ecp5_to_pi"
+      },
+      "HAT_UART_RX": {
+        "pi_gpio": 14,
+        "pi_physical": 8,
+        "pi_function": "TXD",
+        "ball": "A14",
+        "bank": 1,
+        "pin_name": "PT83B",
+        "dir": "pi_to_ecp5"
+      }
     },
     "uart": {
       "baud": 115200,
@@ -71,7 +226,10 @@
       "flow_control": "none",
       "primary_use": "DCF77 date/time telemetry FPGA to Raspberry Pi",
       "max_frame_bytes": 64,
-      "preferred_tx_window_ms": [993.0, 999.0],
+      "preferred_tx_window_ms": [
+        993.0,
+        999.0
+      ],
       "series_resistor_ohm": 33,
       "idle_pullup_ohm": 47000
     },
@@ -79,8 +237,14 @@
       "class": "Standard HAT+",
       "i2c_address": "0x50",
       "recommended_family": "CAT24C32-compatible",
-      "ID_SD": {"pi_gpio": 0, "pi_physical": 27},
-      "ID_SC": {"pi_gpio": 1, "pi_physical": 28},
+      "ID_SD": {
+        "pi_gpio": 0,
+        "pi_physical": 27
+      },
+      "ID_SC": {
+        "pi_gpio": 1,
+        "pi_physical": 28
+      },
       "bus_pullup_ohm": 3900,
       "wp_pullup_ohm": 1000,
       "connect_to_ecp5": false
@@ -113,15 +277,2652 @@
     "TMS": "T11"
   },
   "master_spi_flash": {
-    "FLASH_CS_N": {"ecp5_ball": "N8", "function": "CSSPIN"},
-    "FLASH_CLK": {"ecp5_ball": "N9", "function": "MCLK"},
-    "FLASH_MOSI": {"ecp5_ball": "T8", "function": "D0/MOSI"},
-    "FLASH_MISO": {"ecp5_ball": "T7", "function": "D1/MISO"}
+    "FLASH_CS_N": {
+      "ecp5_ball": "N8",
+      "function": "CSSPIN"
+    },
+    "FLASH_CLK": {
+      "ecp5_ball": "N9",
+      "function": "MCLK"
+    },
+    "FLASH_MOSI": {
+      "ecp5_ball": "T8",
+      "function": "D0/MOSI"
+    },
+    "FLASH_MISO": {
+      "ecp5_ball": "T7",
+      "function": "D1/MISO"
+    }
   },
   "reserved": {
-    "external_clock_optional": {"ball": "B9", "bank": 1, "pin_name": "PT47A/GR_PCLK1_0"},
-    "host_cluster_spare": {"ball": "A12", "bank": 1, "pin_name": "PT71B"},
-    "adc_cluster_spare": {"ball": "K15", "bank": 2, "pin_name": "PR32D/PCLKC2_0"}
+    "external_clock_optional": {
+      "ball": "B9",
+      "bank": 1,
+      "pin_name": "PT47A/GR_PCLK1_0"
+    },
+    "host_cluster_spare": {
+      "ball": "A12",
+      "bank": 1,
+      "pin_name": "PT71B"
+    },
+    "adc_cluster_spare": {
+      "ball": "K15",
+      "bank": 2,
+      "pin_name": "PR32D/PCLKC2_0"
+    }
   },
-  "source_policy": "Check this file against current Lattice FPGA-SC-02034 and the current Raspberry Pi HAT+ specification before fabrication."
+  "source_policy": "Checked against Lattice FPGA-SC-02034 (ECP5U-45 pinout, BG256) and the current Raspberry Pi HAT+ specification before fabrication. scripts/verify-bga-identity.ts enforces this file against the generated BGA footprint and fails if ball names were renumbered or reordered by an exporter.",
+  "ball_grid": {
+    "rows": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H",
+      "J",
+      "K",
+      "L",
+      "M",
+      "N",
+      "P",
+      "R",
+      "T"
+    ],
+    "cols": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "count": 256,
+    "naming_convention": "JESD-95 style BGA ball naming; row letters I, O, Q and S are omitted (16 rows x 16 columns)",
+    "orientation": "A1 is the top-left corner as seen from the component side; row A at the top, column 1 at the left",
+    "pad_numbering": "row-major from the top-left corner; pin1 = A1, pin16 = A16, pin17 = B1, pin256 = T16"
+  },
+  "ball_audit": {
+    "documented_balls": 69,
+    "unverified_balls": 187,
+    "documented_scope": "every ball named by docs/23, docs/27 and this plan (signal, sysconfig, reserved and power balls)",
+    "unverified_scope": "remaining BG256 balls: identity is grid-derived, not yet cross-checked against Lattice FPGA-SC-02034",
+    "identity_sha256": "2166a1f4b3aa8aaa1c99460c57361a8669496a53ff1f37ad08ecb6c8276ddbc6",
+    "identity_canonical_form": "pad:ball:rowcol:signal:kind, one line per ball, LF-joined, UTF-8",
+    "gate": "scripts/verify-bga-identity.ts fails on any grid, order, name or hash change; fabrication stays blocked until the unresolved balls are cross-checked against FPGA-SC-02034 and documented_balls reaches 256"
+  },
+  "balls": [
+    {
+      "ball": "A1",
+      "pad": 1,
+      "row": "A",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "A2",
+      "pad": 2,
+      "row": "A",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "A3",
+      "pad": 3,
+      "row": "A",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "A4",
+      "pad": 4,
+      "row": "A",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "A5",
+      "pad": 5,
+      "row": "A",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "A6",
+      "pad": 6,
+      "row": "A",
+      "col": 6,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "A7",
+      "pad": 7,
+      "row": "A",
+      "col": 7,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "A8",
+      "pad": 8,
+      "row": "A",
+      "col": 8,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "A9",
+      "pad": 9,
+      "row": "A",
+      "col": 9,
+      "signal": "HAT_SPI_SCLK",
+      "kind": "signal",
+      "bank": 1,
+      "audit": "documented"
+    },
+    {
+      "ball": "A10",
+      "pad": 10,
+      "row": "A",
+      "col": 10,
+      "signal": "HAT_SPI_MOSI",
+      "kind": "signal",
+      "bank": 1,
+      "audit": "documented"
+    },
+    {
+      "ball": "A11",
+      "pad": 11,
+      "row": "A",
+      "col": 11,
+      "signal": "HAT_PPS",
+      "kind": "signal",
+      "bank": 1,
+      "audit": "documented"
+    },
+    {
+      "ball": "A12",
+      "pad": 12,
+      "row": "A",
+      "col": 12,
+      "signal": "host_cluster_spare",
+      "kind": "reserved",
+      "bank": 1,
+      "audit": "documented"
+    },
+    {
+      "ball": "A13",
+      "pad": 13,
+      "row": "A",
+      "col": 13,
+      "signal": "HAT_UART_TX",
+      "kind": "signal",
+      "bank": 1,
+      "audit": "documented"
+    },
+    {
+      "ball": "A14",
+      "pad": 14,
+      "row": "A",
+      "col": 14,
+      "signal": "HAT_UART_RX",
+      "kind": "signal",
+      "bank": 1,
+      "audit": "documented"
+    },
+    {
+      "ball": "A15",
+      "pad": 15,
+      "row": "A",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "A16",
+      "pad": 16,
+      "row": "A",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B1",
+      "pad": 17,
+      "row": "B",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B2",
+      "pad": 18,
+      "row": "B",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B3",
+      "pad": 19,
+      "row": "B",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B4",
+      "pad": 20,
+      "row": "B",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B5",
+      "pad": 21,
+      "row": "B",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B6",
+      "pad": 22,
+      "row": "B",
+      "col": 6,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B7",
+      "pad": 23,
+      "row": "B",
+      "col": 7,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B8",
+      "pad": 24,
+      "row": "B",
+      "col": 8,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B9",
+      "pad": 25,
+      "row": "B",
+      "col": 9,
+      "signal": "external_clock_optional",
+      "kind": "reserved",
+      "bank": 1,
+      "audit": "documented"
+    },
+    {
+      "ball": "B10",
+      "pad": 26,
+      "row": "B",
+      "col": 10,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B11",
+      "pad": 27,
+      "row": "B",
+      "col": 11,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B12",
+      "pad": 28,
+      "row": "B",
+      "col": 12,
+      "signal": "HAT_RESET_N",
+      "kind": "signal",
+      "bank": 1,
+      "audit": "documented"
+    },
+    {
+      "ball": "B13",
+      "pad": 29,
+      "row": "B",
+      "col": 13,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B14",
+      "pad": 30,
+      "row": "B",
+      "col": 14,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B15",
+      "pad": 31,
+      "row": "B",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "B16",
+      "pad": 32,
+      "row": "B",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C1",
+      "pad": 33,
+      "row": "C",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C2",
+      "pad": 34,
+      "row": "C",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C3",
+      "pad": 35,
+      "row": "C",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C4",
+      "pad": 36,
+      "row": "C",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C5",
+      "pad": 37,
+      "row": "C",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C6",
+      "pad": 38,
+      "row": "C",
+      "col": 6,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C7",
+      "pad": 39,
+      "row": "C",
+      "col": 7,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C8",
+      "pad": 40,
+      "row": "C",
+      "col": 8,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C9",
+      "pad": 41,
+      "row": "C",
+      "col": 9,
+      "signal": "CLK_25M",
+      "kind": "signal",
+      "bank": 1,
+      "audit": "documented"
+    },
+    {
+      "ball": "C10",
+      "pad": 42,
+      "row": "C",
+      "col": 10,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C11",
+      "pad": 43,
+      "row": "C",
+      "col": 11,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C12",
+      "pad": 44,
+      "row": "C",
+      "col": 12,
+      "signal": "HAT_IRQ",
+      "kind": "signal",
+      "bank": 1,
+      "audit": "documented"
+    },
+    {
+      "ball": "C13",
+      "pad": 45,
+      "row": "C",
+      "col": 13,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C14",
+      "pad": 46,
+      "row": "C",
+      "col": 14,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C15",
+      "pad": 47,
+      "row": "C",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "C16",
+      "pad": 48,
+      "row": "C",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D1",
+      "pad": 49,
+      "row": "D",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D2",
+      "pad": 50,
+      "row": "D",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D3",
+      "pad": 51,
+      "row": "D",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D4",
+      "pad": 52,
+      "row": "D",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D5",
+      "pad": 53,
+      "row": "D",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D6",
+      "pad": 54,
+      "row": "D",
+      "col": 6,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D7",
+      "pad": 55,
+      "row": "D",
+      "col": 7,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D8",
+      "pad": 56,
+      "row": "D",
+      "col": 8,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D9",
+      "pad": 57,
+      "row": "D",
+      "col": 9,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D10",
+      "pad": 58,
+      "row": "D",
+      "col": 10,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D11",
+      "pad": 59,
+      "row": "D",
+      "col": 11,
+      "signal": "HAT_SPI_MISO",
+      "kind": "signal",
+      "bank": 1,
+      "audit": "documented"
+    },
+    {
+      "ball": "D12",
+      "pad": 60,
+      "row": "D",
+      "col": 12,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D13",
+      "pad": 61,
+      "row": "D",
+      "col": 13,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D14",
+      "pad": 62,
+      "row": "D",
+      "col": 14,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D15",
+      "pad": 63,
+      "row": "D",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "D16",
+      "pad": 64,
+      "row": "D",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E1",
+      "pad": 65,
+      "row": "E",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E2",
+      "pad": 66,
+      "row": "E",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E3",
+      "pad": 67,
+      "row": "E",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E4",
+      "pad": 68,
+      "row": "E",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E5",
+      "pad": 69,
+      "row": "E",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E6",
+      "pad": 70,
+      "row": "E",
+      "col": 6,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E7",
+      "pad": 71,
+      "row": "E",
+      "col": 7,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E8",
+      "pad": 72,
+      "row": "E",
+      "col": 8,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E9",
+      "pad": 73,
+      "row": "E",
+      "col": 9,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E10",
+      "pad": 74,
+      "row": "E",
+      "col": 10,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E11",
+      "pad": 75,
+      "row": "E",
+      "col": 11,
+      "signal": "HAT_SPI_CS_N",
+      "kind": "signal",
+      "bank": 1,
+      "audit": "documented"
+    },
+    {
+      "ball": "E12",
+      "pad": 76,
+      "row": "E",
+      "col": 12,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E13",
+      "pad": 77,
+      "row": "E",
+      "col": 13,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E14",
+      "pad": 78,
+      "row": "E",
+      "col": 14,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E15",
+      "pad": 79,
+      "row": "E",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "E16",
+      "pad": 80,
+      "row": "E",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "F1",
+      "pad": 81,
+      "row": "F",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "F2",
+      "pad": 82,
+      "row": "F",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "F3",
+      "pad": 83,
+      "row": "F",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "F4",
+      "pad": 84,
+      "row": "F",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "F5",
+      "pad": 85,
+      "row": "F",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "F6",
+      "pad": 86,
+      "row": "F",
+      "col": 6,
+      "signal": "VCCIO0",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "F7",
+      "pad": 87,
+      "row": "F",
+      "col": 7,
+      "signal": "VCCIO0",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "F8",
+      "pad": 88,
+      "row": "F",
+      "col": 8,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "F9",
+      "pad": 89,
+      "row": "F",
+      "col": 9,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "F10",
+      "pad": 90,
+      "row": "F",
+      "col": 10,
+      "signal": "VCCIO1",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "F11",
+      "pad": 91,
+      "row": "F",
+      "col": 11,
+      "signal": "VCCIO1",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "F12",
+      "pad": 92,
+      "row": "F",
+      "col": 12,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "F13",
+      "pad": 93,
+      "row": "F",
+      "col": 13,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "F14",
+      "pad": 94,
+      "row": "F",
+      "col": 14,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "F15",
+      "pad": 95,
+      "row": "F",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "F16",
+      "pad": 96,
+      "row": "F",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "G1",
+      "pad": 97,
+      "row": "G",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "G2",
+      "pad": 98,
+      "row": "G",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "G3",
+      "pad": 99,
+      "row": "G",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "G4",
+      "pad": 100,
+      "row": "G",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "G5",
+      "pad": 101,
+      "row": "G",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "G6",
+      "pad": 102,
+      "row": "G",
+      "col": 6,
+      "signal": "VCC",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "G7",
+      "pad": 103,
+      "row": "G",
+      "col": 7,
+      "signal": "VCC",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "G8",
+      "pad": 104,
+      "row": "G",
+      "col": 8,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "G9",
+      "pad": 105,
+      "row": "G",
+      "col": 9,
+      "signal": "VCC",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "G10",
+      "pad": 106,
+      "row": "G",
+      "col": 10,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "G11",
+      "pad": 107,
+      "row": "G",
+      "col": 11,
+      "signal": "VCCAUX",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "G12",
+      "pad": 108,
+      "row": "G",
+      "col": 12,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "G13",
+      "pad": 109,
+      "row": "G",
+      "col": 13,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "G14",
+      "pad": 110,
+      "row": "G",
+      "col": 14,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "G15",
+      "pad": 111,
+      "row": "G",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "G16",
+      "pad": 112,
+      "row": "G",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "H1",
+      "pad": 113,
+      "row": "H",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "H2",
+      "pad": 114,
+      "row": "H",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "H3",
+      "pad": 115,
+      "row": "H",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "H4",
+      "pad": 116,
+      "row": "H",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "H5",
+      "pad": 117,
+      "row": "H",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "H6",
+      "pad": 118,
+      "row": "H",
+      "col": 6,
+      "signal": "VCCIO7",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "H7",
+      "pad": 119,
+      "row": "H",
+      "col": 7,
+      "signal": "VCCIO7",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "H8",
+      "pad": 120,
+      "row": "H",
+      "col": 8,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "H9",
+      "pad": 121,
+      "row": "H",
+      "col": 9,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "H10",
+      "pad": 122,
+      "row": "H",
+      "col": 10,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "H11",
+      "pad": 123,
+      "row": "H",
+      "col": 11,
+      "signal": "VCCIO2",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "H12",
+      "pad": 124,
+      "row": "H",
+      "col": 12,
+      "signal": "PGA_SCK",
+      "kind": "signal",
+      "bank": 2,
+      "audit": "documented"
+    },
+    {
+      "ball": "H13",
+      "pad": 125,
+      "row": "H",
+      "col": 13,
+      "signal": "PGA_MOSI",
+      "kind": "signal",
+      "bank": 2,
+      "audit": "documented"
+    },
+    {
+      "ball": "H14",
+      "pad": 126,
+      "row": "H",
+      "col": 14,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "H15",
+      "pad": 127,
+      "row": "H",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "H16",
+      "pad": 128,
+      "row": "H",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "J1",
+      "pad": 129,
+      "row": "J",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "J2",
+      "pad": 130,
+      "row": "J",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "J3",
+      "pad": 131,
+      "row": "J",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "J4",
+      "pad": 132,
+      "row": "J",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "J5",
+      "pad": 133,
+      "row": "J",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "J6",
+      "pad": 134,
+      "row": "J",
+      "col": 6,
+      "signal": "VCCIO6",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "J7",
+      "pad": 135,
+      "row": "J",
+      "col": 7,
+      "signal": "VCCIO6",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "J8",
+      "pad": 136,
+      "row": "J",
+      "col": 8,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "J9",
+      "pad": 137,
+      "row": "J",
+      "col": 9,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "J10",
+      "pad": 138,
+      "row": "J",
+      "col": 10,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "J11",
+      "pad": 139,
+      "row": "J",
+      "col": 11,
+      "signal": "VCCIO2",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "J12",
+      "pad": 140,
+      "row": "J",
+      "col": 12,
+      "signal": "PGA_CS_N",
+      "kind": "signal",
+      "bank": 2,
+      "audit": "documented"
+    },
+    {
+      "ball": "J13",
+      "pad": 141,
+      "row": "J",
+      "col": 13,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "J14",
+      "pad": 142,
+      "row": "J",
+      "col": 14,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "J15",
+      "pad": 143,
+      "row": "J",
+      "col": 15,
+      "signal": "ADC_SDO",
+      "kind": "signal",
+      "bank": 2,
+      "audit": "documented"
+    },
+    {
+      "ball": "J16",
+      "pad": 144,
+      "row": "J",
+      "col": 16,
+      "signal": "ADC_SCK",
+      "kind": "signal",
+      "bank": 2,
+      "audit": "documented"
+    },
+    {
+      "ball": "K1",
+      "pad": 145,
+      "row": "K",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "K2",
+      "pad": 146,
+      "row": "K",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "K3",
+      "pad": 147,
+      "row": "K",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "K4",
+      "pad": 148,
+      "row": "K",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "K5",
+      "pad": 149,
+      "row": "K",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "K6",
+      "pad": 150,
+      "row": "K",
+      "col": 6,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "K7",
+      "pad": 151,
+      "row": "K",
+      "col": 7,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "K8",
+      "pad": 152,
+      "row": "K",
+      "col": 8,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "K9",
+      "pad": 153,
+      "row": "K",
+      "col": 9,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "K10",
+      "pad": 154,
+      "row": "K",
+      "col": 10,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "K11",
+      "pad": 155,
+      "row": "K",
+      "col": 11,
+      "signal": "VCCIO3",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "K12",
+      "pad": 156,
+      "row": "K",
+      "col": 12,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "K13",
+      "pad": 157,
+      "row": "K",
+      "col": 13,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "K14",
+      "pad": 158,
+      "row": "K",
+      "col": 14,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "K15",
+      "pad": 159,
+      "row": "K",
+      "col": 15,
+      "signal": "adc_cluster_spare",
+      "kind": "reserved",
+      "bank": 2,
+      "audit": "documented"
+    },
+    {
+      "ball": "K16",
+      "pad": 160,
+      "row": "K",
+      "col": 16,
+      "signal": "ADC_CONV",
+      "kind": "signal",
+      "bank": 2,
+      "audit": "documented"
+    },
+    {
+      "ball": "L1",
+      "pad": 161,
+      "row": "L",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "L2",
+      "pad": 162,
+      "row": "L",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "L3",
+      "pad": 163,
+      "row": "L",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "L4",
+      "pad": 164,
+      "row": "L",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "L5",
+      "pad": 165,
+      "row": "L",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "L6",
+      "pad": 166,
+      "row": "L",
+      "col": 6,
+      "signal": "VCCIO8",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "L7",
+      "pad": 167,
+      "row": "L",
+      "col": 7,
+      "signal": "VCCAUX",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "L8",
+      "pad": 168,
+      "row": "L",
+      "col": 8,
+      "signal": "VCC",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "L9",
+      "pad": 169,
+      "row": "L",
+      "col": 9,
+      "signal": "VCC",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "L10",
+      "pad": 170,
+      "row": "L",
+      "col": 10,
+      "signal": "VCC",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "L11",
+      "pad": 171,
+      "row": "L",
+      "col": 11,
+      "signal": "VCCIO3",
+      "kind": "power",
+      "bank": null,
+      "audit": "documented"
+    },
+    {
+      "ball": "L12",
+      "pad": 172,
+      "row": "L",
+      "col": 12,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "L13",
+      "pad": 173,
+      "row": "L",
+      "col": 13,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "L14",
+      "pad": 174,
+      "row": "L",
+      "col": 14,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "L15",
+      "pad": 175,
+      "row": "L",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "L16",
+      "pad": 176,
+      "row": "L",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "M1",
+      "pad": 177,
+      "row": "M",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "M2",
+      "pad": 178,
+      "row": "M",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "M3",
+      "pad": 179,
+      "row": "M",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "M4",
+      "pad": 180,
+      "row": "M",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "M5",
+      "pad": 181,
+      "row": "M",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "M6",
+      "pad": 182,
+      "row": "M",
+      "col": 6,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "M7",
+      "pad": 183,
+      "row": "M",
+      "col": 7,
+      "signal": "D2_IO2",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "M8",
+      "pad": 184,
+      "row": "M",
+      "col": 8,
+      "signal": "DOUT_CSON",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "M9",
+      "pad": 185,
+      "row": "M",
+      "col": 9,
+      "signal": "WRITEN",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "M10",
+      "pad": 186,
+      "row": "M",
+      "col": 10,
+      "signal": "TDO",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "M11",
+      "pad": 187,
+      "row": "M",
+      "col": 11,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "M12",
+      "pad": 188,
+      "row": "M",
+      "col": 12,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "M13",
+      "pad": 189,
+      "row": "M",
+      "col": 13,
+      "signal": "LCD_SCL",
+      "kind": "signal",
+      "bank": 3,
+      "audit": "documented"
+    },
+    {
+      "ball": "M14",
+      "pad": 190,
+      "row": "M",
+      "col": 14,
+      "signal": "LCD_RST_N",
+      "kind": "signal",
+      "bank": 3,
+      "audit": "documented"
+    },
+    {
+      "ball": "M15",
+      "pad": 191,
+      "row": "M",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "M16",
+      "pad": 192,
+      "row": "M",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "N1",
+      "pad": 193,
+      "row": "N",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "N2",
+      "pad": 194,
+      "row": "N",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "N3",
+      "pad": 195,
+      "row": "N",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "N4",
+      "pad": 196,
+      "row": "N",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "N5",
+      "pad": 197,
+      "row": "N",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "N6",
+      "pad": 198,
+      "row": "N",
+      "col": 6,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "N7",
+      "pad": 199,
+      "row": "N",
+      "col": 7,
+      "signal": "D3_IO3",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "N8",
+      "pad": 200,
+      "row": "N",
+      "col": 8,
+      "signal": "CSSPIN",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "N9",
+      "pad": 201,
+      "row": "N",
+      "col": 9,
+      "signal": "MCLK",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "N10",
+      "pad": 202,
+      "row": "N",
+      "col": 10,
+      "signal": "CFG0",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "N11",
+      "pad": 203,
+      "row": "N",
+      "col": 11,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "N12",
+      "pad": 204,
+      "row": "N",
+      "col": 12,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "N13",
+      "pad": 205,
+      "row": "N",
+      "col": 13,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "N14",
+      "pad": 206,
+      "row": "N",
+      "col": 14,
+      "signal": "LCD_SDA",
+      "kind": "signal",
+      "bank": 3,
+      "audit": "documented"
+    },
+    {
+      "ball": "N15",
+      "pad": 207,
+      "row": "N",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "N16",
+      "pad": 208,
+      "row": "N",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "P1",
+      "pad": 209,
+      "row": "P",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "P2",
+      "pad": 210,
+      "row": "P",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "P3",
+      "pad": 211,
+      "row": "P",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "P4",
+      "pad": 212,
+      "row": "P",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "P5",
+      "pad": 213,
+      "row": "P",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "P6",
+      "pad": 214,
+      "row": "P",
+      "col": 6,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "P7",
+      "pad": 215,
+      "row": "P",
+      "col": 7,
+      "signal": "D4_IO4",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "P8",
+      "pad": 216,
+      "row": "P",
+      "col": 8,
+      "signal": "CS1N",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "P9",
+      "pad": 217,
+      "row": "P",
+      "col": 9,
+      "signal": "DONE",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "P10",
+      "pad": 218,
+      "row": "P",
+      "col": 10,
+      "signal": "CFG1",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "P11",
+      "pad": 219,
+      "row": "P",
+      "col": 11,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "P12",
+      "pad": 220,
+      "row": "P",
+      "col": 12,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "P13",
+      "pad": 221,
+      "row": "P",
+      "col": 13,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "P14",
+      "pad": 222,
+      "row": "P",
+      "col": 14,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "P15",
+      "pad": 223,
+      "row": "P",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "P16",
+      "pad": 224,
+      "row": "P",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "R1",
+      "pad": 225,
+      "row": "R",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "R2",
+      "pad": 226,
+      "row": "R",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "R3",
+      "pad": 227,
+      "row": "R",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "R4",
+      "pad": 228,
+      "row": "R",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "R5",
+      "pad": 229,
+      "row": "R",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "R6",
+      "pad": 230,
+      "row": "R",
+      "col": 6,
+      "signal": "D6_IO6",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "R7",
+      "pad": 231,
+      "row": "R",
+      "col": 7,
+      "signal": "D5_IO5",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "R8",
+      "pad": 232,
+      "row": "R",
+      "col": 8,
+      "signal": "CSN",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "R9",
+      "pad": 233,
+      "row": "R",
+      "col": 9,
+      "signal": "PROGRAMN",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "R10",
+      "pad": 234,
+      "row": "R",
+      "col": 10,
+      "signal": "CFG2",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "R11",
+      "pad": 235,
+      "row": "R",
+      "col": 11,
+      "signal": "TDI",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "R12",
+      "pad": 236,
+      "row": "R",
+      "col": 12,
+      "signal": "PPS_REF",
+      "kind": "signal",
+      "bank": 3,
+      "audit": "documented"
+    },
+    {
+      "ball": "R13",
+      "pad": 237,
+      "row": "R",
+      "col": 13,
+      "signal": "LCD_BL_EN",
+      "kind": "signal",
+      "bank": 3,
+      "audit": "documented"
+    },
+    {
+      "ball": "R14",
+      "pad": 238,
+      "row": "R",
+      "col": 14,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "R15",
+      "pad": 239,
+      "row": "R",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "R16",
+      "pad": 240,
+      "row": "R",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "T1",
+      "pad": 241,
+      "row": "T",
+      "col": 1,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "T2",
+      "pad": 242,
+      "row": "T",
+      "col": 2,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "T3",
+      "pad": 243,
+      "row": "T",
+      "col": 3,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "T4",
+      "pad": 244,
+      "row": "T",
+      "col": 4,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "T5",
+      "pad": 245,
+      "row": "T",
+      "col": 5,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "T6",
+      "pad": 246,
+      "row": "T",
+      "col": 6,
+      "signal": "D7_IO7",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "T7",
+      "pad": 247,
+      "row": "T",
+      "col": 7,
+      "signal": "D1_MISO",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "T8",
+      "pad": 248,
+      "row": "T",
+      "col": 8,
+      "signal": "D0_MOSI",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "T9",
+      "pad": 249,
+      "row": "T",
+      "col": 9,
+      "signal": "INITN",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "T10",
+      "pad": 250,
+      "row": "T",
+      "col": 10,
+      "signal": "TCK",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "T11",
+      "pad": 251,
+      "row": "T",
+      "col": 11,
+      "signal": "TMS",
+      "kind": "sysconfig",
+      "bank": 8,
+      "audit": "documented"
+    },
+    {
+      "ball": "T12",
+      "pad": 252,
+      "row": "T",
+      "col": 12,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "T13",
+      "pad": 253,
+      "row": "T",
+      "col": 13,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "T14",
+      "pad": 254,
+      "row": "T",
+      "col": 14,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "T15",
+      "pad": 255,
+      "row": "T",
+      "col": 15,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    },
+    {
+      "ball": "T16",
+      "pad": 256,
+      "row": "T",
+      "col": 16,
+      "signal": null,
+      "kind": "unassigned",
+      "bank": null,
+      "audit": "unverified"
+    }
+  ]
 }

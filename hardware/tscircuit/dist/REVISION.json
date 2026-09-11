@@ -1,0 +1,51 @@
+{
+  "revision": "rev0",
+  "board": "raspberry_pi_hatplus",
+  "generated_at": "2026-09-11T21:36:23.732Z",
+  "git": {
+    "commit": "afa5b3c9b93def68113f78c3fda35d23e40feb6f",
+    "commit_short": "afa5b3c",
+    "branch": "main",
+    "source_path": "hardware/tscircuit",
+    "source_dirty": true
+  },
+  "toolchain": {
+    "node": "v22.23.1",
+    "tscircuit": "0.0.2465",
+    "tscircuit_pinned": "0.0.2465",
+    "tscircuit_core": "0.0.1845",
+    "tscircuit_core_pinned": "0.0.1845",
+    "tsx": "4.23.13",
+    "engines_node": ">=22"
+  },
+  "artifacts": [
+    {
+      "path": "dist/circuit-json/dcf77-hat.circuit.json",
+      "present": true,
+      "bytes": 2675386,
+      "sha256": "8b71cb238df291dad3d7d329f4e5f99a329fbf3b7ec84bfa9b91dfd138c8e136"
+    },
+    {
+      "path": "dist/kicad-pre-quilter/dcf77-hat.zip",
+      "present": true,
+      "bytes": 6679938,
+      "sha256": "ee7bd925b23606bc957a3feb3aee88a1f33113bcbc3ddbd323fbe6636075efd6"
+    },
+    {
+      "path": "dist/circuit-json/placement-regions.json",
+      "present": true,
+      "bytes": 13329,
+      "sha256": "d61852ad470d1aadc3d43c527b28ebacf0b305d6d0b9ed20b4cd6c651838c1e1"
+    },
+    {
+      "path": "dist/circuit-json/board-rules.json",
+      "present": true,
+      "bytes": 2459,
+      "sha256": "e33da93bc942ce5b7f2923b7044574af53d72539b30c0d62223fd3b3d054c130"
+    }
+  ],
+  "notes": [
+    "dist/kicad-pre-quilter/dcf77-hat.zip is the pre-Quilter KiCad interchange archive (review + Quilter input), not a released fabrication package.",
+    "Post-Quilter KiCad + Gerbers/BOM/PnP are archived separately under dist/kicad-post-quilter/ and dist/fabrication/ once a Quilter run is reviewed."
+  ]
+}

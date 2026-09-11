@@ -12,7 +12,7 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "types": ["@tscircuit/core"]
+    "types": ["node", "@tscircuit/core"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts"]
 }

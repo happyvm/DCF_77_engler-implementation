@@ -1,0 +1,538 @@
+{
+  "revision": "rev0",
+  "generator": "hardware/tscircuit/src/board/quilter.ts",
+  "board": {
+    "width": 65,
+    "height": 56.5,
+    "thickness": 1.6,
+    "layers": 4,
+    "origin": "board centre; x grows to the right, y grows toward the Raspberry Pi header edge",
+    "note": "Raspberry Pi Standard HAT+ outline. Confirm against the current HAT+ mechanical drawing before fabrication."
+  },
+  "mounting_holes": [
+    {
+      "ref": "H1",
+      "x": -29,
+      "y": 24.75
+    },
+    {
+      "ref": "H2",
+      "x": 29,
+      "y": 24.75
+    },
+    {
+      "ref": "H3",
+      "x": -29,
+      "y": -24.75
+    },
+    {
+      "ref": "H4",
+      "x": 29,
+      "y": -24.75
+    }
+  ],
+  "locked_placements": [
+    {
+      "ref": "ANT1",
+      "x": -24.7,
+      "y": -17.2,
+      "rotation": 0,
+      "region": "ferrite_afe",
+      "reason": "integrated ferrite at the board edge farthest from the Pi header, ECP5 and the switching regulator; X magnetic axis along the board Y axis; pulled clear of mounting hole H3 by 0.7 mm so the ferrite pads cannot land on the hole"
+    },
+    {
+      "ref": "CANT1",
+      "x": -30.9,
+      "y": -10.5,
+      "rotation": 0,
+      "region": "ferrite_afe",
+      "reason": "560 pF tuning network immediately beside the antenna pads, on the quiet row above the ferrite"
+    },
+    {
+      "ref": "CANT2",
+      "x": -27.35,
+      "y": -10.5,
+      "rotation": 0,
+      "region": "ferrite_afe",
+      "reason": "22 pF tuning network immediately beside the antenna pads, on the quiet row above the ferrite"
+    },
+    {
+      "ref": "RANT",
+      "x": -23.8,
+      "y": -10.5,
+      "rotation": 0,
+      "region": "ferrite_afe",
+      "reason": "330 kOhm damping resistor immediately beside the antenna pads, on the quiet row above the ferrite"
+    },
+    {
+      "ref": "U_BUF",
+      "x": -27,
+      "y": -5.4,
+      "rotation": 0,
+      "region": "ferrite_afe",
+      "reason": "OPA810 high-impedance input cluster directly above the tuned network; no long stub at the high-impedance node (y nudged 0.1 mm up so the rendered courtyards keep the >= 2.5 mm edge-to-edge gap to the CANT row)"
+    },
+    {
+      "ref": "C_BUF",
+      "x": -22.8,
+      "y": -5.5,
+      "rotation": 0,
+      "region": "ferrite_afe",
+      "reason": "AC-coupling / bias interface capacitor kept at the OPA810 output"
+    },
+    {
+      "ref": "U_PPS",
+      "x": 9.5,
+      "y": 9,
+      "rotation": 0,
+      "region": "host_debug",
+      "reason": "external PPS output buffer in the digital region, away from the ferrite; PPS_REF routes directly to it"
+    }
+  ],
+  "regions": [
+    {
+      "id": "ferrite_afe",
+      "name": "quiet ferrite / AFE zone",
+      "quilter": "optimise",
+      "bounds": {
+        "x": -32.5,
+        "y": -28.25,
+        "width": 15.5,
+        "height": 32.25
+      },
+      "rules": [
+        "no fast Pi/FPGA trace under the ferrite/input region",
+        "no switching-regulator node or inductor nearby",
+        "no ECP5 clock trace nearby",
+        "minimise ANT_IN copper length",
+        "no unused test stub on the high-impedance node"
+      ],
+      "members": [
+        "ANT1",
+        "CANT1",
+        "CANT2",
+        "RANT",
+        "U_BUF",
+        "C_BUF",
+        "R1",
+        "R2",
+        "CVCM1",
+        "CVCM2",
+        "CVCM3"
+      ]
+    },
+    {
+      "id": "filter",
+      "name": "LTC1562 band-pass region",
+      "quilter": "optimise",
+      "bounds": {
+        "x": -16.5,
+        "y": -28.25,
+        "width": 13,
+        "height": 22.25
+      },
+      "rules": [
+        "place the eleven programming resistors immediately around the LTC1562 pins",
+        "keep section-to-section nodes short",
+        "no buck switch node, ECP5 clock, ADC SCK or Pi fast trace through the filter area",
+        "bypass AGND locally with a short return"
+      ],
+      "members": [
+        "U_BPF",
+        "RIN1",
+        "RQ1",
+        "R21",
+        "RIN2",
+        "RQ2",
+        "R22",
+        "RIN3",
+        "RQ3",
+        "R23",
+        "RIN4",
+        "RQ4",
+        "R24",
+        "CBPF1",
+        "CBPF2"
+      ]
+    },
+    {
+      "id": "pga",
+      "name": "LTC6912 PGA region",
+      "quilter": "optimise",
+      "bounds": {
+        "x": -16.5,
+        "y": -5.25,
+        "width": 13,
+        "height": 11.5
+      },
+      "rules": [
+        "1 uF coupling capacitor and 1 MOhm bias resistor immediately at the PGA input",
+        "AGND bypass parts directly beside the IC",
+        "no PGA SPI routing underneath the ferrite or filter sections",
+        "keep the PGA output route short to the ADC / OPA2835 island"
+      ],
+      "members": [
+        "U_PGA",
+        "C_PGAIN",
+        "R_PGABIAS",
+        "CPGA1",
+        "CPGA2",
+        "RPGA_SHDN",
+        "RS_PGA_SCK",
+        "RS_PGA_MOSI",
+        "RS_PGA_CS"
+      ]
+    },
+    {
+      "id": "adc",
+      "name": "ADC / driver / LT3042 region",
+      "quilter": "optimise",
+      "bounds": {
+        "x": -3,
+        "y": -28.25,
+        "width": 15,
+        "height": 17
+      },
+      "rules": [
+        "ADC sits on the analog/digital boundary",
+        "LT3042, OPA2835 and ADC decoupling stay compact",
+        "ADC digital signals leave toward the ECP5",
+        "reference/common-mode network protected from digital return currents"
+      ],
+      "members": [
+        "U_ADC",
+        "U_DRV",
+        "U_ADCLDO",
+        "RSET_ADC",
+        "CSET_ADC",
+        "CADC1",
+        "CADC2",
+        "CADC3",
+        "CADC4",
+        "CREF1",
+        "R_ADCIN_P",
+        "R_ADCIN_N",
+        "C_ADCIN",
+        "R_VCMADC1",
+        "R_VCMADC2"
+      ]
+    },
+    {
+      "id": "power_1v1",
+      "name": "1.1 V core power region",
+      "quilter": "optimise",
+      "bounds": {
+        "x": -3,
+        "y": -12,
+        "width": 15,
+        "height": 15
+      },
+      "rules": [
+        "the sole local switching buck lives in the digital region only",
+        "minimum practical SW copper area",
+        "inductor immediately adjacent to the switch node / output capacitors",
+        "VIN capacitor immediately adjacent to VIN/GND"
+      ],
+      "members": [
+        "U_CORE",
+        "L_CORE",
+        "CIN_CORE1",
+        "CIN_CORE2",
+        "COUT_CORE1",
+        "COUT_CORE2",
+        "RFSET",
+        "RMODE",
+        "RFB_TOP",
+        "RFB_BOT",
+        "CFF_CORE",
+        "U_SW",
+        "RON_PD",
+        "CT_SW",
+        "CAFE_R",
+        "CAFE1",
+        "CAFE2",
+        "CAFE3",
+        "U_AUXLDO",
+        "CAUXLDO_IN",
+        "CAUXLDO_OUT"
+      ]
+    },
+    {
+      "id": "host_debug",
+      "name": "Raspberry Pi host / PPS / ID-EEPROM region",
+      "quilter": "optimise",
+      "bounds": {
+        "x": -3,
+        "y": 4,
+        "width": 15,
+        "height": 17
+      },
+      "rules": [
+        "HAT SPI/UART stays in the digital/top region",
+        "UART activity normally confined to the end-of-second tail",
+        "PPS_REF routes directly to the output buffer/connector",
+        "no Bank 1/2/3 fast signal detours through the ferrite/OPA810 region"
+      ],
+      "members": [
+        "U_EE",
+        "J3",
+        "U_PPS",
+        "RPS1",
+        "RS_UART_TX",
+        "RS_UART_RX",
+        "RUART_TX",
+        "RUART_RX",
+        "RS_SPI_SCLK",
+        "RS_SPI_MOSI",
+        "RS_SPI_MISO",
+        "RS_SPI_CS",
+        "RRST",
+        "RIRQ",
+        "RTPS_UP",
+        "RTPS_DN",
+        "REESD",
+        "REESC",
+        "REEWP",
+        "CEE1",
+        "CVD1",
+        "CVD2",
+        "CVD3"
+      ]
+    },
+    {
+      "id": "ecp5_core",
+      "name": "ECP5 BG256 region",
+      "quilter": "optimise",
+      "bounds": {
+        "x": 12,
+        "y": -1,
+        "width": 20.5,
+        "height": 16
+      },
+      "rules": [
+        "ECP5 BGA escape and plane continuity reviewed manually",
+        "no Bank 1/2/3 fast signal detours through the ferrite/OPA810 region",
+        "unused Bank 6/7 pins get no decorative test routing"
+      ],
+      "members": [
+        "U1"
+      ]
+    },
+    {
+      "id": "ecp5_flash",
+      "name": "ECP5 configuration flash / JTAG / decoupling region",
+      "quilter": "optimise",
+      "bounds": {
+        "x": 12,
+        "y": -20.45,
+        "width": 20.5,
+        "height": 19.45
+      },
+      "rules": [
+        "flash adjacent to Bank 8",
+        "MCLK/CSSPIN/MOSI/MISO short and local",
+        "no configuration clock route toward ferrite/OPA810/LTC1562",
+        "JTAG footprint reachable from the board edge",
+        "no decorative routing on unused Bank-8 configuration pins"
+      ],
+      "members": [
+        "U_FLASH",
+        "J2",
+        "RFLASH1",
+        "RFLASH2",
+        "RFLASH3",
+        "RFLASH4",
+        "RFLASH5",
+        "RFLASH6",
+        "RCFG0",
+        "RCFG1",
+        "RPROG",
+        "RINIT",
+        "RDONE",
+        "RTDI",
+        "RTMS",
+        "RTDO",
+        "RTCK",
+        "CORE1",
+        "CORE2",
+        "CORE3",
+        "CORE4",
+        "CORE5",
+        "CORE6",
+        "CORE7",
+        "CORE8",
+        "CAUX1",
+        "CAUX2",
+        "CAUX3",
+        "CVIO8",
+        "CVIOBANK",
+        "C3V3D1",
+        "C3V3D2",
+        "C3V3D3",
+        "R3V3D_LINK"
+      ]
+    },
+    {
+      "id": "tcxo",
+      "name": "TCXO / TPS7A2033 region",
+      "quilter": "optimise",
+      "bounds": {
+        "x": 13,
+        "y": 15,
+        "width": 19.5,
+        "height": 6
+      },
+      "rules": [
+        "SiT5356 physically separated from the ferrite and the first analog stage",
+        "short direct route to ECP5 C9",
+        "no long clock test stub",
+        "clock return current stays in the digital region"
+      ],
+      "members": [
+        "U_CLK",
+        "U_CLKLDO",
+        "CCLK_LDO_IN",
+        "CCLK_LDO_OUT",
+        "CCLK1"
+      ]
+    },
+    {
+      "id": "lcd",
+      "name": "LCD mechanical zone (locked)",
+      "quilter": "optimise",
+      "bounds": {
+        "x": 13,
+        "y": -28.25,
+        "width": 19.5,
+        "height": 8.25
+      },
+      "rules": [
+        "LCD mechanical position/orientation locked before automated placement",
+        "do not route I2C beneath the integrated ferrite",
+        "keep backlight return current out of the analog input region",
+        "module is wider than the HAT+ outline; overhang is intentional"
+      ],
+      "members": [
+        "DS1",
+        "LCD_BLQ",
+        "RBL1",
+        "RBL2",
+        "RLCD_SCL",
+        "RLCD_SDA",
+        "CBL1",
+        "CBL2"
+      ]
+    }
+  ],
+  "keepouts": [
+    {
+      "id": "keepout_ferrite",
+      "purpose": "quiet ferrite / tuned-node zone",
+      "bounds": {
+        "x": -32.5,
+        "y": -23.5,
+        "width": 15.5,
+        "height": 20.5
+      },
+      "forbidden": [
+        "fast Pi/FPGA traces",
+        "switching-regulator nodes",
+        "ECP5 clocks",
+        "ADC SCK",
+        "ground/power switching-current traces"
+      ]
+    },
+    {
+      "id": "keepout_tcxo",
+      "purpose": "TCXO isolation from ferrite / first analog stage",
+      "bounds": {
+        "x": 13,
+        "y": 15,
+        "width": 19.5,
+        "height": 6
+      },
+      "forbidden": [
+        "ferrite coupling",
+        "AFE first-stage traces",
+        "buck switch node"
+      ]
+    },
+    {
+      "id": "keepout_buck_hotloop",
+      "purpose": "1.1 V buck hot loop confined to the digital power region",
+      "bounds": {
+        "x": -3,
+        "y": -12,
+        "width": 15,
+        "height": 15
+      },
+      "forbidden": [
+        "AFE",
+        "TCXO",
+        "ADC reference network"
+      ]
+    }
+  ],
+  "routing_priority": [
+    "antenna/input analog path",
+    "filter/PGA/ADC analog path",
+    "ADC reference/common-mode/power",
+    "TCXO -> ECP5 clock",
+    "FPGA power/configuration/JTAG",
+    "ADC digital interface",
+    "PGA/LCD low-rate control",
+    "Raspberry Pi host SPI/debug last"
+  ],
+  "hard_rules": [
+    "no fast Pi/FPGA trace under the ferrite/input region",
+    "no switching-regulator node near the AFE",
+    "SiT5356 physically separated from the ferrite / first analog stage",
+    "1V1_CORE buck in the digital region only",
+    "PI_3V3 distribution stays in the HAT/digital region",
+    "PI_5V reaches the power tree without crossing the AFE first",
+    "analog rails filtered/post-regulated as defined in power-plan.json"
+  ],
+  "mandatory_relations": [
+    {
+      "kind": "sameY",
+      "for": [
+        ".CANT1",
+        ".CANT2",
+        ".RANT"
+      ],
+      "why": "antenna tuning parts sit on one compact line beside the ferrite pads"
+    },
+    {
+      "kind": "yDist",
+      "top": ".U_BUF",
+      "bottom": ".CANT1",
+      "yDist": 2.5,
+      "edgeToEdge": true,
+      "why": "OPA810 high-impedance cluster directly above the tuned antenna network; ANT_IN must stay short"
+    },
+    {
+      "kind": "yDist",
+      "top": ".U_CLK",
+      "bottom": ".ANT1",
+      "yDist": 20,
+      "edgeToEdge": true,
+      "why": "SiT5356 physically separated from the ferrite / first analog stage"
+    },
+    {
+      "kind": "xDist",
+      "left": ".U_BUF",
+      "right": ".U_CORE",
+      "xDist": 20,
+      "edgeToEdge": true,
+      "why": "no switching-regulator node or inductor near the AFE"
+    },
+    {
+      "kind": "yDist",
+      "top": ".J1",
+      "bottom": ".ANT1",
+      "yDist": 30,
+      "edgeToEdge": true,
+      "why": "Pi supply/host current returns stay in the digital/HAT-header region"
+    }
+  ]
+}

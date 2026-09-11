@@ -1,0 +1,100 @@
+{
+  "revision": "rev0",
+  "board": {
+    "width": 65,
+    "height": 56.5,
+    "thickness": 1.6,
+    "layers": 4,
+    "origin": "board centre; x grows to the right, y grows toward the Raspberry Pi header edge",
+    "note": "Raspberry Pi Standard HAT+ outline. Confirm against the current HAT+ mechanical drawing before fabrication."
+  },
+  "routing_priority": [
+    "antenna/input analog path",
+    "filter/PGA/ADC analog path",
+    "ADC reference/common-mode/power",
+    "TCXO -> ECP5 clock",
+    "FPGA power/configuration/JTAG",
+    "ADC digital interface",
+    "PGA/LCD low-rate control",
+    "Raspberry Pi host SPI/debug last"
+  ],
+  "hard_rules": [
+    "no fast Pi/FPGA trace under the ferrite/input region",
+    "no switching-regulator node near the AFE",
+    "SiT5356 physically separated from the ferrite / first analog stage",
+    "1V1_CORE buck in the digital region only",
+    "PI_3V3 distribution stays in the HAT/digital region",
+    "PI_5V reaches the power tree without crossing the AFE first",
+    "analog rails filtered/post-regulated as defined in power-plan.json"
+  ],
+  "keepouts": [
+    {
+      "id": "keepout_ferrite",
+      "purpose": "quiet ferrite / tuned-node zone",
+      "bounds": {
+        "x": -32.5,
+        "y": -23.5,
+        "width": 15.5,
+        "height": 20.5
+      },
+      "forbidden": [
+        "fast Pi/FPGA traces",
+        "switching-regulator nodes",
+        "ECP5 clocks",
+        "ADC SCK",
+        "ground/power switching-current traces"
+      ]
+    },
+    {
+      "id": "keepout_tcxo",
+      "purpose": "TCXO isolation from ferrite / first analog stage",
+      "bounds": {
+        "x": 13,
+        "y": 15,
+        "width": 19.5,
+        "height": 6
+      },
+      "forbidden": [
+        "ferrite coupling",
+        "AFE first-stage traces",
+        "buck switch node"
+      ]
+    },
+    {
+      "id": "keepout_buck_hotloop",
+      "purpose": "1.1 V buck hot loop confined to the digital power region",
+      "bounds": {
+        "x": -3,
+        "y": -12,
+        "width": 15,
+        "height": 15
+      },
+      "forbidden": [
+        "AFE",
+        "TCXO",
+        "ADC reference network"
+      ]
+    }
+  ],
+  "locked_before_quilter": [
+    "ANT1",
+    "CANT1",
+    "CANT2",
+    "RANT",
+    "U_BUF",
+    "C_BUF",
+    "U_PPS"
+  ],
+  "constrained_regions": [
+    "ferrite_afe",
+    "filter",
+    "pga",
+    "adc",
+    "power_1v1",
+    "host_debug",
+    "ecp5_core",
+    "ecp5_flash",
+    "tcxo",
+    "lcd"
+  ]
+}
