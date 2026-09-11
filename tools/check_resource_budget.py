@@ -48,6 +48,7 @@ def main() -> int:
     parser.add_argument("netlist", type=Path)
     parser.add_argument("--budget", type=Path, default=Path("rtl/resource_budget.json"))
     parser.add_argument("--profile", default="release_reference")
+    parser.add_argument("--limits", default=None, help="limits key (defaults to 'ecp5_limits' for ecp5 profiles, 'limits' otherwise)")
     args = parser.parse_args()
 
     budget = json.loads(args.budget.read_text())
@@ -55,9 +56,15 @@ def main() -> int:
     if profile is None:
         raise SystemExit(f"unknown resource profile: {args.profile}")
 
+    # Select limits: explicit --limits flag wins, else ecp5_limits for profiles
+    # whose name contains 'ecp5', else 'limits'.
+    limits_key = args.limits or ("ecp5_limits" if "ecp5" in args.profile else "limits")
+    limits = budget.get(limits_key)
+    if limits is None:
+        raise SystemExit(f"limits key {limits_key!r} not found in budget")
+
     counts = cell_counts(json.loads(args.netlist.read_text()))
     usage = usage_from_counts(counts)
-    limits = budget["limits"]
     failed = False
     for resource, used in usage.items():
         limit = limits[resource]

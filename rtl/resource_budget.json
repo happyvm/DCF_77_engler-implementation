@@ -1,6 +1,7 @@
 {
   "reference_device": "XC3S1400AN",
-  "policy": "release_reference must not exceed the historical FPGA resource envelope",
+  "target_device": "LFE5U-45F-7BG256I",
+  "policy": "release_reference must not exceed the historical FPGA resource envelope; ECP5 synthesis targets LFE5U-45F whose limits supersede the reference for on-chip resources",
   "limits": {
     "lut4_equivalent": 22528,
     "flip_flops": 22528,
@@ -9,6 +10,15 @@
     "block_ram_kib": 576,
     "mult18x18": 32,
     "clock_managers": 8
+  },
+  "ecp5_limits": {
+    "lut4_equivalent": 43776,
+    "flip_flops": 43776,
+    "distributed_ram_kib": 342,
+    "ebr18_blocks": 108,
+    "block_ram_kib": 1944,
+    "mult18x18": 96,
+    "clock_managers": 4
   },
   "profiles": {
     "release_reference": {

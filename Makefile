@@ -342,7 +342,7 @@ resource-check: synth
 resource-check-ecp5: synth-ecp5
 	mkdir -p $(BUILD_DIR)/reports
 	bash -o pipefail -c '$(PYTHON) tools/check_resource_budget.py \
-		$(BUILD_DIR)/synth_ecp5.json --profile release_reference | \
+		$(BUILD_DIR)/synth_ecp5.json --profile release_reference --limits ecp5_limits | \
 		tee $(BUILD_DIR)/reports/resource-budget-ecp5.txt'
 
 # This is a device-level implementation used for a reproducible timing estimate.
