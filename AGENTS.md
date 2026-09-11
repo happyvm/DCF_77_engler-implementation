@@ -43,6 +43,12 @@ rtl/
 5. **Preuves formelles.** Si tu modifies un module avec un `.sby`, relance `sby -f formal/<module>.sby`.
 6. **Tout RTL compile avec `iverilog -g2012 -Wall`.** Pas de warning non documenté.
 7. **Push atomique.** `git commit` → `git push origin main`.
+8. **File locking — un seul ticket par fichier à la fois.** Avant de modifier un fichier RTL, vérifie qu'aucun AUTRE ticket `in_progress` ne travaille dessus :
+   - `GET /api/companies/{companyId}/issues?status=in_progress` → liste les tickets actifs
+   - si un autre ticket touche le même module (visible dans ses commentaires), NE PAS y toucher
+   - bloquer son propre ticket avec `blockedByIssueIds: [<ticket qui détient le module>]` et nommer l'owner
+   - jamais deux agents ne doivent éditer le même module dans le même cycle — ça corrompt les diffs
+   - cas typique à risque ici : `rtl/core/engeler_detector.sv`, `rtl/pm/*.sv` (BEA-25 formel + BEA-28 MULT touchent les mêmes blocs)
 
 ## Toolchain
 
