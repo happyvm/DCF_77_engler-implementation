@@ -1,0 +1,71 @@
+{
+ "module": "adc_if",
+ "file": "rtl/platform/adc_if.sv",
+ "kind": "io-interface",
+ "mode": "wrapper",
+ "clock": "clk",
+ "clock_target_mhz": 125.0,
+ "latency": "N/A (serial frame FSM)",
+ "throughput": "1 sample pair per frame (~32 clk)",
+ "config": "production-defaults",
+ "notes": "adc_sdo is an asynchronous serial input sampled by the clk FSM; adc_conv/adc_sck are output registers. Wrapper measures the clk-domain path only.",
+ "commit": "28ae137377fa",
+ "date": "2026-09-11T19:29:33Z",
+ "target_device": "LFE5U-45F-7BG256I",
+ "speed_grade": "-7",
+ "seed": 1,
+ "fmax_mhz": 211.372,
+ "worst_slack_ns": 3.269,
+ "timing_met": true,
+ "lut4": 93,
+ "ff": 137,
+ "ebr18": 0,
+ "mult18x18d": 0,
+ "pll": 0,
+ "ramw": 0,
+ "critical_path_summary": "dut.bit_count_TRELLIS_FF_Q_3 -> dut.ch0_sample_TRELLIS_FF_Q_3 [4.21 ns: logic 0.71 + route 3.50, 9 segs]",
+ "critical_paths": [
+  {
+   "source": "dut.bit_count_TRELLIS_FF_Q_3",
+   "dest": "dut.ch0_sample_TRELLIS_FF_Q_3",
+   "total_ns": 4.206,
+   "logic_ns": 0.708,
+   "route_ns": 3.498,
+   "segments": 9,
+   "types": [
+    "clk-to-q",
+    "logic",
+    "routing",
+    "setup"
+   ]
+  },
+  {
+   "source": "sig_ctr_TRELLIS_FF_Q_6",
+   "dest": "sig_o[9]$tr_io",
+   "total_ns": 5.148,
+   "logic_ns": 0.236,
+   "route_ns": 4.912,
+   "segments": 4,
+   "types": [
+    "clk-to-q",
+    "logic",
+    "routing"
+   ]
+  }
+ ],
+ "multi_seed": [
+  {
+   "seed": 1,
+   "fmax_mhz": 211.372
+  }
+ ],
+ "arch": {
+  "additions": 12,
+  "comparators_eq": 6,
+  "comparators_ne": 12,
+  "total_cells": 0,
+  "wire_bits": 190
+ },
+ "fingerprint": "d0ad424db870b56d",
+ "tool_versions": "yosys=Yosys 0.52 (git sha1 fee39a3284c90249e1d9684cf6944ffbbcbb8f90); nextpnr=\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.9-3); iverilog=Icarus Verilog version 12.0 (stable) (); python=Python 3.14.4; host=Linux-7.0.0-28-generic-x86_64-with-glibc2.43"
+}

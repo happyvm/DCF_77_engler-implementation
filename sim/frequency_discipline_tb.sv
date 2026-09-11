@@ -2,13 +2,16 @@
 
 module frequency_discipline_tb;
     localparam int FRAC = 8;
+    // Multi-cycle actuator latency: one 64-bit reduction per state, S_RAW..S_COMMIT.
+    localparam int LATENCY = 10;
     logic clk = 0;
     logic rst = 1;
     logic measurement_ce, measurement_valid;
     logic signed [15:0] phase_error;
     logic [7:0] measurement_quality;
     logic signed [15:0] estimated_offset, trim_inc;
-    logic frequency_locked, measurement_rejected;
+    logic frequency_locked, measurement_rejected, busy;
+    logic last_rejected;
     logic [7:0] measurement_age;
 
     always #5 clk = ~clk;
@@ -31,13 +34,21 @@ module frequency_discipline_tb;
         end
     endtask
 
+    // One observation; the pulse is a single cycle and the task waits for the
+    // multi-cycle actuator to commit before returning (values are unchanged
+    // from the single-cycle contract -- only the wait was added).  The
+    // one-cycle `measurement_rejected` pulse is latched into `last_rejected`
+    // at the observation edge, before it clears.
     task automatic measure(input integer phase, input bit valid, input integer quality);
         begin
             @(negedge clk);
             phase_error = phase; measurement_valid = valid;
             measurement_quality = quality; measurement_ce = 1;
             @(posedge clk); #1;
+            last_rejected = measurement_rejected;
             measurement_ce = 0;
+            @(posedge clk); #1;
+            while (busy) begin @(posedge clk); #1; end
         end
     endtask
 
@@ -53,6 +64,8 @@ module frequency_discipline_tb;
     integer i;
     integer held_trim;
     integer pre_recovery_trim;
+    integer busy_cycles;
+    bit inject_ce;
     initial begin
         // Frequency convergence and bounded response to representative noise.
         reset_dut();
@@ -71,10 +84,10 @@ module frequency_discipline_tb;
         // An impulsive point and a low-quality point must be hole-punched.
         held_trim = trim_inc;
         measure(2000, 1, 100);
-        check_condition(measurement_rejected && trim_inc == held_trim,
+        check_condition(last_rejected && trim_inc == held_trim,
                "phase outlier was not rejected");
         measure(144, 1, 1);
-        check_condition(measurement_rejected && trim_inc == held_trim,
+        check_condition(last_rejected && trim_inc == held_trim,
                "low-quality measurement was not rejected");
 
         // Missing observations age into holdover without changing the actuator.
@@ -87,11 +100,41 @@ module frequency_discipline_tb;
         // A valid return is accepted and cannot jump by more than the slew limit.
         pre_recovery_trim = trim_inc;
         measure(150, 1, 100);
-        check_condition(!measurement_rejected && measurement_age == 0,
+        check_condition(!last_rejected && measurement_age == 0,
                "valid measurement was not accepted after holdover");
         check_condition((trim_inc-pre_recovery_trim <= 100) &&
                (pre_recovery_trim-trim_inc <= 100),
                "holdover recovery made an abrupt trim jump");
+
+        // Multi-cycle contract: the accepted observation occupies a fixed
+        // LATENCY cycles and a measurement pulse presented while the FSM is
+        // busy cannot restart or overwrite the in-flight computation.
+        reset_dut();
+        @(negedge clk);
+        phase_error = 64; measurement_valid = 1;
+        measurement_quality = 100; measurement_ce = 1;
+        @(posedge clk); #1;
+        measurement_ce = 0;
+        busy_cycles = 0;
+        inject_ce = 1;
+        while (busy) begin
+            busy_cycles = busy_cycles + 1;
+            @(negedge clk);
+            measurement_ce = inject_ce; // illegal mid-flight pulse on first cycle
+            inject_ce = 0;
+            @(posedge clk); #1;
+        end
+        check_condition(busy_cycles == LATENCY,
+               "multi-cycle actuator latency is not 10 cycles");
+        // First observation (have_previous=0, acquisition): estimate stays 0,
+        // trim = clip(proportional + i_delta) = 64 + 32 = 96.
+        check_condition(measurement_age == 0 && estimated_offset == 0 && trim_inc == 96,
+               "first committed observation was corrupted by mid-flight pulse");
+        pre_recovery_trim = trim_inc;
+        measure(64, 1, 100); // a compliant follow-up observation still works
+        check_condition(!last_rejected &&
+               (trim_inc-pre_recovery_trim <= 100) && (pre_recovery_trim-trim_inc <= 100),
+               "mid-flight pulse desynchronised the follow-up observation");
 
         // Positive and negative integrator saturation, independently reset.
         reset_dut();
@@ -106,7 +149,7 @@ module frequency_discipline_tb;
         for (i = 0; i < 8; i = i + 1) measure(0, 1, 100);
         check_condition(trim_inc >= -1000, "negative anti-windup violated output limit");
 
-        $display("PASS: frequency_discipline convergence, limits, noise, outlier, holdover and recovery");
+        $display("PASS: frequency_discipline convergence, limits, noise, outlier, holdover, recovery and multi-cycle contract");
         $finish;
     end
 endmodule

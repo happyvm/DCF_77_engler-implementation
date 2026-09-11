@@ -398,3 +398,48 @@ tool-versions:
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+# ============================================================================
+# BEA-37 — block / subsystem timing characterisation
+# ----------------------------------------------------------------------------
+# Reproducible per-block and per-subsystem Fmax / resource / critical-path
+# mapping.  Every benchmark runs Yosys synth_ecp5 + a real nextpnr-ecp5
+# place-and-route on the LFE5U-45F-7BG256I target and reads the post-route
+# --report.  A missing artefact, a Yosys/nextpnr failure or a parsing failure
+# makes the command exit non-zero (no silent success).
+#
+# Blocks:     python3 -m tools.timing.run  (see tools/timing/registry.py)
+# Reports:    reports/timing/blocks.{csv,md}, reports/timing/subsystems.{csv,md}
+# ============================================================================
+TIMING  ?= $(PYTHON) -m tools.timing.run
+REPORT  ?= $(PYTHON) -m tools.timing.report
+COMPARE ?= $(PYTHON) -m tools.timing.compare
+
+.PHONY: timing timing-block timing-subsystem timing-all-blocks \
+	timing-all-subsystems timing-profile timing-reports timing-compare
+
+timing-block:
+	@test -n "$(BLOCK)" || { echo "usage: make timing-block BLOCK=<module>  (modules: tools/timing/registry.py)"; exit 2; }
+	$(TIMING) block --name $(BLOCK) $(if $(SEEDS),--seeds $(SEEDS),)
+
+timing-subsystem:
+	@test -n "$(SUBSYSTEM)" || { echo "usage: make timing-subsystem SUBSYSTEM=<name>  (names: tools/timing/registry.py)"; exit 2; }
+	$(TIMING) subsystem --name $(SUBSYSTEM) $(if $(SEEDS),--seeds $(SEEDS),)
+
+timing-all-blocks:
+	$(TIMING) all-blocks $(if $(SEEDS),--seeds $(SEEDS),)
+
+timing-all-subsystems:
+	$(TIMING) all-subsystems $(if $(SEEDS),--seeds $(SEEDS),)
+
+# Full relevant campaign: all isolated blocks + all subsystems + top-level.
+timing-profile:
+	$(TIMING) profile $(if $(SEEDS),--seeds $(SEEDS),)
+
+timing-reports:
+	$(REPORT)
+	@test -s reports/timing/blocks.csv || { echo "blocks.csv missing"; exit 1; }
+	@test -s reports/timing/subsystems.csv || { echo "subsystems.csv missing"; exit 1; }
+
+timing-compare:
+	$(COMPARE) $(if $(BEFORE),--before $(BEFORE),) $(if $(AFTER),--after $(AFTER),)

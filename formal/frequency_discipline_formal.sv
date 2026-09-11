@@ -1,7 +1,15 @@
 // Frequency discipline actuator: trim_inc is always inside +-MAX_TRIM,
-// never moves by more than MAX_TRIM_STEP per measurement, only moves on
-// an accepted measurement, and a rejection is only ever reported for a
+// never moves by more than MAX_TRIM_STEP per observation, only moves on an
+// accepted measurement, and a rejection is only ever reported for a
 // measurement that was actually presented.
+//
+// The actuator is multi-cycle (BEA-36).  The latency-dependent properties are
+// therefore expressed in terms of the explicit `busy` handshake rather than a
+// single-cycle assumption:
+//   * the outputs are frozen for the whole `busy` window, so a measurement
+//     pulse presented while a computation is in flight can never overwrite it;
+//   * a computation can only start the cycle after an observation pulse;
+//   * a locked / updated actuator can only appear at a committed observation.
 module frequency_discipline_formal;
     localparam int MAX_TRIM = 64;
     localparam int MAX_TRIM_STEP = 8;
@@ -14,7 +22,7 @@ module frequency_discipline_formal;
     logic past_valid = 1'b0;
 
     logic signed [15:0] estimated_offset, trim_inc;
-    logic frequency_locked, measurement_rejected;
+    logic frequency_locked, measurement_rejected, busy;
     logic [7:0] measurement_age;
 
     frequency_discipline #(
@@ -36,12 +44,32 @@ module frequency_discipline_formal;
         end
         if (past_valid && !$past(rst)) begin
             assert(step <= MAX_TRIM_STEP && step >= -MAX_TRIM_STEP);
-            if (!$past(measurement_ce))
-                assert(trim_inc == $past(trim_inc) && frequency_locked == $past(frequency_locked));
+
+            // Outputs are frozen while an observation is being processed: a
+            // measurement pulse during `busy` cannot overwrite the in-flight
+            // computation (nor can anything else perturb it).
+            if (busy && $past(busy)) begin
+                assert(trim_inc == $past(trim_inc));
+                assert(estimated_offset == $past(estimated_offset));
+                assert(frequency_locked == $past(frequency_locked));
+            end
+
+            // Outputs may only change on the cycle following an observation
+            // pulse (rejection / holdover) or on the commit cycle (the first
+            // idle cycle after a busy window).
+            if (!$past(measurement_ce) && !$past(busy))
+                assert(trim_inc == $past(trim_inc) &&
+                       frequency_locked == $past(frequency_locked));
+
+            // A computation can only be launched by an observation pulse.
+            if (busy && !$past(busy))
+                assert($past(measurement_ce));
+
             if (measurement_rejected)
                 assert($past(measurement_ce && measurement_valid));
+
             if (frequency_locked && !$past(frequency_locked))
-                assert($past(measurement_ce && measurement_valid));
+                assert($past(busy) || $past(measurement_ce));
         end
     end
 endmodule

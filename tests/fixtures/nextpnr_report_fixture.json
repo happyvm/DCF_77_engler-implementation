@@ -1,0 +1,32 @@
+{
+  "fmax": {
+    "$glbnet$clk": {
+      "achieved": 250.0,
+      "constraint": 125.0
+    }
+  },
+  "utilization": {
+    "TRELLIS_COMB": {"available": 43848, "used": 1234},
+    "TRELLIS_FF": {"available": 43848, "used": 567},
+    "DP16KD": {"available": 108, "used": 2},
+    "MULT18X18D": {"available": 72, "used": 3},
+    "EHXPLLL": {"available": 56, "used": 0}
+  },
+  "critical_paths": [
+    {
+      "from": "posedge $glbnet$clk",
+      "path": [
+        {"delay": 0.5, "from": {"cell": "top.a_q", "loc": [1, 2], "port": "Q"},
+         "to": {"cell": "top.a_q", "loc": [1, 2], "port": "Q"}, "type": "clk-to-q"},
+        {"delay": 1.0, "from": {"cell": "top.a_q", "loc": [1, 2], "port": "Q"},
+         "net": "n1", "to": {"cell": "top.mult", "loc": [3, 4], "port": "A"},
+         "type": "routing"},
+        {"delay": 0.25, "from": {"cell": "top.mult", "loc": [3, 4], "port": "A"},
+         "to": {"cell": "top.mult", "loc": [3, 4], "port": "F"}, "type": "logic"},
+        {"delay": 2.0, "from": {"cell": "top.mult", "loc": [3, 4], "port": "F"},
+         "net": "n2", "to": {"cell": "top.b_q", "loc": [5, 6], "port": "D"},
+         "type": "routing"}
+      ]
+    }
+  ]
+}

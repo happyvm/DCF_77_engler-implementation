@@ -1,0 +1,15 @@
+Info: Logic utilisation before packing:
+Info:     Total LUT4s:     1234/43848     2%
+Info:          RAM LUTs:     24/ 5481     0%
+
+Info: Device utilisation:
+Info: 	          TRELLIS_COMB:   1234/  43848    2%
+Info: 	            TRELLIS_FF:        567/  43848    1%
+Info: 	                DP16KD:          2/    108     1%
+Info: 	          MULT18X18D:        3/     72     4%
+
+Info: Max frequency for clock '$glbnet$clk': 250.00 MHz (PASS at 125.00 MHz)
+
+Info: Max delay <async>             -> posedge $glbnet$clk: 10.00 ns
+Info: Max delay posedge $glbnet$clk -> <async>            : 9.00 ns
+Info: Program finished normally.
