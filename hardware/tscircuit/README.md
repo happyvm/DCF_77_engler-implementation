@@ -312,15 +312,17 @@ npm run check:erc                        # gate over the four passes below
 npx tsci check source src/index.tsx      # ERC: 0 errors, 0 warnings
 npx tsci check netlist src/index.tsx     # connectivity: every net resolves
 npx tsci check shorts src/index.tsx      # no unintended copper shorts
-npx tsci check placement src/index.tsx   # placement DRC: 0 errors (2 known connector warnings)
+npx tsci check placement src/index.tsx   # placement DRC: 0 errors (3 allow-listed connector warnings)
 ```
 
-Results at this revision: source 0/0, netlist 0/0, shorts none, placement 0 errors with two
+Results at this revision: source 0/0, netlist 0/0, shorts none, placement 0 errors with three
 pre-existing informational `pcb_connector_not_in_accessible_orientation_warning` entries for
-`J1` (the HAT+ 40-pin header, whose orientation is fixed by the HAT+ mechanical spec) and
-`J2` (the JTAG recovery header, reachable from the board edge per the `ecp5_flash` region
-rule). `tsci check placement` treats any warning as a non-zero exit, so the two are allow-listed
-explicitly in `scripts/check-erc.ts` rather than masked. The `1V1_CORE` buck switch node, the
+connectors whose orientation is fixed by the mechanical spec (the `J1` HAT+ 40-pin header, the
+`J2` JTAG recovery header reachable from the board edge per the `ecp5_flash` region rule, and
+the external test/backlight connectors). `tsci check placement` treats any warning as a
+non-zero exit, so `scripts/check-erc.ts` allow-lists that one warning *type* explicitly rather
+than masking the entries: any other warning type still fails the gate, and the parser also
+fails if the reported count and the parsed entry count disagree. The `1V1_CORE` buck switch node, the
 AFE clusters and the TCXO remain outside every host/ESD part.
 `scripts/measure-courtyards.ts --check` also passes (146 rendered components, all region
 members declared >= measured).
@@ -475,7 +477,8 @@ the data sheet itself does not carry the `4.64k / 46.4k / 12.4k` row. **The resi
 `src/core/afe.tsx` are deliberately left at the `docs/21` values for now** — the topology and
 the pad identity are corrected, the frequency programming is not. This needs the source
 application note before it can be frozen, and it is the last analog item standing between
-Rev.0 and a Quilter run.
+Rev.0 and a Quilter run. It is tracked as **BEA-59** (child of BEA-42, owner DCF77 HW CAD
+Engineer); do not start the Rev.0 Quilter run before the R2/RQ values are frozen there.
 
 ### Supplier land patterns
 
