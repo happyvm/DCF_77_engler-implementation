@@ -565,3 +565,120 @@ préservée. **Objectif 125 MHz non atteint** — campagne multi-bloc en cours ;
 prochain bloc est `engeler_observables`.
 
 
+
+## 9. `engeler_observables` + `lcd_i2c_driver` (BEA-36, cycle courant)
+
+Après §8 le pire chemin routé du top était `observables_i.state` →
+`observables_i.mul_a` (**19,13 ns**), c'est-à-dire le multiplexeur d'opérandes
+câblé directement sur l'entrée d'un produit **33×33 signé** en un seul cycle.
+`mul2dsp` doit découper un tel produit en plusieurs `MULT18X18D` et en sommer les
+produits partiels avec une chaîne de retenue d'environ 30 cellules : aucun
+pipeline d'opérandes ne peut fermer 8 ns tant que le produit reste entier.
+
+### 9.1 `engeler_observables` : produit signé décomposé en membres 18×18
+
+Chaque produit 33×33 est décomposé **exactement** en quatre sous-produits 18×18
+signés (découpe en membres au bit `LIMB_LO`, entiers bas non signés de 17 bits,
+entiers hauts signés de 16 bits) :
+
+```
+a·b = a_lo·b_lo + (a_lo·b_hi + a_hi·b_lo)·2^17 + a_hi·b_hi·2^34
+```
+
+Chaque sous-produit tient dans **un seul `MULT18X18D` sans chaîne de retenue**,
+et la réassociation est exacte en complément à deux, donc bit-identique au
+produit mono-cycle tronqué à `PRODUCT_BITS`. Les produits sont sérialisés sur
+deux multiplicateurs physiques, une réduction arithmétique par cycle, via un
+micro-séquenceur à quatre états par produit (`S_LOAD` membres, `S_MA`
+`a_lo·b_lo` + `a_hi·b_hi`, `S_MB` `a_lo·b_hi` + `a_hi·b_lo`, `S_ACC` recombinaison
+et écriture de la destination), parcouru pour les quatre produits.
+
+- **Sémantique et précision DSP strictement préservées (bit-à-bit)** : mêmes
+  produits, mêmes sommes/soustractions `+`/`−` finales, même troncature
+  `PRODUCT_BITS`. Seules les frontières de registres internes ont bougé.
+- **Latence : 18 cycles** après le `cycle_valid` du banc (1 instantané +
+  4 produits × 4 états + 1 somme), contre 6 auparavant. Un `cycle_valid`
+  présenté hors de `S_IDLE` est ignoré (contrat de cadence inchangé).
+- Le budget est large : 18 clk contre 48 clk par cycle de porteuse dans le banc
+  système accéléré (`SAMPLE_PERIOD = 4`), et ~1600 clk en matériel.
+
+Vérification :
+
+| Contrôle | Résultat |
+|---|---|
+| `make test-observables` (vecteurs exacts 575 140 769 / 71 729) | PASS |
+| `make test-observables-equiv` (**599 observables**, opérandes aléatoires 33 bits vs modèle mono-cycle full-width) | PASS (bit-exact) |
+| `make test-goertzel` / `test-sample-cadence` | PASS |
+| `sby -f formal/engeler_observables.sby` (latence exacte = 18) | PASS |
+| `sby -f formal/goertzel_resonator.sby` / `engeler_goertzel_bank.sby` | PASS |
+
+### 9.2 `lcd_i2c_driver` : lecture de `frame` en deux étages + chiffres enregistrés
+
+Le chemin `observables` corrigé, le pire chemin du top est devenu
+`lcd_i.pos` → `frame_q` (**19,08 ns**) : yosys mappe la lecture combinatoire
+`frame[pos]` (40 entrées) sur un **multiplexeur à chaîne de retenue d'environ
+90 cellules `CCU2`** (`cmp2lcu`), dont le délai croît linéairement avec le
+nombre d'entrées.
+
+Deux changements, tous hors chemin d'échantillonnage (affichage à ~1 Hz) :
+
+1. **Lecture `frame` en deux étages enregistrés.** Le tableau `frame` est
+   réorganisé en cinq groupes de huit (`frame[0:4][0:7]`) ; l'état `SCAN_GRP`
+   charge les cinq octets de groupe par cinq multiplexeurs **8:1**
+   (`frame[g][pos[2:0]]`, indice de groupe constant), puis `SCAN` sélectionne le
+   groupe par un multiplexeur **5:1** (`grp_q[pos[5:3]]`). Trois petits
+   multiplexeurs séparés par un registre au lieu d'une chaîne de retenue de 40
+   entrées. Un cycle de plus par position, gratuit à 1 Hz.
+2. **Octets de chiffres enregistrés.** Les divisions décimales par constante
+   (`/10`, `%10`, `/100`) sont calculées **une fois** dans un étage de registres
+   (`hh10_q` … `q1_q`), la construction de `frame` ne faisant plus que
+   sélectionner des octets enregistrés. Sans cet étage, le pire chemin du top
+   était devenu `quality → %10 → digit → mux frame` (18,05 ns) : la chaîne de
+   retenue de la division partageait un cône avec la lecture de scan.
+
+Aucun changement de sémantique : mêmes caractères, mêmes positions, mêmes
+horodatages ; seules des frontières de registre internes ont bougé (latence du
+rendu +1 cycle, immatérielle à 1 Hz).
+
+Vérification :
+
+| Contrôle | Résultat |
+|---|---|
+| `make test-lcd` (protocole octet-par-octet, lignes exactes) | PASS |
+| `make test-integration` (top HAT, init LCD, interfaces) | PASS |
+| `make lint` | PASS (0 avertissement) |
+| `sby -f formal/lcd_i2c_driver.sby` (bmc + cover, protocole I2C aux broches) | PASS |
+
+### 9.3 Rapport de timing versionné (`make timing`, seed 1)
+
+| Champ | Valeur |
+|---|---|
+| Cible | `LFE5U-45F-7BG256I`, `release_reference`, 125 MHz |
+| Fmax obtenu | **57,77 MHz** (baseline : 21,54 ; §3 : 27,53 ; §5.1 : 29,21 ; §6 : 31,73 ; §7 : 37,40 ; §8 : 52,27) |
+| Slack pire chemin | **−9,31 ns** (8,00 − 17,31 ns) |
+| Chemin critique final | `core_i.detector_i.second_sync_i.magnitude_q` → `edge_armed` → `slew` (`second_phase_detector`) |
+| LUT4 | 9 484 |
+| FF | 7 321 |
+| EBR18 | 8 |
+| MULT18X18D | 28 |
+| PLL | 1 |
+
+Le chemin critique **quitte le banc Goertzel puis l'afficheur** : il est
+maintenant dans `second_phase_detector` (§9.4), le bloc P0 de `docs/39` §7
+(59,7 MHz isolé, mesure par seconde). Gain depuis le baseline :
+21,54 → **57,77 MHz (+168 %)**, toutes les limites du profil `release_reference`
+respectées, `MULT18X18D` inchangé (28/32), précision DSP préservée.
+**Objectif 125 MHz non atteint** — campagne multi-bloc en cours.
+
+### 9.4 Prochain bloc : `second_phase_detector`
+
+Pire chemin **17,31 ns** (`second_sync_i.magnitude_q[58]` → `edge_armed` →
+`slew`), sur la portion amont « magnitude → erreur de phase ». C'est un
+détecteur de front **une mesure par seconde** : comme `frequency_discipline`
+(§3), `pm_minute_sync` (§6) et les recherches ML (§8), il dispose de ~10⁸ cycles
+oisifs par mise à jour et le même traitement s'applique — budget de cycles
+explicite, calcul séquentiel multi-cycle, assertion de contrat.
+
+Après lui, l'itération continue « un bloc à la fois » sur `pm_phase_discriminator`
+(69,8), `second_phase_detector`/`pm_minute_sync`/recherches ML, et les
+corrélateurs PM / `engeler_pm_pipeline` (95–120 MHz) mentionnés en §5.4.

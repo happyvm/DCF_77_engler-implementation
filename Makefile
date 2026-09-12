@@ -14,10 +14,11 @@ BUILD_DIR ?= build
 	resource-check timing test-tools test-soft-history test-ml-controller \
 	test-frequency-discipline tool-versions clean test-integration synth-core \
 	test-evidence-aggregator test-calendar-ml test-field-sequencer test-pm-discriminator \
-	test-second-phase-ramp test-system test-pga test-hat-spi test-lcd test-system
+	test-second-phase-ramp test-system test-pga test-hat-spi test-lcd test-system \
+	test-observables-equiv test-sample-cadence
 
 test: test-adc-if test-pps test-telemetry test-uart test-goertzel \
-	test-observables test-prn test-pm-correlator test-pm-integrator \
+	test-observables test-observables-equiv test-prn test-pm-correlator test-pm-integrator \
 	test-pm-pipeline test-am-bit test-minute-sync test-minute-ml test-hour-ml \
 	test-second-phase test-lock-controller test-qualification-disabled test-tools \
 	test-soft-history test-ml-controller test-frequency-discipline test-integration \
@@ -165,6 +166,20 @@ $(BUILD_DIR)/engeler_observables_tb.vvp: \
 		sim/engeler_observables_tb.sv
 	mkdir -p $(BUILD_DIR)
 	$(IVERILOG) -g2012 -Wall -s engeler_observables_tb -o $@ $^
+
+# BEA-36: bit-exactness of the observables' signed-limb multiplier against the
+# original single-cycle full-width product, over many random operand pairs.
+test-observables-equiv: $(BUILD_DIR)/engeler_observables_equiv_tb.vvp
+	$(VVP) $<
+
+$(BUILD_DIR)/engeler_observables_equiv_tb.vvp: \
+		rtl/goertzel/goertzel_resonator.sv \
+		rtl/goertzel/engeler_goertzel_bank.sv \
+		rtl/goertzel/goertzel_complex_12.sv \
+		rtl/goertzel/engeler_observables.sv \
+		sim/engeler_observables_equiv_tb.sv
+	mkdir -p $(BUILD_DIR)
+	$(IVERILOG) -g2012 -Wall -s engeler_observables_equiv_tb -o $@ $^
 
 test-prn: $(BUILD_DIR)/dcf77_prn_generator_tb.vvp
 	$(VVP) $<

@@ -70,31 +70,38 @@ module lcd_i2c_driver #(
         units = 4'(v % 10);
     endfunction
 
-    logic [7:0] frame [0:39];
+    logic [7:0] frame [0:4][0:7];
     always_comb begin
-        for (int i = 0; i < 40; i = i + 1) frame[i] = 8'h20;
-        frame[0] = digit(tens({2'b0, hour}));   frame[1] = digit(units({2'b0, hour}));
-        frame[2] = ":";
-        frame[3] = digit(tens({1'b0, minute})); frame[4] = digit(units({1'b0, minute}));
-        frame[5] = ":";
-        frame[6] = digit(tens({1'b0, second})); frame[7] = digit(units({1'b0, second}));
-        frame[10] = "D"; frame[11] = "C"; frame[12] = "F";
+        for (int g = 0; g < 5; g = g + 1)
+            for (int k = 0; k < 8; k = k + 1) frame[g][k] = 8'h20;
+        // pos 0..7 -> group 0
+        frame[0][0] = hh10_q; frame[0][1] = hh1_q;
+        frame[0][2] = ":";
+        frame[0][3] = mm10_q; frame[0][4] = mm1_q;
+        frame[0][5] = ":";
+        frame[0][6] = ss10_q; frame[0][7] = ss1_q;
+        // pos 8..15 -> group 1 ("DCF" at 10..12, lock word at 14..17)
+        frame[1][2] = "D"; frame[1][3] = "C"; frame[1][4] = "F";
         case (lock_state)
-            3'd2: begin frame[14] = "L"; frame[15] = "O"; frame[16] = "C"; frame[17] = "K"; end
-            3'd3: begin frame[14] = "H"; frame[15] = "O"; frame[16] = "L"; frame[17] = "D"; end
-            3'd1: begin frame[14] = "A"; frame[15] = "C"; frame[16] = "Q"; frame[17] = " "; end
-            default: begin frame[14] = "S"; frame[15] = "R"; frame[16] = "C"; frame[17] = "H"; end
+            3'd2: begin frame[1][6] = "L"; frame[1][7] = "O"; frame[2][0] = "C"; frame[2][1] = "K"; end
+            3'd3: begin frame[1][6] = "H"; frame[1][7] = "O"; frame[2][0] = "L"; frame[2][1] = "D"; end
+            3'd1: begin frame[1][6] = "A"; frame[1][7] = "C"; frame[2][0] = "Q"; frame[2][1] = " "; end
+            default: begin frame[1][6] = "S"; frame[1][7] = "R"; frame[2][0] = "C"; frame[2][1] = "H"; end
         endcase
-        frame[20] = digit(tens({1'b0, day}));   frame[21] = digit(units({1'b0, day}));
-        frame[22] = "-";
-        frame[23] = digit(tens({3'b0, month})); frame[24] = digit(units({3'b0, month}));
-        frame[25] = "-";
-        frame[26] = digit(tens(year_lo_q)); frame[27] = digit(units(year_lo_q));
-        frame[30] = "Q"; frame[31] = ":";
-        frame[32] = digit(4'(qual_100_q));
-        frame[33] = digit(4'(qual_10_q % 7'd10));
-        frame[34] = digit(4'(quality % 8'd10));
-        if (minute_locked) begin frame[36] = "P"; frame[37] = "M"; end
+        // pos 16..23 -> group 2 (date, 20..27)
+        frame[2][4] = dd10_q; frame[2][5] = dd1_q;
+        frame[2][6] = "-";
+        frame[2][7] = mo10_q;
+        // pos 24..31 -> group 3
+        frame[3][0] = mo1_q;
+        frame[3][1] = "-";
+        frame[3][2] = yy10_q; frame[3][3] = yy1_q;
+        frame[3][6] = "Q"; frame[3][7] = ":";
+        // pos 32..39 -> group 4 (quality, 32..34, "PM" at 36..37)
+        frame[4][0] = q100_q;
+        frame[4][1] = q10_q;
+        frame[4][2] = q1_q;
+        if (minute_locked) begin frame[4][4] = "P"; frame[4][5] = "M"; end
     end
 
     // One-cycle-ahead decimal decomposition (see declaration).  Latency is
@@ -110,6 +117,26 @@ module lcd_i2c_driver #(
         end
     end
 
+    // Second render stage: the ASCII digit bytes themselves are registered, so
+    // the constant divides (`/10`, `%10`) end at a flop and never reach the
+    // frame/scan multiplexers. Without this the top-level critical path was
+    // `quality -> %10 -> digit -> frame mux` (18 ns): the divide carry chain
+    // shared a cone with the scan read.
+    logic [7:0] hh10_q, hh1_q, mm10_q, mm1_q, ss10_q, ss1_q;
+    logic [7:0] dd10_q, dd1_q, mo10_q, mo1_q, yy10_q, yy1_q;
+    logic [7:0] q100_q, q10_q, q1_q;
+    always_ff @(posedge clk) begin
+        hh10_q <= digit(tens({2'b0, hour}));   hh1_q <= digit(units({2'b0, hour}));
+        mm10_q <= digit(tens({1'b0, minute})); mm1_q <= digit(units({1'b0, minute}));
+        ss10_q <= digit(tens({1'b0, second})); ss1_q <= digit(units({1'b0, second}));
+        dd10_q <= digit(tens({1'b0, day}));    dd1_q <= digit(units({1'b0, day}));
+        mo10_q <= digit(tens({3'b0, month}));  mo1_q <= digit(units({3'b0, month}));
+        yy10_q <= digit(tens(year_lo_q));      yy1_q <= digit(units(year_lo_q));
+        q100_q <= digit(4'(qual_100_q));
+        q10_q  <= digit(4'(qual_10_q % 7'd10));
+        q1_q   <= digit(4'(quality % 8'd10));
+    end
+
     // --- Sequencer ---------------------------------------------------------
     // Init command list; index 0 and 1 are followed by CMD_WAIT.
     function automatic logic [7:0] init_command(input logic [3:0] idx);
@@ -123,9 +150,9 @@ module lcd_i2c_driver #(
     endfunction
     localparam logic [3:0] INIT_LAST = 4'd8;
 
-    typedef enum logic [3:0] {
+    typedef enum logic [4:0] {
         RESET_LOW, POWERUP, INIT_ADDR, INIT_CTRL, INIT_CMD, INIT_WAIT,
-        IDLE, SCAN, SCAN_DECIDE, ADDR_A, ADDR_C, ADDR_V, DATA_A, DATA_C, DATA_V, FLUSH
+        IDLE, SCAN_GRP, SCAN, SCAN_DECIDE, ADDR_A, ADDR_C, ADDR_V, DATA_A, DATA_C, DATA_V, FLUSH
     } state_t;
     state_t state;
     logic [WAIT_W-1:0] wait_count;
@@ -142,13 +169,21 @@ module lcd_i2c_driver #(
     logic pending_tick;
     logic [7:0] addr_q;              // registered DDRAM set-address
 
-    // The cell the sequencer is looking at is read into registers one clk
-    // before the dirty decision. Scanning a 40-entry frame/shadow pair
-    // combinationally (index mux *and* compare) from `pos` to the next-state
-    // logic was the isolated critical path here (pos -> state, 32.7 ns); the
-    // registered read cuts the mux out of that path. The scan is off the sample
-    // path, so the extra clk per position is free.
+    // The cell the sequencer is looking at is read into registers before the
+    // dirty decision. Scanning a 40-entry frame/shadow pair combinationally
+    // (index mux *and* compare) from `pos` to the next-state logic was the
+    // isolated critical path here (pos -> state, 32.7 ns); the registered read
+    // cuts the mux out of that path. The scan is off the sample path, so the
+    // extra clk per position is free.
+    //
+    // The frame itself is built as five 8-byte groups read in two register
+    // stages (SCAN_GRP -> SCAN): `frame[g][pos[2:0]]` is an 8:1 mux per group
+    // and `grp_q[pos[5:3]]` a 5:1 mux. Yosys maps a single flat 40:1 read onto
+    // a ~90-cell carry-chain multiplexer (~19 ns at 125 MHz), which was the
+    // top-level critical path before this split; two small muxes separated by a
+    // register keep each stage to a couple of LUT levels.
     logic [7:0] frame_q, shadow_q;
+    logic [7:0] grp_q [0:4];
     logic valid_q;
     wire pos_dirty = !valid_q || (shadow_q != frame_q);
     wire [7:0] ddram_address = (pos < 6'd20) ? 8'h80 + {2'b0, pos} : 8'hC0 + {2'b0, pos - 6'd20};
@@ -198,13 +233,19 @@ module lcd_i2c_driver #(
                     end else wait_count <= wait_count + 1'b1;
                 end
                 IDLE: if (pending_tick) begin
-                    pending_tick <= 1'b0; pos <= '0; state <= SCAN;
+                    pending_tick <= 1'b0; pos <= '0; state <= SCAN_GRP;
+                end
+                SCAN_GRP: begin
+                    // Stage 1: the five group bytes for this pos, one 8:1 mux
+                    // per group (constant group index keeps them small).
+                    for (int g = 0; g < 5; g = g + 1) grp_q[g] <= frame[g][pos[2:0]];
+                    state <= SCAN;
                 end
                 SCAN: begin
-                    // Registered read of the cell under inspection; SCAN_DECIDE
-                    // then sees a short registered compare instead of the
-                    // 40-entry index mux.
-                    frame_q  <= frame[pos];
+                    // Stage 2: registered select of the group, plus the
+                    // shadow/valid reads. SCAN_DECIDE then sees a short
+                    // registered compare instead of a deep index mux.
+                    frame_q  <= grp_q[pos[5:3]];
                     shadow_q <= shadow[pos];
                     valid_q  <= shadow_valid[pos];
                     state    <= SCAN_DECIDE;
@@ -219,7 +260,7 @@ module lcd_i2c_driver #(
                         state  <= ADDR_A;
                     end
                     else if (pos == 6'd39) state <= IDLE;
-                    else begin pos <= pos + 1'b1; state <= SCAN; end
+                    else begin pos <= pos + 1'b1; state <= SCAN_GRP; end
                 end
                 ADDR_A: begin send(1'b1, 1'b0, SLAVE_WRITE); state <= ADDR_C; end
                 ADDR_C: if (i2c_done) begin send(1'b0, 1'b0, CTRL_COMMAND); state <= ADDR_V; end
@@ -239,7 +280,7 @@ module lcd_i2c_driver #(
                 // for the data byte and its STOP before scanning on.
                 FLUSH: if (i2c_done) begin
                     if (pos == 6'd39) state <= IDLE;
-                    else begin pos <= pos + 1'b1; state <= SCAN; end
+                    else begin pos <= pos + 1'b1; state <= SCAN_GRP; end
                 end
                 default: state <= IDLE;
             endcase
