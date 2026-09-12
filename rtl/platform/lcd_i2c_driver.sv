@@ -89,12 +89,25 @@ module lcd_i2c_driver #(
         frame[22] = "-";
         frame[23] = digit(tens({3'b0, month})); frame[24] = digit(units({3'b0, month}));
         frame[25] = "-";
-        frame[26] = digit(tens(7'(year % 100))); frame[27] = digit(units(7'(year % 100)));
+        frame[26] = digit(tens(year_lo_q)); frame[27] = digit(units(year_lo_q));
         frame[30] = "Q"; frame[31] = ":";
-        frame[32] = digit(4'(quality / 8'd100));
-        frame[33] = digit(4'((quality / 8'd10) % 8'd10));
+        frame[32] = digit(4'(qual_100_q));
+        frame[33] = digit(4'(qual_10_q % 7'd10));
         frame[34] = digit(4'(quality % 8'd10));
         if (minute_locked) begin frame[36] = "P"; frame[37] = "M"; end
+    end
+
+    // One-cycle-ahead decimal decomposition (see declaration).  Latency is
+    // immaterial: the render only needs to be stable at the next tick, one
+    // second — ~10^8 clk_sys cycles — away.
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            year_lo_q <= '0; qual_100_q <= '0; qual_10_q <= '0;
+        end else begin
+            year_lo_q  <= 7'(year % 8'd100);
+            qual_100_q <= 8'(quality / 8'd100);
+            qual_10_q  <= 7'(quality / 8'd10);
+        end
     end
 
     // --- Sequencer ---------------------------------------------------------
@@ -120,7 +133,14 @@ module lcd_i2c_driver #(
     logic [5:0] pos;                 // 0..39
     logic [7:0] shadow [0:39];
     logic shadow_valid [0:39];
+    // Pipelined decimal decomposition: the two-level ones (year%100 then %10,
+    // quality/10 then %10, quality/100) are split across a register so the
+    // once-per-second render is not a single deep constant-divide chain.
+    logic [6:0] year_lo_q;           // year % 100
+    logic [7:0] qual_100_q;          // quality / 100
+    logic [6:0] qual_10_q;           // quality / 10
     logic pending_tick;
+    logic [7:0] addr_q;              // registered DDRAM set-address
 
     // The cell the sequencer is looking at is read into registers one clk
     // before the dirty decision. Scanning a 40-entry frame/shadow pair
@@ -144,7 +164,7 @@ module lcd_i2c_driver #(
             state <= RESET_LOW; wait_count <= '0; init_index <= '0; pos <= '0;
             lcd_rst_n <= 1'b0; ready <= 1'b0; ack_error <= 1'b0; pending_tick <= 1'b0;
             i2c_start <= 1'b0; i2c_do_start <= 1'b0; i2c_do_stop <= 1'b0; i2c_data <= '0;
-            frame_q <= '0; shadow_q <= '0; valid_q <= 1'b0;
+            frame_q <= '0; shadow_q <= '0; valid_q <= 1'b0; addr_q <= '0;
             for (int i = 0; i < 40; i = i + 1) shadow_valid[i] <= 1'b0;
         end else begin
             i2c_start <= 1'b0;
@@ -190,18 +210,29 @@ module lcd_i2c_driver #(
                     state    <= SCAN_DECIDE;
                 end
                 SCAN_DECIDE: begin
-                    if (pos_dirty) state <= ADDR_A;
+                    if (pos_dirty) begin
+                        // Register the DDRAM set-address here, off the data
+                        // path: ADDR_V then presents a registered byte and the
+                        // pos<20 / pos-20 arithmetic never shares a cone with
+                        // the frame/shadow cell write.
+                        addr_q <= ddram_address;
+                        state  <= ADDR_A;
+                    end
                     else if (pos == 6'd39) state <= IDLE;
                     else begin pos <= pos + 1'b1; state <= SCAN; end
                 end
                 ADDR_A: begin send(1'b1, 1'b0, SLAVE_WRITE); state <= ADDR_C; end
                 ADDR_C: if (i2c_done) begin send(1'b0, 1'b0, CTRL_COMMAND); state <= ADDR_V; end
-                ADDR_V: if (i2c_done) begin send(1'b0, 1'b1, ddram_address); state <= DATA_A; end
+                ADDR_V: if (i2c_done) begin send(1'b0, 1'b1, addr_q); state <= DATA_A; end
                 DATA_A: if (i2c_done) begin send(1'b1, 1'b0, SLAVE_WRITE); state <= DATA_C; end
                 DATA_C: if (i2c_done) begin send(1'b0, 1'b0, CTRL_DATA); state <= DATA_V; end
                 DATA_V: if (i2c_done) begin
-                    send(1'b0, 1'b1, frame[pos]);
-                    shadow[pos] <= frame[pos]; shadow_valid[pos] <= 1'b1;
+                    // frame_q / shadow_q / valid_q were latched for this pos in
+                    // SCAN and pos does not move until FLUSH, so frame_q is the
+                    // cell under scan.  Using it (instead of the combinational
+                    // frame[pos] 40:1 mux) keeps the write-data cone short.
+                    send(1'b0, 1'b1, frame_q);
+                    shadow[pos] <= frame_q; shadow_valid[pos] <= 1'b1;
                     state <= FLUSH;
                 end
                 // The byte engine accepts a new request only once idle: wait

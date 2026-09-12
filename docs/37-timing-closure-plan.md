@@ -423,3 +423,76 @@ Gain depuis le baseline : 21,54 → **31,73 MHz (+47,3 %)**, toutes les limites 
 profil `release_reference` respectées, `MULT18X18D` inchangé (28/32), précision
 DSP préservée.
 
+## 7. `lcd_i2c_driver` : découplage du rendu et du scan (commit `HEAD`)
+
+Après §6, le pire chemin **routé du top** était `lcd_i.pos[2]` →
+`lcd_i.shadow.0.3` (DPRAM), 31,52 ns (logic 12,8 + routage 18,2). L'analyse du
+netlist post-route montre que ce n'est **pas** le seul accès au tableau `shadow` :
+le chemin démarre à `pos` et se termine à `frame_q`, en traversant **116 cellules
+de retenue `CCU2`** — c'est-à-dire la chaîne des **divisions décimales par
+constante** du rendu (`tens`/`units`, `year % 100`, `quality / 10`, `/ 100`),
+qui se retrouvait dans le même cône combinatoire que la lecture/écriture
+indexée par `pos`.
+
+Trois changements, tous **hors du chemin d'échantillonnage** (le bloc affiche à
+~1 Hz ; chaque `tick` dispose de ~10⁸ cycles oisifs) :
+
+1. **`DATA_V` écrit `frame_q` au lieu de `frame[pos]`.** `frame_q` a été chargé
+   pour cette position en `SCAN` et `pos` ne bouge pas avant `FLUSH` : la valeur
+   est identique, mais le multiplexeur 40:1 indexé par `pos` sort du chemin
+   d'écriture (`send` + `shadow[pos]`).
+2. **Adresse DDRAM enregistrée.** `addr_q <= ddram_address` en `SCAN_DECIDE`
+   (arithmétique `pos < 20` / `pos − 20`), présentée en `ADDR_V` : la
+   soustraction/comparaison ne partage plus de cône avec l'écriture de cellule.
+3. **Décomposition décimale pipelinée.** Les divisions imbriquées sur deux
+   niveaux (`(year % 100) % 10`, `(quality / 10) % 10`, `quality / 100`) sont
+   coupées par un registre `year_lo_q` / `qual_10_q` / `qual_100_q`. Latence
+   **+1 cycle**, immatérielle à la cadence de 1 tick/s ; valeurs identiques.
+
+Aucun changement de sémantique : mêmes expressions, largeurs, constantes et
+résultats ; seules des frontières de registre ont bougé (décalage de 1 cycle sur
+des sous-expressions internes du rendu).
+
+> **Variante écartée.** Une capture complète du `frame` rendu dans un tableau
+> `frame_r[0:39]` à chaque début de scan a été prototypée : elle amenait le bloc
+> **isolé** à 49,93 MHz, mais le routage du **top** ne convergait plus (coût
+> routeur encore croissant à 52 min ; le banc de 40 octets crée un point chaud de
+> congestion). Elle a été **revertée** au profit de la version ci-dessus.
+
+Vérification :
+
+| Contrôle | Résultat |
+|---|---|
+| `make test-lcd` (protocole octet-par-octet, lignes exactes) | PASS |
+| `make test` (suite complète + `dcf77_system_tb` + cadence) | PASS |
+| `make lint` | PASS (0 avertissement) |
+| `sby -f formal/lcd_i2c_driver.sby` (bmc + cover) | PASS |
+| `make resource-check` | PASS (LUT4 9 815, FF 6 955, EBR 8, MULT 28, PLL 1) |
+
+Bloc isolé (`make timing-block`, flow BEA-37) : **30,72 → 50,81 MHz**, chemin
+résiduel `pos → frame_q` (19,68 ns, multiplexeur 40:1) ; +25 FF seulement.
+
+### Rapport de timing versionné (`make timing`, seed 1)
+
+| Champ | Valeur |
+|---|---|
+| Commit testé | `8f8c226` (RTL) puis ce commit |
+| Cible | `LFE5U-45F-7BG256I`, `release_reference`, 125 MHz |
+| Fmax obtenu | **37,40 MHz** (baseline : 21,54 ; §3 : 27,53 ; §5.1 : 29,21 ; §6 : 31,73) |
+| Slack pire chemin | **−19,74 ns** (8,00 − 27,74 ns) |
+| Chemin critique final | `core_i.field_seq_i.minute_i.candidate` → `...minute_i.confident` (`minute_candidate_search`) |
+| LUT4 | 9 815 |
+| FF | 6 955 |
+| EBR18 | 8 |
+| MULT18X18D | 28 |
+| PLL | 1 |
+
+Le chemin critique **quitte `lcd_i2c_driver`** : il est maintenant
+`minute_candidate_search` (`candidate` → `confident`, 26,74 ns), le bloc P1 de
+`docs/39` §7 (≈ 39,7 MHz isolé, 1 recherche/minute). C'est le prochain bloc de
+l'itération « un bloc à la fois ».
+
+Gain depuis le baseline : 21,54 → **37,40 MHz (+73,7 %)**, toutes les limites du
+profil `release_reference` respectées, `MULT18X18D` inchangé (28/32), précision
+DSP préservée. **Objectif 125 MHz non atteint** — campagne multi-bloc en cours.
+
