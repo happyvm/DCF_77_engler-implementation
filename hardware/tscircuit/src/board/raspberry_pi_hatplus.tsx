@@ -10,6 +10,7 @@
 import { N } from "../parts/nets";
 import { HAT_HEADER, MOUNTING_HOLES } from "./hatplus_constraints";
 import { at } from "../parts";
+import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
 
 const GND = N.gnd;
 
@@ -125,13 +126,13 @@ export function HatIdEeprom() {
         pinAttributes={{ VCC: { requiresPower: true }, GND: { requiresGround: true } }}
         connections={{ A0: GND, A1: GND, A2: GND, GND: GND, SDA: N.idSd, SCL: N.idSc, VCC: N.pi3v3 }}
       />
-      <resistor name="REESD" resistance="3.9k" footprint="0402" {...at("host_debug", "REESD")}
+      <resistor name="REESD" resistance="3.9k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C51721"] }} {...at("host_debug", "REESD")}
         connections={{ pin1: N.pi3v3, pin2: N.idSd }} />
-      <resistor name="REESC" resistance="3.9k" footprint="0402" {...at("host_debug", "REESC")}
+      <resistor name="REESC" resistance="3.9k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C51721"] }} {...at("host_debug", "REESC")}
         connections={{ pin1: N.pi3v3, pin2: N.idSc }} />
-      <resistor name="REEWP" resistance="1k" footprint="0402" {...at("host_debug", "REEWP")}
+      <resistor name="REEWP" resistance="1k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C11702"] }} {...at("host_debug", "REEWP")}
         connections={{ pin1: N.pi3v3, pin2: ".U_EE > .WP" }} />
-      <capacitor name="CEE1" capacitance="100nF" footprint="0402" {...at("host_debug", "CEE1")}
+      <capacitor name="CEE1" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("host_debug", "CEE1")}
         connections={{ pin1: N.pi3v3, pin2: GND }} />
     </>
   );

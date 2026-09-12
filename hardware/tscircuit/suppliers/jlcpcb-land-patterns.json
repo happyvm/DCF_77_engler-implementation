@@ -1,0 +1,40 @@
+{
+  "$comment": "Audited JLCPCB / EasyEDA land patterns for the passive classes that tscircuit previously flagged with supplier_footprint_mismatch_warning. Copper geometry is what @tscircuit/core compares (getBestBoundsIou over pcb_smtpad + pcb_plated_hole bounding boxes), so these are the numbers the custom footprints in src/parts/footprints.tsx must reproduce.",
+  "source": {
+    "supplier": "jlcpcb",
+    "geometry_origin": "EasyEDA component API (easyeda.com/api/components/<uuid>)",
+    "unit_mm": 0.254,
+    "method": "scripts/audit-supplier-footprints.ts --write  (search LCSC part -> package -> PAD~RECT copper)",
+    "retrieved": "2026-09-11",
+    "reviewer_note": "Copper bbox, not body size. IoU below is against tscircuit's generic footprinter \"0402\" before the fix."
+  },
+  "patterns": {
+    "0402_RES": {
+      "package": "R0402",
+      "description": "0402 (1005 metric) chip resistor, JLCPCB land pattern",
+      "copper_bbox_mm": [1.4313, 0.54],
+      "jlcpcb_parts": [
+        "C11702", "C137996", "C17168", "C25076", "C25077", "C25105",
+        "C25741", "C25744", "C25792", "C25900", "C276278", "C51721"
+      ],
+      "pads": [
+        { "port": "1", "shape": "rect", "width_mm": 0.565658, "height_mm": 0.540004, "x_mm": -0.432816, "y_mm": 0 },
+        { "port": "2", "shape": "rect", "width_mm": 0.565658, "height_mm": 0.540004, "x_mm": 0.432816, "y_mm": 0 }
+      ],
+      "courtyard_mm": [1.86, 0.94],
+      "generic_0402_iou": 0.7741
+    },
+    "0402_CAP": {
+      "package": "C0402",
+      "description": "0402 (1005 metric) chip capacitor, JLCPCB land pattern",
+      "copper_bbox_mm": [1.3402, 0.54],
+      "jlcpcb_parts": ["C1525", "C32949"],
+      "pads": [
+        { "port": "1", "shape": "rect", "width_mm": 0.5, "height_mm": 0.540004, "x_mm": -0.420116, "y_mm": 0 },
+        { "port": "2", "shape": "rect", "width_mm": 0.5, "height_mm": 0.540004, "x_mm": 0.420116, "y_mm": 0 }
+      ],
+      "courtyard_mm": [1.86, 0.94],
+      "generic_0402_iou": 0.7249
+    }
+  }
+}

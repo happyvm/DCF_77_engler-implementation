@@ -19,6 +19,7 @@
  */
 import { N } from "../parts/nets";
 import { at, lockedAt } from "../parts";
+import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
 
 const GND = N.gnd;
 
@@ -68,7 +69,7 @@ export function AntennaInputCluster() {
         connections={{ pin1: N.vcmAfe, pin2: GND }} />
       <capacitor name="CVCM2" capacitance="1uF" footprint="0603" {...at("ferrite_afe", "CVCM2")}
         connections={{ pin1: N.vcmAfe, pin2: GND }} />
-      <capacitor name="CVCM3" capacitance="100nF" footprint="0402" {...at("ferrite_afe", "CVCM3")}
+      <capacitor name="CVCM3" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("ferrite_afe", "CVCM3")}
         connections={{ pin1: N.vcmAfe, pin2: GND }} />
 
       {/* OPA810IDBVR voltage follower, 5V_AFE, single supply */}
@@ -149,7 +150,7 @@ export function BandPassFilter() {
       {/* AGND is bypassed locally with a short return; it is not a general-purpose source. */}
       <capacitor name="CBPF1" capacitance="1uF" footprint="0603" {...at("filter", "CBPF1")}
         connections={{ pin1: ".U_BPF > .AGND", pin2: GND }} />
-      <capacitor name="CBPF2" capacitance="100nF" footprint="0402" {...at("filter", "CBPF2")}
+      <capacitor name="CBPF2" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("filter", "CBPF2")}
         connections={{ pin1: N.v5afe, pin2: GND }} />
       {/* filter output node */}
       <trace from=".U_BPF > .OUT4" to={N.bpfOut} />
@@ -191,17 +192,17 @@ export function ProgrammableGain() {
         connections={{ pin1: N.pgaIn, pin2: ".U_PGA > .AGND" }} />
       <capacitor name="CPGA1" capacitance="1uF" footprint="0603" {...at("pga", "CPGA1")}
         connections={{ pin1: ".U_PGA > .AGND", pin2: GND }} />
-      <capacitor name="CPGA2" capacitance="100nF" footprint="0402" {...at("pga", "CPGA2")}
+      <capacitor name="CPGA2" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("pga", "CPGA2")}
         connections={{ pin1: N.v5afe, pin2: GND }} />
       {/* PGA powers up enabled whenever 5V_AFE is present */}
-      <resistor name="RPGA_SHDN" resistance="100k" footprint="0402" {...at("pga", "RPGA_SHDN")}
+      <resistor name="RPGA_SHDN" resistance="100k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25741"] }} {...at("pga", "RPGA_SHDN")}
         connections={{ pin1: ".U_PGA > .SHDN", pin2: GND }} />
       {/* ~100 ohm source-series resistors near the ECP5 on the low-rate SPI bus */}
-      <resistor name="RS_PGA_SCK" resistance="100" footprint="0402" {...at("pga", "RS_PGA_SCK")}
+      <resistor name="RS_PGA_SCK" resistance="100" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25076"] }} {...at("pga", "RS_PGA_SCK")}
         connections={{ pin1: N.pgaSck, pin2: N.pgaSckF }} />
-      <resistor name="RS_PGA_MOSI" resistance="100" footprint="0402" {...at("pga", "RS_PGA_MOSI")}
+      <resistor name="RS_PGA_MOSI" resistance="100" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25076"] }} {...at("pga", "RS_PGA_MOSI")}
         connections={{ pin1: N.pgaMosi, pin2: N.pgaMosiF }} />
-      <resistor name="RS_PGA_CS" resistance="100" footprint="0402" {...at("pga", "RS_PGA_CS")}
+      <resistor name="RS_PGA_CS" resistance="100" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25076"] }} {...at("pga", "RS_PGA_CS")}
         connections={{ pin1: N.pgaCsN, pin2: N.pgaCsF }} />
       <trace from=".RS_PGA_SCK > .pin2" to=".U_PGA > .CLK" />
       <trace from=".RS_PGA_MOSI > .pin2" to=".U_PGA > .DAT" />

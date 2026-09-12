@@ -251,12 +251,18 @@ hardware/tscircuit/
     power/
       hat_5v_input.tsx
     parts/
+      footprints.tsx         audited JLCPCB 0402 R/C land patterns + supplier pinning
   lattice/
     bg256-identity.json      committed derivation from FPGA-SC-02034 (pad/ball/function/bank)
+  suppliers/
+    jlcpcb-land-patterns.json  audited JLCPCB 0402 R/C copper geometry (part list + pads)
   scripts/
     verify-bga-identity.ts   BGA256 ball-identity gate (fails on renumbering)
     import-lattice-pinout.ts folds a Lattice FPGA-SC-02034 export into pin-plan.json
     validate-design-plans.ts pin plan + power plan + placement regions gate
+    verify-footprints.ts     supplier land-pattern gate (offline, reads the export)
+    audit-supplier-footprints.ts re-fetch the EasyEDA land patterns (network)
+    check-erc.ts             ERC/DRC gate over the four `tsci check` passes
     measure-courtyards.ts    re-calibrates SIZE_MM from rendered footprints
     export-quilter-manifest.ts
     archive-revision.ts
@@ -286,26 +292,41 @@ npm run export:kicad              # dist/kicad-pre-quilter/dcf77-hat.zip
 npm run manifest                  # placement-regions.json + board-rules.json
 npm run check                     # pin/power plan + placement regions + BGA identity
 npm run check:bga:release         # strict gate: blocks fabrication while the ball audit is incomplete
+npm run check:footprints          # audited supplier land patterns (needs export:circuit)
+npm run check:erc                 # ERC + netlist + shorts + placement DRC
+npm run audit:footprints          # re-fetch the JLCPCB land patterns (network, manual)
 npm run archive                   # dist/REVISION.json (run after the source commit)
 ```
 
-Pre-routing ERC/DRC (item "run ERC/DRC and PDN/power-estimator checks before routing"):
+Pre-routing ERC/DRC + PDN (item "run ERC/DRC and PDN/power-estimator checks before routing").
+The four ERC/DRC passes are wrapped by `npm run check:erc`, which exits non-zero unless
+source/netlist/shorts are clean and placement has 0 errors with no warning other than the two
+mechanically-fixed connector orientation notices:
 
 ```bash
+npm run check:erc                        # gate over the four passes below
 npx tsci check source src/index.tsx      # ERC: 0 errors, 0 warnings
 npx tsci check netlist src/index.tsx     # connectivity: every net resolves
 npx tsci check shorts src/index.tsx      # no unintended copper shorts
-npx tsci check placement src/index.tsx   # placement DRC: 0 errors
+npx tsci check placement src/index.tsx   # placement DRC: 0 errors (2 known connector warnings)
 ```
 
-Results at this revision: source 0/0, netlist clean, shorts none, placement 0 errors with two
+Results at this revision: source 0/0, netlist 0/0, shorts none, placement 0 errors with two
 pre-existing informational `pcb_connector_not_in_accessible_orientation_warning` entries for
 `J1` (the HAT+ 40-pin header, whose orientation is fixed by the HAT+ mechanical spec) and
 `J2` (the JTAG recovery header, reachable from the board edge per the `ecp5_flash` region
-rule). The `1V1_CORE` buck switch node, the AFE clusters and the TCXO remain outside every
-host/ESD part. There is no dedicated PDN/power-estimator script in this workspace yet: the
-available substitute is the `power-plan.json` <-> `rail_*` net cross-check run by
-`npm run check:plans`, which currently matches 7 derived rails + 2 HAT input rails 1:1.
+rule). `tsci check placement` treats any warning as a non-zero exit, so the two are allow-listed
+explicitly in `scripts/check-erc.ts` rather than masked. The `1V1_CORE` buck switch node, the
+AFE clusters and the TCXO remain outside every host/ESD part.
+`scripts/measure-courtyards.ts --check` also passes (146 rendered components, all region
+members declared >= measured).
+
+There is still no dedicated PDN/power-estimator script in this workspace. The available
+substitute is the `power-plan.json` <-> `rail_*` net cross-check run by `npm run check:plans`,
+which currently matches 7 derived rails + 2 HAT input rails 1:1 and confirms every declared
+rail has a live schematic net (and vice versa). A first-order current/IR model would need the
+per-rail load currents, which `power-plan.json` only carries for `5V_AFE` (75 mA); the other
+rails stay open until the ECP5 power estimator is run post-synthesis.
 
 `routingDisabled` in `tscircuit.config.json` is deliberate: this workspace stops at the
 pre-Quilter handoff, so unrouted `pcb_port_not_connected_error` entries are not defects here.
@@ -336,25 +357,46 @@ fails the gate. To fold a new export into the source of truth:
 tsx scripts/import-lattice-pinout.ts --lattice <FPGA-SC-02034-*.csv> --write
 ```
 
-## Remaining schematic-freeze work
+## Schematic-freeze status (Rev.0)
 
-- replace the supplier-part approximations flagged by `supplier_footprint_mismatch_warning`
-  with audited manufacturer land patterns. Tracked as a follow-up issue: the generic
-  `0402` footprint (0.54 x 0.64 mm pads, 1.02 mm pitch) is currently declared for both
-  resistors and capacitors, while the JLCPCB land patterns differ per class, so the copper
-  bounding-box IoU settles at ~0.77 (R) / ~0.72 (C) against a threshold of 0.80. The fix is
-  a per-class passive land-pattern library pinned to explicit `supplierPartNumbers`, which
-  needs the supplier footprint geometry from the parts engine.
-- run ERC/DRC and PDN/power-estimator checks before routing.
+No schematic-freeze work is outstanding at this revision. The remaining work listed in the
+BEA-42 ticket is closed; the only item that stays open is genuinely downstream of layout
+(post-Quilter Gerbers/BOM/PnP) and is tracked outside this workspace.
 
-Closed in this revision:
+### Supplier land patterns
+
+Every 0402 passive is pinned to an explicit JLCPCB part and declares the audited JLCPCB land
+pattern instead of the generic tscircuit `0402` footprinter. The generic copper bbox
+(1.56 x 0.64 mm) missed the supplier packages, so `tscircuit` emitted 69
+`supplier_footprint_mismatch_warning` entries (copper IoU 0.7741 for resistors, 0.7249 for
+capacitors, against a 0.80 threshold).
+
+```text
+R0402  copper bbox 1.4313 x 0.5400 mm, pads 0.565658 x 0.540004 mm @ pitch 0.865632 mm
+C0402  copper bbox 1.3402 x 0.5400 mm, pads 0.500000 x 0.540004 mm @ pitch 0.840232 mm
+```
+
+- geometry: `suppliers/jlcpcb-land-patterns.json` (part list, package, copper bbox, pads);
+- source: EasyEDA component API, retrieved 2026-09-11, unit 0.254 mm;
+- re-audit: `npm run audit:footprints` (network; `--write` refreshes the JSON);
+- offline gate: `npm run check:footprints` re-derives each pinned passive's copper bbox from
+  the exported Circuit JSON and fails on any surviving `supplier_footprint_mismatch_warning`;
+- one pinned part (`RFSET` -> `C5153969`, FRC0402F5761TS) has no EasyEDA package, so it is not
+  in the audit set; it keeps the standard R0402 land pattern.
+
+`CVIOBANK`'s declared courtyard was also re-measured (1.65 -> 1.70 mm) so
+`scripts/measure-courtyards.ts --check` is clean.
+
+### Closed in this revision
 
 - 256/256 BG256 ball identities verified against Lattice `FPGA-SC-02034`;
+- 69/69 `supplier_footprint_mismatch_warning` resolved with audited JLCPCB land patterns
+  (`src/parts/footprints.tsx`, `suppliers/jlcpcb-land-patterns.json`);
 - UART 33 ohm series + 47 kOhm idle-high networks physically wired (`src/host/rpi_spi.tsx`);
 - LCD backlight final values fixed: RBL1 = 68 ohm, RBL2 = 10 kOhm, RBL3 = 100 kOhm
   pull-down, LCD_BLQ = BSS138 (`src/core/display.tsx`);
 - HAT+/test-interface ESD freeze: `src/board/host_esd.tsx`;
-- ERC/DRC results recorded below.
+- ERC/DRC + footprint gates wired and passing (`npm run check:erc`, `npm run check:footprints`).
 
 Supporting docs:
 

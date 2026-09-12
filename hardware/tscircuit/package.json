@@ -13,10 +13,13 @@
     "check:bga": "tsx scripts/verify-bga-identity.ts --allow-incomplete-audit",
     "check:bga:release": "tsx scripts/verify-bga-identity.ts",
     "check:plans": "tsx scripts/validate-design-plans.ts",
+    "check:footprints": "tsx scripts/verify-footprints.ts",
+    "check:erc": "tsx scripts/check-erc.ts",
+    "audit:footprints": "tsx scripts/audit-supplier-footprints.ts",
     "import:lattice": "tsx scripts/import-lattice-pinout.ts",
     "check": "npm run check:plans && npm run check:bga",
     "archive": "tsx scripts/archive-revision.ts",
-    "release": "npm run export:circuit && npm run export:kicad && npm run manifest && npm run check && npm run archive"
+    "release": "npm run export:circuit && npm run check:footprints && npm run export:kicad && npm run manifest && npm run check && npm run archive"
   },
   "dependencies": {
     "@tscircuit/core": "0.0.1845"

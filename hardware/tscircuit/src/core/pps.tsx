@@ -8,6 +8,7 @@
  */
 import { N } from "../parts/nets";
 import { at, lockedAt } from "../parts";
+import { FP0402_RES } from "../parts/footprints";
 
 const GND = N.gnd;
 
@@ -24,7 +25,7 @@ export function PpsInterface() {
         connections={{ A: N.ppsRef, OE: GND, VCC: N.v3v3d, GND: GND }}
       />
 
-      <resistor name="RPS1" resistance="33" footprint="0402" {...at("host_debug", "RPS1")}
+      <resistor name="RPS1" resistance="33" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25105"] }} {...at("host_debug", "RPS1")}
         connections={{ pin1: ".U_PPS > .A", pin2: N.ppsOut }} />
 
       {/* External PPS / test interface: PPS out, 3V3_D reference, two grounds.

@@ -9,6 +9,7 @@
  */
 import { N } from "../parts/nets";
 import { at } from "../parts";
+import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
 
 const GND = N.gnd;
 
@@ -45,15 +46,15 @@ export function LocalDisplay() {
         </footprint>
       </chip>
 
-      <capacitor name="CBL1" capacitance="100nF" footprint="0402" {...at("lcd", "CBL1")}
+      <capacitor name="CBL1" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("lcd", "CBL1")}
         connections={{ pin1: N.v3v3d, pin2: GND }} />
       <capacitor name="CBL2" capacitance="1uF" footprint="0603" {...at("lcd", "CBL2")}
         connections={{ pin1: N.v3v3d, pin2: GND }} />
 
       {/* I2C pull-ups on the ECP5-side bank-3 bus */}
-      <resistor name="RLCD_SCL" resistance="4.7k" footprint="0402" {...at("lcd", "RLCD_SCL")}
+      <resistor name="RLCD_SCL" resistance="4.7k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25900"] }} {...at("lcd", "RLCD_SCL")}
         connections={{ pin1: N.v3v3d, pin2: N.lcdScl }} />
-      <resistor name="RLCD_SDA" resistance="4.7k" footprint="0402" {...at("lcd", "RLCD_SDA")}
+      <resistor name="RLCD_SDA" resistance="4.7k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25900"] }} {...at("lcd", "RLCD_SDA")}
         connections={{ pin1: N.v3v3d, pin2: N.lcdSda }} />
 
       {/* Backlight: fixed current limiting from 5V_SYS, switched by a small N-MOSFET.
@@ -75,9 +76,9 @@ export function LocalDisplay() {
           reset, or tri-stated — OFF is the safe precision-RF state. */}
       <resistor name="RBL1" resistance="68" footprint="0805" {...at("lcd", "RBL1")}
         connections={{ pin1: N.v5sys, pin2: N.lcdBlA }} />
-      <resistor name="RBL2" resistance="10k" footprint="0402" {...at("lcd", "RBL2")}
+      <resistor name="RBL2" resistance="10k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25744"] }} {...at("lcd", "RBL2")}
         connections={{ pin1: N.lcdBlEn, pin2: N.lcdBlGate }} />
-      <resistor name="RBL3" resistance="100k" footprint="0402" {...at("lcd", "RBL3")}
+      <resistor name="RBL3" resistance="100k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25741"] }} {...at("lcd", "RBL3")}
         connections={{ pin1: N.lcdBlGate, pin2: GND }} />
       <chip
         name="LCD_BLQ"

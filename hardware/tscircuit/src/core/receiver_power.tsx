@@ -17,6 +17,7 @@
  */
 import { N } from "../parts/nets";
 import { at } from "../parts";
+import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
 
 const GND = N.gnd;
 
@@ -30,7 +31,7 @@ export function AnalogRailBranch() {
         connections={{ pin1: N.v5afe, pin2: GND }} />
       <capacitor name="CAFE2" capacitance="1uF" footprint="0603" {...at("power_1v1", "CAFE2")}
         connections={{ pin1: N.v5afe, pin2: GND }} />
-      <capacitor name="CAFE3" capacitance="100nF" footprint="0402" {...at("power_1v1", "CAFE3")}
+      <capacitor name="CAFE3" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("power_1v1", "CAFE3")}
         connections={{ pin1: N.v5afe, pin2: GND }} />
     </>
   );
@@ -62,24 +63,24 @@ export function CoreBuck() {
         connections={{ pin1: ".U_CORE > .SW", pin2: N.v1v1core }} />
       <capacitor name="CIN_CORE1" capacitance="10uF" footprint="0805" {...at("power_1v1", "CIN_CORE1")}
         connections={{ pin1: N.v5sys, pin2: GND }} />
-      <capacitor name="CIN_CORE2" capacitance="100nF" footprint="0402" {...at("power_1v1", "CIN_CORE2")}
+      <capacitor name="CIN_CORE2" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("power_1v1", "CIN_CORE2")}
         connections={{ pin1: N.v5sys, pin2: GND }} />
       <capacitor name="COUT_CORE1" capacitance="10uF" footprint="0805" {...at("power_1v1", "COUT_CORE1")}
         connections={{ pin1: N.v1v1core, pin2: GND }} />
       <capacitor name="COUT_CORE2" capacitance="10uF" footprint="0805" {...at("power_1v1", "COUT_CORE2")}
         connections={{ pin1: N.v1v1core, pin2: GND }} />
       {/* FSET 5.76 kOhm -> ~3.125 MHz nominal, SSC off, forced PWM */}
-      <resistor name="RFSET" resistance="5.76k" footprint="0402" {...at("power_1v1", "RFSET")}
+      <resistor name="RFSET" resistance="5.76k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C5153969"] }} {...at("power_1v1", "RFSET")}
         connections={{ pin1: ".U_CORE > .COMP_FSET", pin2: GND }} />
       {/* MODE/SYNC high through 10 kOhm */}
-      <resistor name="RMODE" resistance="10k" footprint="0402" {...at("power_1v1", "RMODE")}
+      <resistor name="RMODE" resistance="10k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25744"] }} {...at("power_1v1", "RMODE")}
         connections={{ pin1: N.v5sys, pin2: ".U_CORE > .MODE_SYNC" }} />
       {/* feedback 39.2 k / 47.0 k / 10 pF C0G -> 1.100 V */}
-      <resistor name="RFB_TOP" resistance="39.2k" footprint="0402" {...at("power_1v1", "RFB_TOP")}
+      <resistor name="RFB_TOP" resistance="39.2k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C137996"] }} {...at("power_1v1", "RFB_TOP")}
         connections={{ pin1: N.v1v1core, pin2: ".U_CORE > .FB" }} />
-      <resistor name="RFB_BOT" resistance="47.0k" footprint="0402" {...at("power_1v1", "RFB_BOT")}
+      <resistor name="RFB_BOT" resistance="47.0k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25792"] }} {...at("power_1v1", "RFB_BOT")}
         connections={{ pin1: ".U_CORE > .FB", pin2: GND }} />
-      <capacitor name="CFF_CORE" capacitance="10pF" footprint="0402" {...at("power_1v1", "CFF_CORE")}
+      <capacitor name="CFF_CORE" capacitance="10pF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C32949"] }} {...at("power_1v1", "CFF_CORE")}
         connections={{ pin1: N.v1v1core, pin2: ".U_CORE > .FB" }} />
       <trace from={N.v1v1core} to=".U_CORE > .VOS" />
     </>
@@ -98,7 +99,7 @@ export function DigitalRails() {
         connections={{ pin1: N.v3v3d, pin2: GND }} />
       <capacitor name="C3V3D2" capacitance="1uF" footprint="0603" {...at("ecp5_flash", "C3V3D2")}
         connections={{ pin1: N.v3v3d, pin2: GND }} />
-      <capacitor name="C3V3D3" capacitance="100nF" footprint="0402" {...at("ecp5_flash", "C3V3D3")}
+      <capacitor name="C3V3D3" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("ecp5_flash", "C3V3D3")}
         connections={{ pin1: N.v3v3d, pin2: GND }} />
 
       <chip

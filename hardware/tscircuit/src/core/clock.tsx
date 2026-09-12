@@ -8,6 +8,7 @@
  */
 import { N } from "../parts/nets";
 import { at } from "../parts";
+import { FP0402_CAP } from "../parts/footprints";
 
 const GND = N.gnd;
 
@@ -37,7 +38,7 @@ export function ReferenceClock() {
         pinAttributes={{ VDD: { requiresPower: true }, GND: { requiresGround: true } }}
         connections={{ VDD: N.v3v3clk, GND: GND, OUT: N.clk25m, OE: N.v3v3clk }}
       />
-      <capacitor name="CCLK1" capacitance="100nF" footprint="0402" {...at("tcxo", "CCLK1")}
+      <capacitor name="CCLK1" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("tcxo", "CCLK1")}
         connections={{ pin1: N.v3v3clk, pin2: GND }} />
       {/* CLK_25M terminates on ECP5 ball C9 = pin157 of the audited BG256 pin plan. */}
     </>

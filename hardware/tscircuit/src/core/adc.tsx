@@ -12,6 +12,7 @@
  */
 import { N } from "../parts/nets";
 import { at } from "../parts";
+import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
 
 const GND = N.gnd;
 
@@ -50,9 +51,9 @@ export function AdcBoundary() {
       {/* PGA output -> AC coupling -> 1.5 V ADC common mode -> fast buffer */}
       <capacitor name="C_ADCIN" capacitance="1uF" footprint="0603" {...at("adc", "C_ADCIN")}
         connections={{ pin1: N.pgaOut, pin2: N.animp }} />
-      <resistor name="R_VCMADC1" resistance="10k" footprint="0402" {...at("adc", "R_VCMADC1")}
+      <resistor name="R_VCMADC1" resistance="10k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25744"] }} {...at("adc", "R_VCMADC1")}
         connections={{ pin1: N.v3v3adc, pin2: N.vcmAdc }} />
-      <resistor name="R_VCMADC2" resistance="8.06k" footprint="0402" {...at("adc", "R_VCMADC2")}
+      <resistor name="R_VCMADC2" resistance="8.06k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C276278"] }} {...at("adc", "R_VCMADC2")}
         connections={{ pin1: N.vcmAdc, pin2: GND }} />
 
       {/* OPA2835 dual: channel A = signal driver follower, channel B = VCM buffer */}
@@ -74,9 +75,9 @@ export function AdcBoundary() {
       />
       <trace from={N.animp} to=".U_DRV > .INA_PLUS" />
       <trace from={N.vcmAdc} to=".U_DRV > .INB_PLUS" />
-      <resistor name="R_ADCIN_P" resistance="10" footprint="0402" {...at("adc", "R_ADCIN_P")}
+      <resistor name="R_ADCIN_P" resistance="10" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25077"] }} {...at("adc", "R_ADCIN_P")}
         connections={{ pin1: ".U_DRV > .OUTA", pin2: N.adcInP }} />
-      <resistor name="R_ADCIN_N" resistance="10" footprint="0402" {...at("adc", "R_ADCIN_N")}
+      <resistor name="R_ADCIN_N" resistance="10" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25077"] }} {...at("adc", "R_ADCIN_N")}
         connections={{ pin1: ".U_DRV > .OUTB", pin2: N.adcInN }} />
 
       {/* LTC1407AIMSE-1: 14-bit, 930 kS/s = 12 x 77.5 kHz. Channel 0 is the receive
@@ -103,9 +104,9 @@ export function AdcBoundary() {
       />
       <capacitor name="CADC1" capacitance="10uF" footprint="0805" {...at("adc", "CADC1")}
         connections={{ pin1: N.v3v3adc, pin2: GND }} />
-      <capacitor name="CADC2" capacitance="100nF" footprint="0402" {...at("adc", "CADC2")}
+      <capacitor name="CADC2" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("adc", "CADC2")}
         connections={{ pin1: N.v3v3adc, pin2: GND }} />
-      <capacitor name="CADC4" capacitance="100nF" footprint="0402" {...at("adc", "CADC4")}
+      <capacitor name="CADC4" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("adc", "CADC4")}
         connections={{ pin1: N.vcmAdc, pin2: GND }} />
       {/* VREF decoupling kept in the protected reference/common-mode island */}
       <capacitor name="CREF1" capacitance="1uF" footprint="0603" {...at("adc", "CREF1")}

@@ -11,6 +11,7 @@
  */
 import { N } from "../parts/nets";
 import { at } from "../parts";
+import { FP0402_RES } from "../parts/footprints";
 
 const GND = N.gnd;
 
@@ -31,7 +32,7 @@ export function Hat5vInput() {
           GND: GND,
         }}
       />
-      <resistor name="RON_PD" resistance="100k" footprint="0402" {...at("power_1v1", "RON_PD")}
+      <resistor name="RON_PD" resistance="100k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25741"] }} {...at("power_1v1", "RON_PD")}
         connections={{ pin1: N.pi3v3, pin2: GND }} />
       <capacitor name="CT_SW" capacitance="1nF" footprint="0603" {...at("power_1v1", "CT_SW")}
         connections={{ pin1: ".U_SW > .CT", pin2: GND }} />

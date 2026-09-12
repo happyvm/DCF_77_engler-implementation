@@ -15,6 +15,7 @@
  * part wrappers/footprints from manufacturer pinouts").
  */
 import { LOCKED_PLACEMENTS, pos, type RegionId } from "../board/hatplus_constraints";
+import { FP0402_CAP, FP0402_RES } from "./footprints";
 
 export const PARTS = {
   antenna: { opn: "TDK B82453C0275A000", note: "3D ferrite transponder coil, X winding only; Y/Z open" },
@@ -51,12 +52,18 @@ export const lockedAt = (ref: string) => {
   return { pcbX: p.x, pcbY: p.y, pcbRotation: p.rotation ?? 0 };
 };
 
-/** Passive footprint by value class, so values stay readable at the callsite. */
+/**
+ * Passive footprint by value class, so values stay readable at the callsite.
+ *
+ * `r0402` / `c0402` resolve to the audited JLCPCB land patterns (see
+ * suppliers/jlcpcb-land-patterns.json and parts/footprints.tsx) because the
+ * generic footprinter `0402` copper did not match the resolved JLCPCB parts.
+ */
 export const FP = {
-  r0402: "0402",
+  r0402: FP0402_RES,
   r0603: "0603",
   r0805: "0805",
-  c0402: "0402",
+  c0402: FP0402_CAP,
   c0603: "0603",
   c0805: "0805",
   soic8: "soic8",
