@@ -10,28 +10,27 @@
       "U_SW",
       "U_FLASH",
       "U_EE",
-      "LCD_BLQ"
-    ],
-    "pending": [
+      "LCD_BLQ",
       "U_ADCLDO",
       "U_ADC",
       "U_CLK",
       "U_CLKLDO",
-      "U_PPS",
-      "U_CORE",
       "U_AUXLDO",
-      "DS1"
+      "U_CORE",
+      "DS1",
+      "U_PPS"
     ],
-    "pending_scope": "pad-number-to-pin-name mapping not yet cross-checked against the manufacturer pinout; the functional net names in the TSX are the documented signal topology only. Tracked in hardware/tscircuit/README.md -> 'Schematic-freeze status (Rev.0)'.",
-    "pending_findings": {
-      "U_ADCLDO": "LT3042EMSE#PBF is a 10-lead MSOP (MSE) + exposed GND pad, not a DFN. Datasheet pin map is 1 IN, 2 IN, 3 EN/UV, 4 PG, 5 ILIM, 6 PGFB, 7 SET, 8 GND, 9 OUTS, 10 OUT, pad GND. The TSX currently uses footprint dfn10 with an invented 1 OUT/2 SENSE/3 SET/4 ILIM/5 IN/6 EN_UV/7 PG/8 GND/9 OUT2/10 PGND map and ties ILIM to SET, which shorts the current-limit set input to the 100 uA voltage-set node.",
-      "U_ADC": "LTC1407AIMSE-1#PBF is a 10-lead MSOP (MSE) + exposed GND pad. Datasheet pin map is 1 CH0+, 2 CH0-, 3 VREF, 4 CH1+, 5 CH1-, 6 GND, 7 VDD, 8 SDO, 9 SCK, 10 CONV, pad GND. The TSX currently has 3 CH1_PLUS, 4 CH1_MINUS, 5 VREF, 6 VDD, 7 GND, 8 CONV, 9 SCK, 10 SDO.",
-      "U_CLK": "SiT5356 is a 10-pad 5.0 x 3.2 mm part, not a 4-pad DFN. Datasheet pin map is 1 OE/VC/NC, 2 SCL/NC, 3 NC, 4 GND, 5 A0/NC, 6 CLK, 7 NC, 8 NC, 9 VDD, 10 SDA/NC. Footprint dfn4 and the 4-pin map are wrong.",
-      "U_CLKLDO": "TPS7A2033PDQNR is the 4-pin X2SON (DQN) option: 1 OUT, 2 GND, 3 EN, 4 IN, 5 thermal pad -> GND. The TSX uses the SOT-23-5 (DBV) map and footprint; DQN and DBV are different packages in the same family.",
-      "U_AUXLDO": "TPS7A2025PDQNR is the 4-pin X2SON (DQN) option: 1 OUT, 2 GND, 3 EN, 4 IN, 5 thermal pad -> GND. Same DQN/DBV mismatch as U_CLKLDO.",
-      "U_CORE": "TPS628502DRLR is an 8-pin SOT-583 (DRL) part. Datasheet pin map is 1 VIN, 2 EN, 3 MODE/SYNC, 4 COMP/FSET, 5 FB, 6 PG, 7 SW, 8 GND. The TSX uses footprint sot563 (6 pads) with an invented VIN/GND/SW/FB/COMP_FSET/MODE_SYNC/EN/VOS ordering; there is no VOS pin and EN is on pin 2, not pin 7.",
-      "DS1": "NHD-C0220BiZ-FSW-FBW-3V3M has an 8-pin interface: 1 RST, 2 SCL, 3 SDA, 4 VSS, 5 VDD, 6 VOUT, 7 C1+, 8 C1-, plus a separate 2-pin backlight connector. The TSX models 7 pads (VDD/GND/SDA/SCL/RST/LED_A/LED_K) and is missing the charge-pump VOUT/C1+ C1- pins.",
-      "U_PPS": "no orderable MPN is frozen anywhere in the design (docs/27 only fixes the PPS_REF ball and the output path), so its pad identity cannot be audited yet."
+    "pending": [],
+    "pending_scope": "empty: 16/16 non-FPGA ICs are audited against a manufacturer document. The 2026-09-12 BEA-52 batch (U_ADCLDO, U_ADC, U_CLK, U_CLKLDO, U_AUXLDO, U_CORE, DS1, U_PPS) closed the pad identity AND replaced the generic footprints with the manufacturer land patterns (src/parts/ic_footprints.tsx).",
+    "closure_notes": {
+      "U_ADCLDO": "LT3042EMSE#PBF is the 10-lead MSOP (MSE) + exposed GND pad. The previous model used dfn10 with an invented 1 OUT/2 SENSE/3 SET/4 ILIM/5 IN/6 EN_UV/7 PG/8 GND/9 OUT2/10 PGND map and shorted ILIM to SET. Rewired: IN1/IN2 -> 5V_SYS, EN/UV -> IN, PGFB -> IN, ILIM -> GND (datasheet: tie ILIM to GND when the programmable current limit is unused), PG floating (datasheet: float PG when power-good is unused), SET -> RSET/CSET, OUT/OUTS Kelvin to 3V3_ADC_A, exposed pad -> GND.",
+      "U_ADC": "LTC1407AIMSE-1#PBF is the 10-lead MSOP (MSE) + exposed GND pad. The previous map had CH1 on pins 3/4, VREF on 5, VDD on 6, GND on 7, CONV/SDO/SCK rotated. Corrected to 1 CH0+, 2 CH0-, 3 VREF, 4 CH1+, 5 CH1-, 6 GND, 7 VDD, 8 SDO, 9 SCK, 10 CONV, 11 exposed pad -> GND.",
+      "U_CLK": "SiT5356 is a 10-pad 5.0 x 3.2 mm 10L CQFN, not a 4-pad DFN. The previous model had 1 OE / 2 GND / 3 OUT / 4 VDD. Corrected map: 1 OE, 2 SCL/NC, 3 NC, 4 GND, 5 A0/NC, 6 CLK, 7 NC, 8 NC, 9 VDD, 10 SDA/NC; the NC pads follow the datasheet layout guideline to connect the unused pads to the ground plane.",
+      "U_CLKLDO": "TPS7A2033PDQNR is the 4-pin X2SON (DQN, 1 x 1 mm) option: 1 OUT, 2 GND, 3 EN, 4 IN, 5 thermal pad -> GND. The previous model used the SOT-23-5 (DBV) map and a sot23-5 footprint.",
+      "U_AUXLDO": "TPS7A2025PDQNR is the same 4-pin X2SON (DQN) option as U_CLKLDO: 1 OUT, 2 GND, 3 EN, 4 IN, 5 thermal pad -> GND. The previous model used the DBV map and a sot23-5 footprint.",
+      "U_CORE": "TPS628502DRLR is an 8-pin SOT-583 (DRL, 1.60 x 2.10 mm). The previous model used footprinter sot563 (6 pads) with an invented VOS pin and EN on pin 7. Corrected map: 1 VIN, 2 EN, 3 MODE/SYNC, 4 COMP/FSET, 5 FB, 6 PG, 7 SW, 8 GND; the misleading VOS trace was removed and the feedback divider now returns to FB.",
+      "DS1": "NHD-C0220BiZ-FSW-FBW-3V3M has an 8-pin interface (1 RST, 2 SCL, 3 SDA, 4 VSS, 5 VDD, 6 VOUT, 7 C1+, 8 C1-) plus the module's separate 2-pin backlight connector. The previous model had 7 pads ordered VDD/GND/SDA/SCL/RST/LED_A/LED_K and dropped VOUT/C1+/C1-. The VDD/GND/SDA/SCL/RST nets were remapped onto the real pads, the backlight connector is now the dedicated component J4 (LED_A/LED_K), and the charge-pump capacitors CBST1 (VOUT -> VSS) and CBST2 (C1+ -> C1-) were added.",
+      "U_PPS": "no orderable MPN was frozen. Rev.0 freezes SN74LVC1G125DBVR (single bus buffer with active-low output enable, SOT-23-5); OE is tied low (permanently enabled), A is the ECP5 PPS_REF input, Y drives PPS_OUT through RPS1, VCC is 3V3_D."
     }
   },
   "parts": {
@@ -310,6 +309,286 @@
         "retrieved_artifact_kind": "application/pdf",
         "retrieved_artifact_sha256": "c12f8ed894e768d8114cbf3d4ed1f23d95291fb162b169689a93f5b1c887b5d0",
         "evidence": "Page-2 device drawing 'SOT-23-3 CASE 318-08' with the pin callouts 1 Gate / 2 Source / 3 Drain, plus the ordering information row BSS138 SOT-23-3 (Pb-Free)"
+      }
+    },
+    "U_ADCLDO": {
+      "ref": "U_ADCLDO",
+      "opn": "LT3042EMSE#PBF",
+      "device": "LT3042 20 V, 200 mA, ultralow-noise, ultrahigh-PSRR RF linear regulator",
+      "package": "MSE package, 10-lead plastic MSOP with exposed GND pad (pin 11), 3 x 3 mm, 0.5 mm pitch",
+      "pins": {
+        "pin1": "IN_1",
+        "pin2": "IN_2",
+        "pin3": "EN_UV",
+        "pin4": "PG",
+        "pin5": "ILIM",
+        "pin6": "PGFB",
+        "pin7": "SET",
+        "pin8": "GND",
+        "pin9": "OUTS",
+        "pin10": "OUT",
+        "pin11": "PAD_GND"
+      },
+      "pin_alias": {
+        "IN_2": "IN_1",
+        "PAD_GND": "GND"
+      },
+      "notes": [
+        "Land pattern: LTC DWG 05-08-1664 Rev I 'MSOP (MSE) RECOMMENDED SOLDER PAD LAYOUT' (pad 1.45 x 0.30 mm at 0.5 mm pitch, exposed pad 1.68 x 1.88 mm); see src/parts/ic_footprints.tsx FP_MSOP10_EP.",
+        "The previous Rev.0 model was a 10-pin DFN with an invented 1 OUT/2 SENSE/3 SET/4 ILIM/5 IN/6 EN/UV/7 PG/8 GND/9 OUT2/10 PGND map and tied ILIM to SET, which shorts the current-limit-programming pin to the 100 uA voltage-set node.",
+        "ILIM (pin 5) is tied to GND: the data sheet states 'If the programmable current limit functionality is not needed, tie ILIM to GND'. It must never be tied to SET.",
+        "PG (pin 4) is left open: the data sheet states 'If the power good functionality is not needed, float the PG pin'.",
+        "PGFB (pin 6) is tied to IN: the data sheet states 'If power good and fast start-up functionalities are not needed, tie PGFB to IN'.",
+        "EN/UV (pin 3) is tied to IN ('If unused, tie EN/UV to IN. Do not float the EN/UV pin').",
+        "OUTS (pin 9) is the Kelvin output-sense return and is tied to the OUT (pin 10) node, which feeds 3V3_ADC_A; SET (pin 7) carries RSET = 33.2 kOhm to GND plus CSET = 4.7 uF, giving 3.32 V.",
+        "The exposed pad (pin 11) is an electrical GND and must be soldered to the ground plane and tied to pin 8."
+      ],
+      "source": {
+        "document": "LT3042 data sheet, 3042fa",
+        "vendor": "Analog Devices / Linear Technology",
+        "url": "https://www.farnell.com/datasheets/1941078.pdf",
+        "retrieved": "2026-09-12",
+        "retrieval_method": "Farnell mirror of the ADI/LTC 3042fa data sheet (analog.com is unreachable from the build host)",
+        "retrieved_artifact_kind": "application/pdf (3042fa)",
+        "retrieved_artifact_sha256": "85a77231fe3066c29a369e912de19a1ce93cb190d9d28d8ef7fef595dbda2b9a",
+        "evidence": "'MSE PACKAGE 10-LEAD PLASTIC MSOP' pin configuration (left 1 IN, 2 IN, 3 EN/UV, 4 PG, 5 ILIM; right 10 OUT, 9 OUTS, 8 GND, 7 SET, 6 PGFB; exposed pad pin 11 is GND) with the PIN FUNCTIONS text for ILIM/PG/PGFB/EN-UV/SET/GND, plus the 'MSE Package 10-Lead Plastic MSOP, Exposed Die Pad' drawing (Reference LTC DWG # 05-08-1664 Rev I)"
+      }
+    },
+    "U_ADC": {
+      "ref": "U_ADC",
+      "opn": "LTC1407AIMSE-1#PBF",
+      "device": "LTC1407A-1 serial 14-bit, 3 Msps, simultaneous-sampling ADC with shutdown",
+      "package": "MSE package, 10-lead plastic MSOP with exposed GND pad (pin 11), 3 x 3 mm, 0.5 mm pitch",
+      "pins": {
+        "pin1": "CH0_PLUS",
+        "pin2": "CH0_MINUS",
+        "pin3": "VREF",
+        "pin4": "CH1_PLUS",
+        "pin5": "CH1_MINUS",
+        "pin6": "GND",
+        "pin7": "VDD",
+        "pin8": "SDO",
+        "pin9": "SCK",
+        "pin10": "CONV",
+        "pin11": "PAD_GND"
+      },
+      "pin_alias": {
+        "PAD_GND": "GND"
+      },
+      "notes": [
+        "Land pattern: the same MSOP-10 + exposed-pad 'MSE' outline as the LT3042 (LTC DWG 05-08-1664 Rev C, 'MSOP (MSE) 0908', recommended solder pads 1.45 x 0.30 mm at 0.5 mm pitch, exposed pad 1.68 x 1.88 mm); see src/parts/ic_footprints.tsx FP_MSOP10_EP.",
+        "The previous Rev.0 map placed CH1 on pins 3/4, VREF on 5, VDD on 6, GND on 7 and rotated CONV/SCK/SDO, so every analog and digital net was on the wrong pad.",
+        "The exposed pad is GND (pin 11) and must be soldered to the PCB; the reference bypass and the ADC ground return are taken at the exposed pad.",
+        "Channel 0 is the receive path; channel 1 stays free for the band-pass diagnostic tap."
+      ],
+      "source": {
+        "document": "LTC1407-1/LTC1407A-1 data sheet, 14071fb",
+        "vendor": "Analog Devices / Linear Technology",
+        "url": "https://www.farnell.com/datasheets/1575692.pdf",
+        "retrieved": "2026-09-12",
+        "retrieval_method": "Farnell mirror of the ADI/LTC 14071fb data sheet (analog.com is unreachable from the build host)",
+        "retrieved_artifact_kind": "application/pdf (14071fb)",
+        "retrieved_artifact_sha256": "8541e0eb88d19ebc605e715e4e5a64c4a6b3fc84b82302ccce06f1a0ff967a5a",
+        "evidence": "'MSE PACKAGE 10-LEAD PLASTIC MSOP' pin configuration (1 CH0+, 2 CH0-, 3 VREF, 4 CH1+, 5 CH1-, 6 GND, 7 VDD, 8 SDO, 9 SCK, 10 CONV; 'EXPOSED PAD IS GND (PIN 11), MUST BE SOLDERED TO PCB') plus the 'GND (Pins 6, 11)' Pin Functions entry and the MSE package drawing (Reference LTC DWG # 05-08-1664 Rev C)"
+      }
+    },
+    "U_CLK": {
+      "ref": "U_CLK",
+      "opn": "SiT5356AI-FQ-33E0-25.000000",
+      "device": "SiT5356 Stratum 3 Elite precision super-TCXO, 25 MHz LVCMOS",
+      "package": "10L CQFN (PQD-CQFN-10-050302-036), 5.000 x 3.200 x 0.950 mm, 1.200 mm lead pitch",
+      "pins": {
+        "pin1": "OE",
+        "pin2": "SCL_NC",
+        "pin3": "NC_3",
+        "pin4": "GND",
+        "pin5": "A0_NC",
+        "pin6": "CLK",
+        "pin7": "NC_7",
+        "pin8": "NC_8",
+        "pin9": "VDD",
+        "pin10": "SDA_NC"
+      },
+      "pin_alias": {
+        "SCL_NC": "GND",
+        "NC_3": "GND",
+        "A0_NC": "GND",
+        "NC_7": "GND",
+        "NC_8": "GND",
+        "SDA_NC": "GND"
+      },
+      "notes": [
+        "Land pattern: SiTime solder-print SPL-001-RevA (overall land 4.050 x 2.350 mm, side-pad width 0.700 mm) on the 'Package Outline PQD-CQFN-10-050302-036' 10L CQFN; see src/parts/ic_footprints.tsx FP_TCXO_5032_10.",
+        "The previous Rev.0 model was a 4-pad dfn4 with 1 OE / 2 GND / 3 OUT / 4 VDD, which renumbers the real part: OE is pin 1, GND is pin 4, CLK is pin 6 and VDD is pin 9.",
+        "The 'FQ' order code selects pin 1 as OE and pins 2/5/10 as NC (no I2C/VCTCXO). The data-sheet layout guideline 'connect all NC pins to the ground plane' is applied: pins 2, 3, 5, 7, 8 and 10 are tied to GND.",
+        "Pin 1 (OE) has an internal pull-up to VDD; Rev.0 ties it to 3V3_CLK for an always-enabled output. The data sheet recommends a <= 10 kOhm pull-up if the pin is not externally driven.",
+        "VDD decoupling is the data-sheet requirement of 0.1 uF (CCLK1, within 1-2 mm of VDD) in parallel with 10 uF on the rail."
+      ],
+      "source": {
+        "document": "SiT5356 1 MHz - 60 MHz, +-0.1 to +-0.25 ppm, Stratum 3 Elite Platform Precision Super-TCXO data sheet, Rev 1.08 (January 2023)",
+        "vendor": "SiTime",
+        "url": "https://www.sitime.com/datasheet/SiT5356",
+        "retrieved": "2026-09-12",
+        "retrieved_artifact_kind": "application/pdf (Rev 1.08)",
+        "retrieved_artifact_sha256": "4ba2f5530228193e7339ea8238f6ffa8257589e15cc77c5a4eb2e77beb71ab96",
+        "evidence": "'5.0 mm x 3.2 mm Package Pinout / Figure 2. Pin Assignments (Top view)' with pins 1 OE/VC/NC, 2 SCL/NC, 3 NC, 4 GND, 5 A0/NC, 6 CLK, 7 NC, 8 NC, 9 VDD, 10 SDA/NC; 'Dimensions and Patterns -> Package Size - Dimensions / Recommended Land Pattern' (SPL-001-RevA, 10L Ceramic 5.0 x 3.2 x 0.95); 'Layout Guidelines' (connect all NC pins to the ground plane, 0.1 uF close to VDD)"
+      }
+    },
+    "U_CLKLDO": {
+      "ref": "U_CLKLDO",
+      "opn": "TPS7A2033PDQNR",
+      "device": "TPS7A20 ultra-low-noise, 300 mA low-dropout regulator, 3.3 V fixed",
+      "package": "DQN package, 4-pin X2SON (1 x 1 mm) with exposed thermal pad (DRAWN AS PIN 5)",
+      "pins": {
+        "pin1": "OUT",
+        "pin2": "GND",
+        "pin3": "EN",
+        "pin4": "IN",
+        "pin5": "THERMAL_PAD"
+      },
+      "pin_alias": {
+        "THERMAL_PAD": "GND"
+      },
+      "notes": [
+        "Land pattern: TI 4215302/E (DQN0004A) 'EXAMPLE BOARD LAYOUT' - 4 signal pads 0.21 x 0.36 mm on a 0.86 x 0.65 mm grid plus the exposed thermal pad; see src/parts/ic_footprints.tsx FP_X2SON4_EP.",
+        "The previous Rev.0 model used the SOT-23-5 (DBV) map (1 IN, 2 GND, 3 EN, 4 NC, 5 OUT) and a sot23-5 footprint. DQN and DBV are different packages with different pin maps in the same family, so the frozen PDQNR order code must use the X2SON map.",
+        "The thermal pad is drawn as pin 5 in the data-sheet figure and must be soldered to GND for mechanical and thermal performance."
+      ],
+      "source": {
+        "document": "TPS7A20 data sheet, SBVS338H (MARCH 2020 - REVISED JULY 2024)",
+        "vendor": "Texas Instruments",
+        "url": "https://www.ti.com/lit/ds/symlink/tps7a20.pdf",
+        "retrieved": "2026-09-12",
+        "retrieved_artifact_kind": "application/pdf (SBVS338H)",
+        "retrieved_artifact_sha256": "663a9ff5bca608643e711652cba00e7b8bf955c0993a9b86fa108d24d58b8ddc",
+        "evidence": "'Figure 4-3. DQN Package, 4-Pin X2SON (Top View)' (1 OUT, 2 GND, 3 EN, 4 IN, 5 Thermal Pad) cross-checked against the 'Pin Functions: X2SON, SOT-23' table (IN = 4, OUT = 1, EN = 3, GND = 2), plus the 'DQN0004A X2SON - 0.4 mm max height' package outline and 'EXAMPLE BOARD LAYOUT' (TI 4215302/E)"
+      }
+    },
+    "U_AUXLDO": {
+      "ref": "U_AUXLDO",
+      "opn": "TPS7A2025PDQNR",
+      "device": "TPS7A20 ultra-low-noise, 300 mA low-dropout regulator, 2.5 V fixed",
+      "package": "DQN package, 4-pin X2SON (1 x 1 mm) with exposed thermal pad (DRAWN AS PIN 5)",
+      "pins": {
+        "pin1": "OUT",
+        "pin2": "GND",
+        "pin3": "EN",
+        "pin4": "IN",
+        "pin5": "THERMAL_PAD"
+      },
+      "pin_alias": {
+        "THERMAL_PAD": "GND"
+      },
+      "notes": [
+        "Same DQN (X2SON-4) package and land pattern as U_CLKLDO; see src/parts/ic_footprints.tsx FP_X2SON4_EP.",
+        "The previous Rev.0 model used the SOT-23-5 (DBV) map and footprint; the frozen PDQNR order code is the 4-pin X2SON option.",
+        "This rail is supplied from 3V3_D and feeds the ECP5 VCCAUX, so the enable input is tied to its own input rail."
+      ],
+      "source": {
+        "document": "TPS7A20 data sheet, SBVS338H (MARCH 2020 - REVISED JULY 2024)",
+        "vendor": "Texas Instruments",
+        "url": "https://www.ti.com/lit/ds/symlink/tps7a20.pdf",
+        "retrieved": "2026-09-12",
+        "retrieved_artifact_kind": "application/pdf (SBVS338H)",
+        "retrieved_artifact_sha256": "663a9ff5bca608643e711652cba00e7b8bf955c0993a9b86fa108d24d58b8ddc",
+        "evidence": "The same 'Figure 4-3. DQN Package, 4-Pin X2SON (Top View)' and 'Pin Functions: X2SON, SOT-23' table used for U_CLKLDO; the DQN pin map is package-defined and identical for every TPS7A20 fixed-output option."
+      }
+    },
+    "U_CORE": {
+      "ref": "U_CORE",
+      "opn": "TPS628502DRLR",
+      "device": "TPS628502 2 A, 2.7 V to 6 V step-down converter with adjustable switching frequency",
+      "package": "DRL package, 8-pin SOT-583 (1.60 x 2.10 mm), 0.5 mm pitch",
+      "pins": {
+        "pin1": "VIN",
+        "pin2": "EN",
+        "pin3": "MODE_SYNC",
+        "pin4": "COMP_FSET",
+        "pin5": "FB",
+        "pin6": "PG",
+        "pin7": "SW",
+        "pin8": "GND"
+      },
+      "notes": [
+        "Land pattern: TI 4224486/G (DRL0008A) 'EXAMPLE BOARD LAYOUT' - 8 pads 0.67 x 0.30 mm on a 1.48 mm x 0.5 mm-pitch grid; see src/parts/ic_footprints.tsx FP_SOT583_8.",
+        "The previous Rev.0 model used footprinter sot563 (6 pads) with an invented VOS pin and EN on pin 7; there is no VOS pin on this device, EN is pin 2 and the switch node is pin 7.",
+        "MODE/SYNC (pin 3) is pulled high through 10 kOhm for forced-PWM operation and must not float.",
+        "COMP/FSET (pin 4) takes RFSET to GND (5.76 kOhm), which sets the compensation and the switching frequency.",
+        "FB (pin 5) takes the 39.2 kOhm / 47.0 kOhm divider plus the 10 pF feed-forward capacitor to the 1V1_CORE node. The bogus 'VOS' trace to the output rail was deleted.",
+        "PG (pin 6) is an open-drain power-good output and is left open in Rev.0.",
+        "This is the sole local switching regulator and lives in the digital region only."
+      ],
+      "source": {
+        "document": "TPS628501, TPS628502, TPS628503 data sheet, SLUSEC8C (MARCH 2021 - REVISED JUNE 2025)",
+        "vendor": "Texas Instruments",
+        "url": "https://www.ti.com/lit/ds/symlink/tps628502.pdf",
+        "retrieved": "2026-09-12",
+        "retrieved_artifact_kind": "application/pdf (SLUSEC8C)",
+        "retrieved_artifact_sha256": "640e5bca2f5a0382ac9237f1952e9666a21c09215dc7a4595f355af2f1464930",
+        "evidence": "'Figure 5-1. 8-Pin SOT583 DRL Package (Top View)' with Table 5-1 Pin Functions (EN = 2, FB = 5, GND = 8, MODE/SYNC = 3, COMP/FSET = 4, PG = 6, SW = 7, VIN = 1), plus the 'SOT-5X3 DRL0008A' package outline and 'EXAMPLE BOARD LAYOUT' (TI 4224486/G)"
+      }
+    },
+    "DS1": {
+      "ref": "DS1",
+      "opn": "NHD-C0220BiZ-FSW-FBW-3V3M",
+      "device": "Newhaven 2x20 character COG LCD module, ST7036i controller, I2C, white LED backlight",
+      "package": "COG module 75.7 x 27.1 mm; 8-pad interface row on a 2.0 mm pitch, plus a separate 2-pin backlight connector (modelled as J4)",
+      "pins": {
+        "pin1": "RST",
+        "pin2": "SCL",
+        "pin3": "SDA",
+        "pin4": "VSS",
+        "pin5": "VDD",
+        "pin6": "VOUT",
+        "pin7": "C1_PLUS",
+        "pin8": "C1_MINUS"
+      },
+      "pin_alias": {
+        "VSS": "GND"
+      },
+      "notes": [
+        "Land pattern: Newhaven 'Recommended PCB Footprint' for NHD-C0220BiZ - eight interface pads at P2.0*7 = 14 mm, pad 0.5 x 0.3 mm; see src/parts/ic_footprints.tsx FP_LCD_8PIN.",
+        "The previous Rev.0 model had 7 pads ordered VDD/GND/SDA/SCL/RST/LED_A/LED_K: every signal net was on the wrong pad and VOUT/C1+/C1- were missing.",
+        "The module's backlight is a *separate* two-pin connector ('Backlight connector: 8.5 mm pitch pins, solder directly into PCB'); it is modelled as the dedicated component J4 (LED_A / LED_K) with its own footprint FP_BL_2PIN, not as extra pins on DS1.",
+        "The ST7036i charge-pump needs CBST1 = 1 uF from VOUT (pin 6) to VSS and CBST2 = 1 uF between C1+ (pin 7) and C1- (pin 8); the data sheet allows 0.47 uF .. 2.2 uF and recommends 1 uF.",
+        "The module is soldered directly to the PCB (no mating connector) and overhangs the HAT+ outline; it is a locked mechanical constraint."
+      ],
+      "source": {
+        "document": "NHD-C0220BiZ-FSW-FBW-3V3M product specification, revision 1A (document revision 10, 07/26/2023)",
+        "vendor": "Newhaven Display International",
+        "url": "https://newhavendisplay.com/content/specs/NHD-C0220BiZ-FSW-FBW-3V3M.pdf",
+        "retrieved": "2026-09-12",
+        "retrieved_artifact_kind": "application/pdf (Rev 1A)",
+        "retrieved_artifact_sha256": "cda64e85fb754d67c8a8d2495b38a8947c12744cb0f809318d132f8ed467c3e3",
+        "evidence": "'Pin Description' table (1 RST, 2 SCL, 3 SDA, 4 VSS, 5 VDD, 6 VOUT, 7 C1+, 8 C1-; VOUT 'Connect 0.47 uF~2.2 uF cap to VSS or VDD'; C1+ 'Connect 1 uF cap to PIN8'; 'Backlight connector: 8.5 mm pitch pins, solder directly into PCB'), the mechanical drawing pin callouts on page 4, and the 'Recommended PCB Footprint' drawing on page 5"
+      }
+    },
+    "U_PPS": {
+      "ref": "U_PPS",
+      "opn": "SN74LVC1G125DBVR",
+      "device": "SN74LVC1G125 single bus buffer gate with 3-state output and active-low output enable",
+      "package": "DBV package, 5-pin SOT-23",
+      "pins": {
+        "pin1": "OE",
+        "pin2": "A",
+        "pin3": "GND",
+        "pin4": "Y",
+        "pin5": "VCC"
+      },
+      "notes": [
+        "This freezes the MPN that docs/references.md previously left unassigned ('only the ECP5 ball and output path are frozen').",
+        "OE (pin 1) is active low and is tied to GND so the buffer is permanently enabled; the ECP5 PPS_REF signal drives A (pin 2) and Y (pin 4) drives PPS_OUT through RPS1 = 33 Ohm.",
+        "VCC (pin 5) is 3V3_D so the PPS output swings in the digital I/O domain; the data sheet requires the 100 nF decoupling at the device.",
+        "The data sheet notes that when the output is disabled or the device is powered down, OE must be tied to VCC through a pull-up; tying it permanently to GND for an always-on buffer is the equivalent always-enabled configuration and is the Rev.0 intent."
+      ],
+      "source": {
+        "document": "SN74LVC1G125 data sheet, SCES223U (APRIL 1999 - REVISED AUGUST 2026)",
+        "vendor": "Texas Instruments",
+        "url": "https://www.ti.com/lit/ds/symlink/sn74lvc1g125.pdf",
+        "retrieved": "2026-09-12",
+        "retrieved_artifact_kind": "application/pdf (SCES223U)",
+        "retrieved_artifact_sha256": "65afa3f9d879b37cb8be507caf84804b24bceeb2e0782ba449fff72160994e4c",
+        "evidence": "'4 Pin Configuration and Functions - DBV PACKAGE (TOP VIEW)' (1 OE, 2 A, 3 GND, 4 Y, 5 VCC) plus the functional description 'the output is disabled when the output-enable (OE) input is high; when OE is low, true data is passed from the A input to the Y output'"
       }
     }
   }

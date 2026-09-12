@@ -10,6 +10,7 @@
 import { N } from "../parts/nets";
 import { at } from "../parts";
 import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
+import { FP_BL_2PIN, FP_LCD_8PIN } from "../parts/ic_footprints";
 import { pinLabelsOf } from "../parts/pinouts";
 
 const GND = N.gnd;
@@ -17,35 +18,39 @@ const GND = N.gnd;
 export function LocalDisplay() {
   return (
     <>
-      {/* Locked mechanical position; the pad row is the module's interface edge. */}
+      {/* Locked mechanical position; the pad set is the module's audited board
+          interface (ic-pinouts.json): 8-pad 2.0 mm interface row
+          (1 RST, 2 SCL, 3 SDA, 4 VSS, 5 VDD, 6 VOUT, 7 C1+, 8 C1-). */}
       <chip
         name="DS1"
+        footprint={FP_LCD_8PIN}
         {...at("lcd", "DS1")}
-        pinLabels={{
-          pin1: "VDD", pin2: "GND", pin3: "SDA", pin4: "SCL",
-          pin5: "RST", pin6: "LED_A", pin7: "LED_K",
-        }}
-        pinAttributes={{ VDD: { requiresPower: true }, GND: { requiresGround: true } }}
+        pinLabels={pinLabelsOf("DS1")}
+        pinAttributes={{ VDD: { requiresPower: true }, VSS: { requiresGround: true } }}
         connections={{
           VDD: N.v3v3d,
-          GND: GND,
+          VSS: GND,
           SDA: N.lcdSda,
           SCL: N.lcdScl,
           RST: N.lcdRstN,
-          LED_A: N.lcdBlA,
-          LED_K: N.lcdBlK,
         }}
-      >
-        <footprint>
-          <smtpad shape="rect" width="1.4mm" height="1.4mm" pcbX={-6.0} pcbY={0} portHints={["pin1"]} />
-          <smtpad shape="rect" width="1.4mm" height="1.4mm" pcbX={-4.0} pcbY={0} portHints={["pin2"]} />
-          <smtpad shape="rect" width="1.4mm" height="1.4mm" pcbX={-2.0} pcbY={0} portHints={["pin3"]} />
-          <smtpad shape="rect" width="1.4mm" height="1.4mm" pcbX={0.0} pcbY={0} portHints={["pin4"]} />
-          <smtpad shape="rect" width="1.4mm" height="1.4mm" pcbX={2.0} pcbY={0} portHints={["pin5"]} />
-          <smtpad shape="rect" width="1.4mm" height="1.4mm" pcbX={4.0} pcbY={0} portHints={["pin6"]} />
-          <smtpad shape="rect" width="1.4mm" height="1.4mm" pcbX={6.0} pcbY={0} portHints={["pin7"]} />
-        </footprint>
-      </chip>
+      />
+
+      {/* The module's separate 2-pin backlight connector (LED_A / LED_K). */}
+      <chip
+        name="J4"
+        footprint={FP_BL_2PIN}
+        {...at("lcd", "J4")}
+        pinLabels={{ pin1: "LED_A", pin2: "LED_K" }}
+        connections={{ LED_A: N.lcdBlA, LED_K: N.lcdBlK }}
+      />
+
+      {/* ST7036i charge pump: 1 uF from VOUT to VSS and 1 uF between C1+ and C1-
+          (datasheet allows 0.47 uF .. 2.2 uF, recommends 1 uF). */}
+      <capacitor name="CBST1" capacitance="1uF" footprint="0603" {...at("lcd", "CBST1")}
+        connections={{ pin1: ".DS1 > .VOUT", pin2: GND }} />
+      <capacitor name="CBST2" capacitance="1uF" footprint="0603" {...at("lcd", "CBST2")}
+        connections={{ pin1: ".DS1 > .C1_PLUS", pin2: ".DS1 > .C1_MINUS" }} />
 
       <capacitor name="CBL1" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("lcd", "CBL1")}
         connections={{ pin1: N.v3v3d, pin2: GND }} />

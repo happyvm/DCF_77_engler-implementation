@@ -173,10 +173,10 @@ export const REGIONS: Region[] = [
       "VIN capacitor immediately adjacent to VIN/GND",
     ],
     members: [
+      "U_AUXLDO", "CAUXLDO_IN", "CAUXLDO_OUT",
       "U_CORE", "L_CORE", "CIN_CORE1", "CIN_CORE2", "COUT_CORE1", "COUT_CORE2",
       "RFSET", "RMODE", "RFB_TOP", "RFB_BOT", "CFF_CORE",
       "U_SW", "RON_PD", "CT_SW", "CAFE_R", "CAFE1", "CAFE2", "CAFE3",
-      "U_AUXLDO", "CAUXLDO_IN", "CAUXLDO_OUT",
     ],
   },
   {
@@ -195,7 +195,7 @@ export const REGIONS: Region[] = [
       "no Bank 1/2/3 fast signal detours through the ferrite/OPA810 region",
     ],
     members: [
-      "U_EE", "J3", "U_PPS", "RPS1",
+      "U_EE", "J3", "U_PPS", "RPS1", "CUPS1",
       "RS_UART_TX", "RS_UART_RX", "RUART_TX", "RUART_RX",
       "RS_SPI_SCLK", "RS_SPI_MOSI", "RS_SPI_MISO", "RS_SPI_CS",
       "RRST", "RIRQ", "RTPS_UP", "RTPS_DN",
@@ -262,7 +262,13 @@ export const REGIONS: Region[] = [
   {
     id: "lcd",
     name: "LCD mechanical zone (locked)",
-    x: 22.75, y: -24.125, width: 19.5, height: 8.25,
+    // Height grown from 8.25 to 10.25 mm (top edge lifted from y = -20.0 to
+    // y = -18.0) to seat the two ST7036i charge-pump capacitors CBST1/CBST2 and
+    // the separate backlight connector J4 that the audited DS1 pad set added.
+    // The bottom edge stays on the board outline; the region now overlaps the
+    // lower part of the ecp5_flash region, which is checked by the board-wide
+    // "no two parts overlap" rule rather than by region containment.
+    x: 22.75, y: -23.125, width: 19.5, height: 10.25,
     quilter: "optimise",
     rules: [
       "LCD mechanical position/orientation locked before automated placement",
@@ -270,7 +276,7 @@ export const REGIONS: Region[] = [
       "keep backlight return current out of the analog input region",
       "module is wider than the HAT+ outline; overhang is intentional",
     ],
-    members: ["DS1", "LCD_BLQ", "RBL1", "RBL2", "RLCD_SCL", "RLCD_SDA", "CBL1", "CBL2", "RBL3"],
+    members: ["DS1", "J4", "LCD_BLQ", "RBL1", "RBL2", "RLCD_SCL", "RLCD_SDA", "CBL1", "CBL2", "RBL3", "CBST1", "CBST2"],
   },
 ];
 
@@ -300,7 +306,8 @@ const SIZE_MM: Record<string, [number, number]> = {
   CT_SW: [3.20, 1.65], CVCM1: [3.60, 2.10], CVCM2: [3.15, 1.65], CVCM3: [2.30, 1.35], CVD1: [2.30, 1.35],
   CVD2: [3.15, 1.65], CVD3: [3.55, 2.15], CVIO8: [2.30, 1.35], CVIOBANK: [3.15, 1.70], C_ADCIN: [3.20, 1.70],
   D_ESD_PPS: [1.80, 1.40], D_ESD_REF: [1.80, 1.40],
-  C_BUF: [3.15, 1.65], C_PGAIN: [3.20, 1.65], DS1: [14.10, 2.10], J1: [50.80, 5.05], J2: [16.25, 3.55], J3: [11.20, 3.55], LCD_BLQ: [4.30, 3.40], L_CORE: [2.30, 1.35], R1: [3.15, 1.65], R2: [3.15, 1.65],
+  C_BUF: [3.15, 1.65], C_PGAIN: [3.20, 1.65], DS1: [14.75, 1.00], J1: [50.80, 5.05], J2: [16.25, 3.55], J3: [11.20, 3.55], J4: [3.15, 1.15], LCD_BLQ: [4.30, 3.40], L_CORE: [2.30, 1.35], R1: [3.15, 1.65], R2: [3.15, 1.65],
+  CBST1: [3.20, 1.70], CBST2: [3.20, 1.70], CUPS1: [2.30, 1.35],
   R21: [3.20, 1.65], R22: [3.20, 1.70], R23: [3.20, 1.70], R24: [3.20, 1.70], R3V3D_LINK: [3.60, 2.10],
   RANT: [3.15, 1.65], RBL1: [3.60, 2.10], RBL2: [2.30, 1.35], RBL3: [2.30, 1.35], RCFG0: [2.30, 1.35], RCFG1: [2.30, 1.35],
   RDONE: [2.30, 1.35], REESC: [2.30, 1.35], REESD: [2.30, 1.35], REEWP: [2.30, 1.35], RFB_BOT: [2.30, 1.35],
@@ -314,8 +321,8 @@ const SIZE_MM: Record<string, [number, number]> = {
   RS_UART_RX: [2.30, 1.35], RS_UART_TX: [2.30, 1.35], RTCK: [2.30, 1.35], RTDI: [2.30, 1.35], RTDO: [2.30, 1.35],
   RTMS: [2.30, 1.35], RTPS_DN: [2.30, 1.35], RTPS_UP: [2.30, 1.35], RUART_RX: [2.30, 1.35], RUART_TX: [2.30, 1.35],
   R_ADCIN_N: [2.30, 1.35], R_ADCIN_P: [2.30, 1.35], R_PGABIAS: [3.20, 1.65], R_VCMADC1: [2.30, 1.35],
-  R_VCMADC2: [2.30, 1.35], U1: [15.85, 15.95], U_ADC: [6.70, 3.85], U_ADCLDO: [6.05, 6.65], U_AUXLDO: [4.30, 3.40],
-  U_BPF: [5.90, 12.85], U_BUF: [4.35, 3.40], U_CLK: [6.05, 2.80], U_CLKLDO: [4.35, 3.40], U_CORE: [2.80, 2.05],
+  R_VCMADC2: [2.30, 1.35], U1: [15.85, 15.95], U_ADC: [6.30, 3.50], U_ADCLDO: [6.30, 3.50], U_AUXLDO: [1.35, 1.35],
+  U_BPF: [5.90, 12.85], U_BUF: [4.35, 3.40], U_CLK: [4.10, 2.40], U_CLKLDO: [1.35, 1.35], U_CORE: [2.20, 2.10],
   U_DRV: [6.55, 3.90], U_EE: [6.00, 5.55], U_FLASH: [6.05, 5.55], U_PGA: [5.90, 10.30], U_PPS: [4.30, 3.40],
   U_SW: [4.35, 4.40],
 };

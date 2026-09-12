@@ -18,6 +18,8 @@
 import { N } from "../parts/nets";
 import { at } from "../parts";
 import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
+import { FP_SOT583_8, FP_X2SON4_EP } from "../parts/ic_footprints";
+import { pinLabelsOf } from "../parts/pinouts";
 
 const GND = N.gnd;
 
@@ -43,12 +45,9 @@ export function CoreBuck() {
     <>
       <chip
         name="U_CORE"
-        footprint="sot563"
+        footprint={FP_SOT583_8}
         {...at("power_1v1", "U_CORE")}
-        pinLabels={{
-          pin1: "VIN", pin2: "GND", pin3: "SW", pin4: "FB",
-          pin5: "COMP_FSET", pin6: "MODE_SYNC", pin7: "EN", pin8: "VOS",
-        }}
+        pinLabels={pinLabelsOf("U_CORE")}
         pinAttributes={{ VIN: { requiresPower: true }, GND: { requiresGround: true } }}
         connections={{
           VIN: N.v5sys,
@@ -82,7 +81,6 @@ export function CoreBuck() {
         connections={{ pin1: ".U_CORE > .FB", pin2: GND }} />
       <capacitor name="CFF_CORE" capacitance="10pF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C32949"] }} {...at("power_1v1", "CFF_CORE")}
         connections={{ pin1: N.v1v1core, pin2: ".U_CORE > .FB" }} />
-      <trace from={N.v1v1core} to=".U_CORE > .VOS" />
     </>
   );
 }
@@ -104,11 +102,11 @@ export function DigitalRails() {
 
       <chip
         name="U_AUXLDO"
-        footprint="sot23-5"
+        footprint={FP_X2SON4_EP}
         {...at("power_1v1", "U_AUXLDO")}
-        pinLabels={{ pin1: "IN", pin2: "GND", pin3: "EN", pin4: "NC", pin5: "OUT" }}
+        pinLabels={pinLabelsOf("U_AUXLDO")}
         pinAttributes={{ IN: { requiresPower: true }, GND: { requiresGround: true } }}
-        connections={{ IN: N.v3v3d, EN: N.v3v3d, OUT: N.v2v5aux, GND: GND }}
+        connections={{ IN: N.v3v3d, EN: N.v3v3d, OUT: N.v2v5aux, GND: GND, THERMAL_PAD: GND }}
       />
       <capacitor name="CAUXLDO_IN" capacitance="2.2uF" footprint="0603" {...at("power_1v1", "CAUXLDO_IN")}
         connections={{ pin1: N.v3v3d, pin2: GND }} />

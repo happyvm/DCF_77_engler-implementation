@@ -234,6 +234,9 @@
         "VIN capacitor immediately adjacent to VIN/GND"
       ],
       "members": [
+        "U_AUXLDO",
+        "CAUXLDO_IN",
+        "CAUXLDO_OUT",
         "U_CORE",
         "L_CORE",
         "CIN_CORE1",
@@ -251,10 +254,7 @@
         "CAFE_R",
         "CAFE1",
         "CAFE2",
-        "CAFE3",
-        "U_AUXLDO",
-        "CAUXLDO_IN",
-        "CAUXLDO_OUT"
+        "CAFE3"
       ]
     },
     {
@@ -278,6 +278,7 @@
         "J3",
         "U_PPS",
         "RPS1",
+        "CUPS1",
         "RS_UART_TX",
         "RS_UART_RX",
         "RUART_TX",
@@ -406,7 +407,7 @@
         "x": 13,
         "y": -28.25,
         "width": 19.5,
-        "height": 8.25
+        "height": 10.25
       },
       "rules": [
         "LCD mechanical position/orientation locked before automated placement",
@@ -416,6 +417,7 @@
       ],
       "members": [
         "DS1",
+        "J4",
         "LCD_BLQ",
         "RBL1",
         "RBL2",
@@ -423,7 +425,9 @@
         "RLCD_SDA",
         "CBL1",
         "CBL2",
-        "RBL3"
+        "RBL3",
+        "CBST1",
+        "CBST2"
       ]
     }
   ],

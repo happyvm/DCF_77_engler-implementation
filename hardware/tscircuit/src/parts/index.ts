@@ -20,6 +20,14 @@
  */
 import { LOCKED_PLACEMENTS, pos, type RegionId } from "../board/hatplus_constraints";
 import { FP0402_CAP, FP0402_RES } from "./footprints";
+import {
+  FP_BL_2PIN,
+  FP_LCD_8PIN,
+  FP_MSOP10_EP,
+  FP_SOT583_8,
+  FP_TCXO_5032_10,
+  FP_X2SON4_EP,
+} from "./ic_footprints";
 
 export const PARTS = {
   antenna: { opn: "TDK B82453C0275A000", note: "3D ferrite transponder coil, X winding only; Y/Z open" },
@@ -43,6 +51,7 @@ export const PARTS = {
   auxLdo: { opn: "TPS7A2025PDQNR", note: "2V5_AUX from 3V3_D" },
   idEeprom: { opn: "CAT24C32-compatible", note: "HAT+ ID EEPROM at 0x50" },
   lcdBacklightFet: { opn: "BSS138", note: "logic-level N-MOSFET, SOT-23, Vgs(th) <= 1.5 V, LCD backlight switch" },
+  ppsBuffer: { opn: "SN74LVC1G125DBVR", note: "single bus buffer, active-low OE, SOT-23-5, 3V3_D PPS output driver" },
   esdArray2: { opn: "USBLC6-2SC6", note: "2-line bidirectional ESD array, SOT-23-6, ~1.5 pF, on the external PPS/test header" },
 } as const;
 
@@ -62,6 +71,11 @@ export const lockedAt = (ref: string) => {
  * `r0402` / `c0402` resolve to the audited JLCPCB land patterns (see
  * suppliers/jlcpcb-land-patterns.json and parts/footprints.tsx) because the
  * generic footprinter `0402` copper did not match the resolved JLCPCB parts.
+ *
+ * The IC entries point at the audited land patterns in parts/ic_footprints.tsx;
+ * they are deliberately NOT the generic footprinter names (`msop10`, `dfn10`,
+ * `dfn4`, `sot563`) that used to renumber the MSOP-10, X2SON-4, 10L CQFN and
+ * SOT-583 packages.
  */
 export const FP = {
   r0402: FP0402_RES,
@@ -71,14 +85,16 @@ export const FP = {
   c0603: "0603",
   c0805: "0805",
   soic8: "soic8",
-  msop10: "msop10",
+  msop10Ep: FP_MSOP10_EP,
+  x2son4Ep: FP_X2SON4_EP,
+  sot583_8: FP_SOT583_8,
+  tcxo5032_10: FP_TCXO_5032_10,
+  lcd8pin: FP_LCD_8PIN,
+  bl2pin: FP_BL_2PIN,
   sot235: "sot23-5",
   ssop16: "ssop16",
   ssop20: "ssop20",
   sot236: "sot23-6",
-  sot583: "sot563",
-  dfn10: "dfn10",
-  sit4: "dfn4",
   bga256: "bga256",
   pinheader40: "pinheader40",
   pinheader4: "pinheader4",

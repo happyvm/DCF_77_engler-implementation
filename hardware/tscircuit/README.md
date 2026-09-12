@@ -363,10 +363,9 @@ tsx scripts/import-lattice-pinout.ts --lattice <FPGA-SC-02034-*.csv> --write
 
 ## Schematic-freeze status (Rev.0)
 
-Everything listed in the BEA-42 ticket is closed **except** the pad-identity audit of the
-non-FPGA ICs, which is now first-class work rather than an implicit assumption. A DRC-clean
-netlist is not the same thing as a correct netlist: an invented pin name puts a real net on
-the wrong physical pad and no electrical rule will catch it.
+Everything listed in the BEA-42 ticket is closed, including the pad-identity audit of the
+non-FPGA ICs. A DRC-clean netlist is not the same thing as a correct netlist: an invented
+pin name puts a real net on the wrong physical pad and no electrical rule will catch it.
 
 ### IC pad identity (`ic-pinouts.json`)
 
@@ -374,23 +373,30 @@ the wrong physical pad and no electrical rule will catch it.
 the non-FPGA ICs, imported by `src/parts/pinouts.ts` and gated by
 `scripts/verify-ic-pinouts.ts` (`npm run check:pinouts`, wired into `npm run check`). Each
 audited part records the manufacturer document it came from, so a pin map cannot be changed
-without re-stating its source.
-
-Audited so far (8 of 16):
+without re-stating its source. **`status.pending` is now empty and all 16 parts are
+audited**; `npm run check:pinouts:release` therefore passes.
 
 ```text
-U_BPF    LTC1562IG#PBF     G package, 20-lead SSOP        1562fa (REV A)
-U_PGA    LTC6912IGN-1#PBF  GN package, 16-lead SSOP       6912fa
-U_BUF    OPA810IDBVR       DBV package, 5-pin SOT-23      SBOS799E
-U_DRV    OPA2835IDGSR      DGS package, 10-pin VSSOP      SLOS713J
-U_SW     TPS22975NDSGR     DSG package, 8-pin WSON + pad  SLVSDD0B
-U_FLASH  W25Q64JVSSIQ      8-pin SOIC 208-mil (SS)        W25Q64JV Rev J
-U_EE     CAT24C32WI-GT3    SOIC-8 (W suffix)              CAT24C32 onsemi
-LCD_BLQ  BSS138            SOT-23-3 (case 318-08)         BSS138 onsemi
+U_BPF     LTC1562IG#PBF      G package, 20-lead SSOP           1562fa (REV A)
+U_PGA     LTC6912IGN-1#PBF   GN package, 16-lead SSOP          6912fa
+U_BUF     OPA810IDBVR        DBV package, 5-pin SOT-23         SBOS799E
+U_DRV     OPA2835IDGSR       DGS package, 10-pin VSSOP         SLOS713J
+U_SW      TPS22975NDSGR      DSG package, 8-pin WSON + pad     SLVSDD0B
+U_FLASH   W25Q64JVSSIQ       8-pin SOIC 208-mil (SS)           W25Q64JV Rev J
+U_EE      CAT24C32WI-GT3     SOIC-8 (W suffix)                 CAT24C32 onsemi
+LCD_BLQ   BSS138             SOT-23-3 (case 318-08)            BSS138 onsemi
+U_ADCLDO  LT3042EMSE#PBF     MSE MSOP-10 + exposed GND pad     3042fa
+U_ADC     LTC1407AIMSE-1#PBF MSE MSOP-10 + exposed GND pad     14071fb
+U_CLK     SiT5356           10L CQFN 5.0 x 3.2 mm              SiT5356 Rev 1.08
+U_CLKLDO  TPS7A2033PDQNR     DQN X2SON-4 (1 x 1 mm) + pad      SBVS338H
+U_AUXLDO  TPS7A2025PDQNR     DQN X2SON-4 (1 x 1 mm) + pad      SBVS338H
+U_CORE    TPS628502DRLR      DRL SOT-583-8 (1.60 x 2.10 mm)    SLUSEC8C
+DS1       NHD-C0220BiZ       8-pad 2.0 mm COG interface row    Newhaven Rev 1A
+U_PPS     SN74LVC1G125DBVR   DBV package, 5-pin SOT-23         SCES223U
 ```
 
-Every one of them is now consumed through `pinLabelsOf("<ref>")`, so the TSX cannot
-diverge from the audited map.
+Every one of them is consumed through `pinLabelsOf("<ref>")`, so the TSX cannot diverge from
+the audited map.
 
 The first two were wrong before this audit and both were wiring defects, not cosmetic
 ones:
@@ -405,9 +411,9 @@ ones:
   6 CS/LD, 7 DIN, 8 CLK, 9 DOUT, 10 DGND, 11 NC, 12 V+, 13 OUTB, 14 V-, 15 OUTA, 16 NC`;
   the UE12 (DFN-12) map is entirely different, so the package must be read off the OPN.
 
-The 2026-09-12 batch (this revision) was audited against the manufacturer data sheets
-fetched to a scratch directory; every entry records the document, revision and the SHA-256
-of the retrieved artifact. Two of the six were functional defects:
+The 2026-09-12 BEA-42 batch was audited against the manufacturer data sheets fetched to a
+scratch directory; every entry records the document, revision and the SHA-256 of the
+retrieved artifact. Two of the six were functional defects:
 
 - `U_DRV` was modelled as an 8-pin `vssop8` although `OPA2835IDGSR` is the **10-pin
   VSSOP (DGS)** part. The corrected map is `1 VOUT_A, 2 VIN_A-, 3 VIN_A+, 4 VS-, 5 PD1,
@@ -421,43 +427,35 @@ of the retrieved artifact. Two of the six were functional defects:
 `U_BUF`, `U_FLASH`, `U_EE` and `LCD_BLQ` were already wired to the correct pads; they are
 now locked by the audit so a later edit cannot silently move a net.
 
-Still un-audited (`ic-pinouts.json -> status.pending`, 8 parts): `U_ADCLDO`, `U_ADC`,
-`U_CLK`, `U_CLKLDO`, `U_PPS`, `U_CORE`, `U_AUXLDO`, `DS1`. `npm run check:pinouts:release`
-refuses a release while any of them is pending, which is the point of the gate. The
-documented findings for each are recorded under `status.pending_findings`; they are all
-package/land-pattern corrections rather than label renames:
+### BEA-52 batch — the eight package/land-pattern corrections
 
-```text
-U_ADCLDO  LT3042EMSE#PBF  is a 10-lead MSOP (MSE) + exposed GND pad, not a DFN;
-                          datasheet map 1 IN, 2 IN, 3 EN/UV, 4 PG, 5 ILIM, 6 PGFB,
-                          7 SET, 8 GND, 9 OUTS, 10 OUT; the TSX currently ties ILIM
-                          to SET, shorting the current-limit set to the 100 uA
-                          voltage-set node, and invents OUT2/PGND pads.
-U_ADC     LTC1407AIMSE-1  is a 10-lead MSOP (MSE) + exposed GND pad; datasheet map
-                          1 CH0+, 2 CH0-, 3 VREF, 4 CH1+, 5 CH1-, 6 GND, 7 VDD,
-                          8 SDO, 9 SCK, 10 CONV.
-U_CLK     SiT5356         is a 10-pad 5.0 x 3.2 mm part, not a 4-pad DFN; map
-                          1 OE, 2 SCL/NC, 3 NC, 4 GND, 5 A0/NC, 6 CLK, 7-8 NC,
-                          9 VDD, 10 SDA/NC.
-U_CLKLDO  TPS7A2033PDQNR  is the 4-pin X2SON (DQN) option: 1 OUT, 2 GND, 3 EN,
-                          4 IN, pad -> GND. The family also has a SOT-23-5 (DBV)
-                          option with a different map; the frozen OPN is DQN.
-U_AUXLDO  TPS7A2025PDQNR  same DQN mapping as U_CLKLDO.
-U_CORE    TPS628502DRLR   is an 8-pin SOT-583 (DRL): 1 VIN, 2 EN, 3 MODE/SYNC,
-                          4 COMP/FSET, 5 FB, 6 PG, 7 SW, 8 GND. The TSX footprint
-                          is sot563 (6 pads) with an invented VOS pin and EN on
-                          pin 7.
-DS1       NHD-C0220BiZ    has an 8-pin interface: 1 RST, 2 SCL, 3 SDA, 4 VSS,
-                          5 VDD, 6 VOUT, 7 C1+, 8 C1-, plus a separate 2-pin
-                          backlight connector. The TSX models 7 pads and omits the
-                          charge-pump VOUT / C1+ / C1- pins.
-U_PPS     no MPN frozen   only the ECP5 ball (R12) and the output path are fixed.
-```
+The remaining eight parts needed land-pattern changes, not just label renames. They are now
+audited and every one of them has a real, datasheet-derived footprint in
+`src/parts/ic_footprints.tsx` instead of a generic footprinter name:
 
-These eight need footprint/package changes (custom land patterns for SOT-583, X2SON-4 and
-the 10-pad 5.0 x 3.2 mm TCXO; a new 10-pad MSOP + exposed pad model for the two ADI parts;
-an 8-pin + backlight-connector LCD model), so they are tracked as `BEA-52` rather than
-folded into this commit.
+| ref | was | is | defect fixed |
+| --- | --- | --- | --- |
+| `U_ADCLDO` | `dfn10`, invented map, `ILIM` tied to `SET` | `FP_MSOP10_EP` (MSOP-10 + 1.68 x 1.88 pad) | `ILIM` shorted the current-limit pin to the 100 uA voltage-set node and `OUT2`/`PGND` did not exist; `ILIM` is now tied to GND, `PGFB`/`EN-UV` to IN, `PG` floating, `OUT`/`OUTS` Kelvin to `3V3_ADC_A` |
+| `U_ADC` | `msop10`, `CH1` on pins 3/4, `VREF` on 5 | `FP_MSOP10_EP` | every analog and digital net was on the wrong pad; corrected to `1 CH0+, 2 CH0-, 3 VREF, 4 CH1+, 5 CH1-, 6 GND, 7 VDD, 8 SDO, 9 SCK, 10 CONV, 11 pad` |
+| `U_CLK` | `dfn4`, 4 pads | `FP_TCXO_5032_10` (10L CQFN, 4.050 x 2.350 land) | a 4-pad model renumbers the real part: `OE` is pin 1, `GND` 4, `CLK` 6, `VDD` 9; the unused NC pads are grounded per the datasheet layout guideline |
+| `U_CLKLDO` | `sot23-5` + DBV map | `FP_X2SON4_EP` (X2SON-4 + thermal pad) | the frozen `PDQNR` order code is the 4-pin X2SON option (`1 OUT, 2 GND, 3 EN, 4 IN, 5 pad`), not the SOT-23-5 |
+| `U_AUXLDO` | `sot23-5` + DBV map | `FP_X2SON4_EP` | same DQN/DBV mismatch |
+| `U_CORE` | `sot563`, invented `VOS` pin, `EN` on 7 | `FP_SOT583_8` (DRL, 1.60 x 2.10 mm) | `TPS628502DRLR` is an 8-pin SOT-583; there is no `VOS` pin, `EN` is pin 2 and `SW` is pin 7 — the bogus `VOS` trace to the output rail was deleted |
+| `DS1` | 7 pads `VDD/GND/SDA/SCL/RST/LED_A/LED_K` | `FP_LCD_8PIN` + separate `J4` backlight connector | every signal net was on the wrong pad and `VOUT`/`C1+`/`C1-` were missing; the charge pump now has `CBST1` (1 uF, `VOUT`-`VSS`) and `CBST2` (1 uF, `C1+`-`C1-`) |
+| `U_PPS` | no MPN, output not wired | `SN74LVC1G125DBVR` on the freed `sot23-5` land pattern | the buffer output was not connected at all (the 33 ohm series resistor sat on the input); `A` = `PPS_REF`, `Y` -> `RPS1` -> `PPS_OUT`, `OE` tied low (always enabled), `VCC` = `3V3_D` |
+
+Consequences of the footprint changes:
+
+- the pre-Quilter courtyard table (`SIZE_MM`) was recalibrated: `U_ADCLDO`/`U_ADC` to
+  `6.30 x 3.50`, `U_CLK` to `4.10 x 2.40`, both X2SON LDOs to `1.35 x 1.35`, `U_CORE` to
+  `2.20 x 2.10`, `DS1` to `14.75 x 1.00`, plus new entries `J4`, `CBST1`, `CBST2`, `CUPS1`;
+- `scripts/measure-courtyards.ts` now prefers the rendered courtyard over the pad bbox +
+  allowance when a footprint emits a courtyard, which is what its own documented method
+  always said (the two were previously combined with `Math.max`, over-declaring every part
+  that does emit one);
+- the `lcd` region grew from 8.25 to 10.25 mm of height (top edge -20.0 to -18.0) to seat
+  `CBST1`/`CBST2`/`J4`; the board-wide "no two parts overlap" rule still proves the LCD
+  zone does not collide with the configuration-flash region it now overlaps.
 
 
 ### Filter values are a separate open question

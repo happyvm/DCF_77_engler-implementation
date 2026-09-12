@@ -13,7 +13,8 @@
  * Method (in priority order, per component):
  *   1. the courtyard tscircuit itself renders — `pcb_courtyard_rect`, or the
  *      bounding box of `pcb_courtyard_outline`. This is the rectangle the DRC
- *      `pcb_courtyard_overlap_error` checks, so it is the ground truth;
+ *      `pcb_courtyard_overlap_error` checks, so it is the ground truth and it
+ *      wins when present;
  *   2. fallback when the footprint emits no courtyard element: pad bounding box
  *      (`pcb_smtpad` / `pcb_plated_hole`) + COURTYARD_ALLOWANCE_MM (0.7 mm);
  *   3. the declared size is always at least the pad bounding box.
@@ -117,8 +118,8 @@ for (const ref of [...allRefs].sort((a, c) => a.localeCompare(c))) {
   const court = rendered.get(ref);
   // Declared courtyard = real courtyard when rendered, otherwise pads + allowance,
   // and never below the raw pad bounding box.
-  const w = Math.max(court ? court.r - court.l : 0, pads ? pads.r - pads.l + ALLOWANCE_MM : 0, pads ? pads.r - pads.l : 0);
-  const h = Math.max(court ? court.t - court.b : 0, pads ? pads.t - pads.b + ALLOWANCE_MM : 0, pads ? pads.t - pads.b : 0);
+  const w = Math.max(court ? court.r - court.l : pads ? pads.r - pads.l + ALLOWANCE_MM : 0, pads ? pads.r - pads.l : 0);
+  const h = Math.max(court ? court.t - court.b : pads ? pads.t - pads.b + ALLOWANCE_MM : 0, pads ? pads.t - pads.b : 0);
   measured.set(ref, [up(w), up(h)]);
 }
 

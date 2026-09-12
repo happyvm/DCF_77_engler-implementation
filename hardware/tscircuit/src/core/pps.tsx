@@ -8,25 +8,31 @@
  */
 import { N } from "../parts/nets";
 import { at, lockedAt } from "../parts";
-import { FP0402_RES } from "../parts/footprints";
+import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
+import { pinLabelsOf } from "../parts/pinouts";
 
 const GND = N.gnd;
 
 export function PpsInterface() {
   return (
     <>
-      {/* Dedicated PPS output buffer, 3V3_D domain. */}
+      {/* Dedicated PPS output buffer, 3V3_D domain. Frozen MPN SN74LVC1G125DBVR
+          (audited in ic-pinouts.json): 1 OE, 2 A, 3 GND, 4 Y, 5 VCC.
+          OE is active low and tied to GND -> permanently enabled; the ECP5
+          PPS_REF drives A and Y drives PPS_OUT through RPS1. */}
       <chip
         name="U_PPS"
         footprint="sot23-5"
         {...lockedAt("U_PPS")}
-        pinLabels={{ pin1: "A", pin2: "GND", pin3: "OE", pin4: "NC", pin5: "VCC" }}
+        pinLabels={pinLabelsOf("U_PPS")}
         pinAttributes={{ VCC: { requiresPower: true }, GND: { requiresGround: true } }}
         connections={{ A: N.ppsRef, OE: GND, VCC: N.v3v3d, GND: GND }}
       />
+      <capacitor name="CUPS1" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("host_debug", "CUPS1")}
+        connections={{ pin1: N.v3v3d, pin2: GND }} />
 
       <resistor name="RPS1" resistance="33" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25105"] }} {...at("host_debug", "RPS1")}
-        connections={{ pin1: ".U_PPS > .A", pin2: N.ppsOut }} />
+        connections={{ pin1: ".U_PPS > .Y", pin2: N.ppsOut }} />
 
       {/* External PPS / test interface: PPS out, 3V3_D reference, two grounds.
           ESD-clamped by D_ESD_PPS (src/board/host_esd.tsx). */}
@@ -38,8 +44,6 @@ export function PpsInterface() {
         pinAttributes={{ "3V3_D_REF": { requiresPower: true }, GND: { requiresGround: true } }}
         connections={{ PPS_OUT: N.ppsOut, "3V3_D_REF": N.v3v3d, GND: GND, pin4: GND }}
       />
-      {/* PPS_REF is also observable directly on the locked buffer input. */}
-      <trace from={N.ppsRef} to=".U_PPS > .A" />
     </>
   );
 }

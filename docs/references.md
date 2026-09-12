@@ -207,12 +207,25 @@ The Rev.0 LCD backlight low-side switch is frozen to **`BSS138`** (SOT-23-3), wi
 - onsemi BSS138 data sheet PDF: <https://www.onsemi.com/download/data-sheet/pdf/bss138-d.pdf>
   - suggested file: `onsemi_BSS138_Datasheet.pdf`
 
+### External PPS output buffer — TI `SN74LVC1G125DBVR`
+
+The Rev.0 external-PPS output buffer is frozen to **`SN74LVC1G125DBVR`** (single bus buffer
+with 3-state output and active-low output enable, DBV package, 5-pin SOT-23), wired in
+`hardware/tscircuit/src/core/pps.tsx`. Pad identity is audited in
+`hardware/tscircuit/ic-pinouts.json` (1 OE, 2 A, 3 GND, 4 Y, 5 VCC).
+
+- TI SN74LVC1G125 data sheet PDF: <https://www.ti.com/lit/ds/symlink/sn74lvc1g125.pdf>
+  - suggested file: `TI_SN74LVC1G125_Datasheet.pdf`
+- Product page: <https://www.ti.com/product/SN74LVC1G125>
+
+Wiring intent: `A` (pin 2) takes `PPS_REF` from ECP5 ball R12, `OE` (pin 1) is tied to GND so
+the buffer is permanently enabled, `VCC` (pin 5) is `3V3_D` with a local 100 nF (`CUPS1`), and
+`Y` (pin 4) drives `PPS_OUT` through `RPS1` = 33 Ohm to the external PPS/test header J3.
+
 ### Parts intentionally not assigned a data sheet yet
 
 Do **not** invent manufacturer documents for these until the BOM freezes an exact MPN:
 
-- the external-PPS output buffer (`U_PPS`): only the ECP5 ball and output path are
-  frozen, no orderable MPN exists yet;
 - any HAT-side ESD/protection device not yet frozen;
 - generic resistors and capacitors where only value/dielectric/tolerance are currently specified;
 - optional external-antenna connector/link parts.

@@ -13,6 +13,7 @@
 import { N } from "../parts/nets";
 import { at } from "../parts";
 import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
+import { FP_MSOP10_EP } from "../parts/ic_footprints";
 import { pinLabelsOf } from "../parts/pinouts";
 
 const GND = N.gnd;
@@ -21,25 +22,30 @@ export function AdcBoundary() {
   return (
     <>
       {/* 3V3_ADC_A: dedicated low-noise LDO for ADC + driver + bias island only.
-          It is never fed from PI_3V3. */}
+          It is never fed from PI_3V3.
+
+          LT3042EMSE#PBF is the 10-lead MSOP (MSE) + exposed GND pad, audited in
+          ic-pinouts.json. Datasheet-driven wiring: IN1/IN2 and EN/UV to 5V_SYS,
+          PGFB tied to IN (power-good and fast-start-up unused), ILIM tied to GND
+          (programmable current limit unused — it must NOT be tied to the 100 uA
+          SET node), PG left floating (power-good unused), OUT and the Kelvin
+          OUTS sense tied to 3V3_ADC_A. */}
       <chip
         name="U_ADCLDO"
-        footprint="dfn10"
+        footprint={FP_MSOP10_EP}
         {...at("adc", "U_ADCLDO")}
-        pinLabels={{
-          pin1: "OUT", pin2: "SENSE", pin3: "SET", pin4: "ILIM", pin5: "IN",
-          pin6: "EN_UV", pin7: "PG", pin8: "GND", pin9: "OUT2", pin10: "PGND",
-        }}
-        pinAttributes={{ IN: { requiresPower: true }, GND: { requiresGround: true } }}
+        pinLabels={pinLabelsOf("U_ADCLDO")}
+        pinAttributes={{ IN_1: { requiresPower: true }, GND: { requiresGround: true } }}
         connections={{
-          IN: N.v5sys,
+          IN_1: N.v5sys,
+          IN_2: N.v5sys,
           EN_UV: N.v5sys,
-          OUT: N.v3v3adc,
-          OUT2: N.v3v3adc,
-          SENSE: N.v3v3adc,
+          PGFB: N.v5sys,
+          ILIM: GND,
           GND: GND,
-          PGND: GND,
-          ILIM: ".U_ADCLDO > .SET",
+          PAD_GND: GND,
+          OUTS: N.v3v3adc,
+          OUT: N.v3v3adc,
         }}
       />
       <resistor name="RSET_ADC" resistance="33.2k" footprint="0603" {...at("adc", "RSET_ADC")}
@@ -83,16 +89,16 @@ export function AdcBoundary() {
       <resistor name="R_ADCIN_N" resistance="10" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25077"] }} {...at("adc", "R_ADCIN_N")}
         connections={{ pin1: ".U_DRV > .VOUT_B", pin2: N.adcInN }} />
 
-      {/* LTC1407AIMSE-1: 14-bit, 930 kS/s = 12 x 77.5 kHz. Channel 0 is the receive
-          path; channel 1 stays free for the band-pass diagnostic tap. */}
+      {/* LTC1407AIMSE-1: 14-bit, 930 kS/s = 12 x 77.5 kHz, 10-lead MSOP (MSE)
+          plus the exposed GND pad. Pad identity is audited in ic-pinouts.json:
+          1 CH0+, 2 CH0-, 3 VREF, 4 CH1+, 5 CH1-, 6 GND, 7 VDD, 8 SDO, 9 SCK,
+          10 CONV, 11 exposed pad -> GND. Channel 0 is the receive path;
+          channel 1 stays free for the band-pass diagnostic tap. */}
       <chip
         name="U_ADC"
-        footprint="msop10"
+        footprint={FP_MSOP10_EP}
         {...at("adc", "U_ADC")}
-        pinLabels={{
-          pin1: "CH0_PLUS", pin2: "CH0_MINUS", pin3: "CH1_PLUS", pin4: "CH1_MINUS",
-          pin5: "VREF", pin6: "VDD", pin7: "GND", pin8: "CONV", pin9: "SCK", pin10: "SDO",
-        }}
+        pinLabels={pinLabelsOf("U_ADC")}
         pinAttributes={{ VDD: { requiresPower: true }, GND: { requiresGround: true } }}
         connections={{
           CH0_PLUS: N.adcInP,
@@ -100,6 +106,7 @@ export function AdcBoundary() {
           VREF: N.adcRef,
           VDD: N.v3v3adc,
           GND: GND,
+          PAD_GND: GND,
           CONV: N.adcConv,
           SCK: N.adcSck,
           SDO: N.adcSdo,

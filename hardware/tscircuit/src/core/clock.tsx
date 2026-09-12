@@ -9,34 +9,54 @@
 import { N } from "../parts/nets";
 import { at } from "../parts";
 import { FP0402_CAP } from "../parts/footprints";
+import { FP_TCXO_5032_10, FP_X2SON4_EP } from "../parts/ic_footprints";
+import { pinLabelsOf } from "../parts/pinouts";
 
 const GND = N.gnd;
 
 export function ReferenceClock() {
   return (
     <>
-      {/* 3V3_CLK: dedicated to the fixed 25 MHz TCXO, sourced from 5V_SYS. */}
+      {/* 3V3_CLK: dedicated to the fixed 25 MHz TCXO, sourced from 5V_SYS.
+
+          TPS7A2033PDQNR is the 4-pin X2SON (DQN) option, not the SOT-23-5:
+          audited map 1 OUT, 2 GND, 3 EN, 4 IN, 5 thermal pad -> GND. */}
       <chip
         name="U_CLKLDO"
-        footprint="sot23-5"
+        footprint={FP_X2SON4_EP}
         {...at("tcxo", "U_CLKLDO")}
-        pinLabels={{ pin1: "IN", pin2: "GND", pin3: "EN", pin4: "NC", pin5: "OUT" }}
+        pinLabels={pinLabelsOf("U_CLKLDO")}
         pinAttributes={{ IN: { requiresPower: true }, GND: { requiresGround: true } }}
-        connections={{ IN: N.v5sys, EN: N.v5sys, OUT: N.v3v3clk, GND: GND }}
+        connections={{ IN: N.v5sys, EN: N.v5sys, OUT: N.v3v3clk, GND: GND, THERMAL_PAD: GND }}
       />
       <capacitor name="CCLK_LDO_IN" capacitance="2.2uF" footprint="0603" {...at("tcxo", "CCLK_LDO_IN")}
         connections={{ pin1: N.v5sys, pin2: GND }} />
       <capacitor name="CCLK_LDO_OUT" capacitance="2.2uF" footprint="0603" {...at("tcxo", "CCLK_LDO_OUT")}
         connections={{ pin1: N.v3v3clk, pin2: GND }} />
 
-      {/* SiT5356AI-FQ-33E0-25.000000, 25 MHz LVCMOS, ±100 ppb, 3.3 V, 4-pad. */}
+      {/* SiT5356AI-FQ-33E0-25.000000, 25 MHz LVCMOS, ±100 ppb, 3.3 V.
+          Real package is a 10-pad 5.0 x 3.2 mm 10L CQFN (audited map):
+          1 OE, 2 SCL/NC, 3 NC, 4 GND, 5 A0/NC, 6 CLK, 7 NC, 8 NC, 9 VDD,
+          10 SDA/NC. OE is tied high for an always-enabled output and the unused
+          NC pads are grounded per the datasheet layout guideline. */}
       <chip
         name="U_CLK"
-        footprint="dfn4"
+        footprint={FP_TCXO_5032_10}
         {...at("tcxo", "U_CLK")}
-        pinLabels={{ pin1: "OE", pin2: "GND", pin3: "OUT", pin4: "VDD" }}
+        pinLabels={pinLabelsOf("U_CLK")}
         pinAttributes={{ VDD: { requiresPower: true }, GND: { requiresGround: true } }}
-        connections={{ VDD: N.v3v3clk, GND: GND, OUT: N.clk25m, OE: N.v3v3clk }}
+        connections={{
+          VDD: N.v3v3clk,
+          GND: GND,
+          CLK: N.clk25m,
+          OE: N.v3v3clk,
+          SCL_NC: GND,
+          NC_3: GND,
+          A0_NC: GND,
+          NC_7: GND,
+          NC_8: GND,
+          SDA_NC: GND,
+        }}
       />
       <capacitor name="CCLK1" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("tcxo", "CCLK1")}
         connections={{ pin1: N.v3v3clk, pin2: GND }} />
