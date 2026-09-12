@@ -226,6 +226,7 @@ No fast digital trace or switch node may run beneath or beside the ferrite/input
 ```text
 hardware/tscircuit/
   pin-plan.json              ECP5 BG256 ball identity + Pi GPIO/UART mapping (safety-critical)
+  ic-pinouts.json            audited pad->pin identity for the non-FPGA ICs (safety-critical)
   power-plan.json            HAT-only rails, sequencing, ECP5 decoupling
   package.json               pinned tscircuit / tsx versions
   tsconfig.json
@@ -258,6 +259,7 @@ hardware/tscircuit/
     jlcpcb-land-patterns.json  audited JLCPCB 0402 R/C copper geometry (part list + pads)
   scripts/
     verify-bga-identity.ts   BGA256 ball-identity gate (fails on renumbering)
+    verify-ic-pinouts.ts     IC pad-identity gate (audited map, no invented pin names)
     import-lattice-pinout.ts folds a Lattice FPGA-SC-02034 export into pin-plan.json
     validate-design-plans.ts pin plan + power plan + placement regions gate
     verify-footprints.ts     supplier land-pattern gate (offline, reads the export)
@@ -290,7 +292,9 @@ npx tsci build src/index.tsx      # AC1: writes dist/src/index/circuit.json
 npm run export:circuit            # dist/circuit-json/dcf77-hat.circuit.json
 npm run export:kicad              # dist/kicad-pre-quilter/dcf77-hat.zip
 npm run manifest                  # placement-regions.json + board-rules.json
-npm run check                     # pin/power plan + placement regions + BGA identity
+npm run check                     # pin/power plan + IC pin identity + BGA identity
+npm run check:pinouts             # audited IC pad identity (lists the pending parts)
+npm run check:pinouts:release     # strict gate: refuses a release while a pad identity is un-audited
 npm run check:bga:release         # strict gate: blocks fabrication while the ball audit is incomplete
 npm run check:footprints          # audited supplier land patterns (needs export:circuit)
 npm run check:erc                 # ERC + netlist + shorts + placement DRC
@@ -359,9 +363,62 @@ tsx scripts/import-lattice-pinout.ts --lattice <FPGA-SC-02034-*.csv> --write
 
 ## Schematic-freeze status (Rev.0)
 
-No schematic-freeze work is outstanding at this revision. The remaining work listed in the
-BEA-42 ticket is closed; the only item that stays open is genuinely downstream of layout
-(post-Quilter Gerbers/BOM/PnP) and is tracked outside this workspace.
+Everything listed in the BEA-42 ticket is closed **except** the pad-identity audit of the
+non-FPGA ICs, which is now first-class work rather than an implicit assumption. A DRC-clean
+netlist is not the same thing as a correct netlist: an invented pin name puts a real net on
+the wrong physical pad and no electrical rule will catch it.
+
+### IC pad identity (`ic-pinouts.json`)
+
+`hardware/tscircuit/ic-pinouts.json` is the machine-readable pad-number-to-pin-name plan for
+the non-FPGA ICs, imported by `src/parts/pinouts.ts` and gated by
+`scripts/verify-ic-pinouts.ts` (`npm run check:pinouts`, wired into `npm run check`). Each
+audited part records the manufacturer document it came from, so a pin map cannot be changed
+without re-stating its source.
+
+Audited so far (2 of 16):
+
+```text
+U_BPF  LTC1562IG#PBF     G package, 20-lead SSOP    LTC1562 data sheet 1562fa (REV A)
+U_PGA  LTC6912IGN-1#PBF  GN package, 16-lead SSOP   LTC6912 data sheet 6912fa
+```
+
+Both were wrong before this audit and both were wiring defects, not cosmetic ones:
+
+- `U_BPF` was wired with invented `IN1/INV1/OUT1/R21_NODE..R24_NODE` pins. The real SSOP-20
+  part has four 3-terminal sections (`INVx` summing node, `V1x` band-pass output, `V2x`
+  low-pass output) plus four substrate pins (4, 7, 14, 17) that are internally tied to `V-`
+  and must be soldered to pin 16. The old net also closed the Q and R2 feedback legs in
+  series through two different pins instead of returning each to `INVx`.
+- `U_PGA` was wired with a pinout matching neither package: pin 1 was `INA` (really `NC`) and
+  the SPI/analog pins were shifted. The GN-16 map is `1 NC, 2 INA, 3 AGND, 4 INB, 5 SHDN,
+  6 CS/LD, 7 DIN, 8 CLK, 9 DOUT, 10 DGND, 11 NC, 12 V+, 13 OUTB, 14 V-, 15 OUTA, 16 NC`;
+  the UE12 (DFN-12) map is entirely different, so the package must be read off the OPN.
+
+Still un-audited (`ic-pinouts.json -> status.pending`, 14 parts): `U_BUF`, `U_ADCLDO`,
+`U_DRV`, `U_ADC`, `U_CLK`, `U_CLKLDO`, `U_PPS`, `U_SW`, `U_CORE`, `U_AUXLDO`, `DS1`,
+`U_FLASH`, `U_EE`, `LCD_BLQ`. Those keep documented functional net names on a
+package-appropriate footprint. `npm run check:pinouts:release` refuses a release while any of
+them is still pending, which is the point of the gate.
+
+### Filter values are a separate open question
+
+Fixing the `U_BPF` identity also surfaced that the datasheet formula for a section is
+
+```text
+fO = 1 / (2*pi*C*sqrt(R1*R2))   with R1 = 10k internal, C = 159 pF internal
+Q  = RQ / sqrt(R1*R2)
+```
+
+so `R2 = 12.8k` corresponds to `fO ~= 88.5 kHz` and `Q ~= 4.2`, not to the `77.5 kHz /
+7.75 kHz BW` target recorded in `docs/21-ltc1562-fixed-filter.md`. Reaching 77.5 kHz needs
+`R2 ~= 16.65k`, and `Q = 10` then needs `RQ ~= 129k`. The values in `docs/21` are scaled
+linearly from an ADI application table that has not been re-checked against the datasheet, and
+the data sheet itself does not carry the `4.64k / 46.4k / 12.4k` row. **The resistor values in
+`src/core/afe.tsx` are deliberately left at the `docs/21` values for now** — the topology and
+the pad identity are corrected, the frequency programming is not. This needs the source
+application note before it can be frozen, and it is the last analog item standing between
+Rev.0 and a Quilter run.
 
 ### Supplier land patterns
 
@@ -390,6 +447,9 @@ C0402  copper bbox 1.3402 x 0.5400 mm, pads 0.500000 x 0.540004 mm @ pitch 0.840
 ### Closed in this revision
 
 - 256/256 BG256 ball identities verified against Lattice `FPGA-SC-02034`;
+- `U_BPF` (LTC1562, 20-lead SSOP) and `U_PGA` (LTC6912, 16-lead SSOP) pad identities
+  corrected against data sheets `1562fa` / `6912fa` and moved into `ic-pinouts.json`, with
+  `npm run check:pinouts` wired into `npm run check`;
 - 69/69 `supplier_footprint_mismatch_warning` resolved with audited JLCPCB land patterns
   (`src/parts/footprints.tsx`, `suppliers/jlcpcb-land-patterns.json`);
 - UART 33 ohm series + 47 kOhm idle-high networks physically wired (`src/host/rpi_spi.tsx`);

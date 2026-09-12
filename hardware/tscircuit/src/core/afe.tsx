@@ -9,17 +9,24 @@
  * Sources: docs/20-antenna-input.md, docs/21-ltc1562-fixed-filter.md,
  * docs/22-ltc6912-pga.md and hardware/tscircuit/README.md.
  *
- * RECONSTRUCTION NOTE
- * -------------------
- * The LTC1562 internal section pinout and the LTC6912 GN-16 pinout are not
- * reproduced in this repository. The nets below are the documented signal
- * topology; the pad-number-to-pin-name mapping of those two ICs must be
- * confirmed against the ADI datasheets before the schematic is frozen.
- * (hardware/tscircuit/README.md -> "Remaining schematic-freeze work".)
+ * PINOUT STATUS
+ * -------------
+ * U_BPF (LTC1562IG#PBF, 20-lead SSOP) and U_PGA (LTC6912IGN-1#PBF, 16-lead
+ * narrow SSOP) now take their pad-number-to-pin-name map from
+ * `hardware/tscircuit/ic-pinouts.json`, which is derived from the manufacturer
+ * data sheets (1562fa, 6912fa) and gated by `scripts/verify-ic-pinouts.ts`.
+ * Before that audit this file carried an invented map: e.g. the LTC1562 was
+ * wired with "IN1/INV1/OUT1" section pins and the LTC6912 with a pinout that
+ * matched neither its GN-16 nor its DFN-12 package. Both are wiring defects,
+ * not cosmetic ones, and both are now closed.
+ *
+ * The remaining ICs in `ic-pinouts.json -> status.pending` keep functional net
+ * names on their footprints and are still awaiting the same cross-check.
  */
 import { N } from "../parts/nets";
 import { at, lockedAt } from "../parts";
 import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
+import { pinLabelsOf } from "../parts/pinouts";
 
 const GND = N.gnd;
 
@@ -99,11 +106,24 @@ export function AntennaInputCluster() {
 // LTC1562 8th-order band-pass, fixed 77.5 kHz
 // ---------------------------------------------------------------------------
 export function BandPassFilter() {
+  // LTC1562 Figure 3 / Figure 6a band-pass wiring, 8th order = four cascaded
+  // 2nd-order sections in the B -> A -> C -> D order of the ADI reference
+  // application (docs/21). Each section is a 3-terminal block:
+  //
+  //   <source> --RINx--> INVx --+-- RQx --> V1x   band-pass output
+  //                             +-- R2x --> V2x   low-pass output
+  //
+  // V1x carries the cascaded band-pass signal; V2x is only used to close the R2x
+  // feedback path. Pins 4, 7, 14 and 17 (SUB) are substrate/shield connections
+  // internally tied to V- and must be soldered to the same point as pin 16.
   const connections = {
     V_PLUS: N.v5afe,
     V_MINUS: GND,
+    SUB_4: GND,
+    SUB_7: GND,
+    SUB_14: GND,
+    SUB_17: GND,
     SHDN: GND, // ADI requires logic low referenced to V- in single-supply mode
-    IN1: N.bpfIn,
   };
   return (
     <>
@@ -111,49 +131,44 @@ export function BandPassFilter() {
         name="U_BPF"
         footprint="ssop20"
         {...at("filter", "U_BPF")}
-        pinLabels={{
-          pin1: "V_PLUS", pin2: "V_MINUS", pin3: "AGND", pin4: "SHDN",
-          pin5: "IN1", pin6: "INV1", pin7: "OUT1",
-          pin8: "IN2", pin9: "INV2", pin10: "OUT2",
-          pin11: "IN3", pin12: "INV3", pin13: "OUT3",
-          pin14: "IN4", pin15: "INV4", pin16: "OUT4",
-          pin17: "R21_NODE", pin18: "R22_NODE", pin19: "R23_NODE", pin20: "R24_NODE",
-        }}
+        pinLabels={pinLabelsOf("U_BPF")}
         pinAttributes={{ V_PLUS: { requiresPower: true }, V_MINUS: { requiresGround: true } }}
         connections={connections}
       />
-      {/* programming resistors — 0.1% thin film, fixed values, no trimmer */}
+      {/* programming resistors — 0.1% thin film, fixed values, no trimmer.
+          Section B is the input section (RIN1 = 4.79k gives the gain-10 band-pass
+          peak against RQ1), sections A, C, D are unity-gain band-pass stages. */}
       <resistor name="RIN1" resistance="4.79k" footprint="0603" {...at("filter", "RIN1")}
-        connections={{ pin1: N.bpfIn, pin2: ".U_BPF > .IN1" }} />
+        connections={{ pin1: N.bpfIn, pin2: ".U_BPF > .INV_B" }} />
       <resistor name="RQ1" resistance="47.9k" footprint="0603" {...at("filter", "RQ1")}
-        connections={{ pin1: ".U_BPF > .IN1", pin2: ".U_BPF > .INV1" }} />
+        connections={{ pin1: ".U_BPF > .INV_B", pin2: ".U_BPF > .V1_B" }} />
       <resistor name="R21" resistance="12.8k" footprint="0603" {...at("filter", "R21")}
-        connections={{ pin1: ".U_BPF > .INV1", pin2: ".U_BPF > .OUT1" }} />
+        connections={{ pin1: ".U_BPF > .INV_B", pin2: ".U_BPF > .V2_B" }} />
       <resistor name="RIN2" resistance="47.9k" footprint="0603" {...at("filter", "RIN2")}
-        connections={{ pin1: ".U_BPF > .OUT1", pin2: ".U_BPF > .IN2" }} />
+        connections={{ pin1: ".U_BPF > .V1_B", pin2: ".U_BPF > .INV_A" }} />
       <resistor name="RQ2" resistance="47.9k" footprint="0603" {...at("filter", "RQ2")}
-        connections={{ pin1: ".U_BPF > .IN2", pin2: ".U_BPF > .INV2" }} />
+        connections={{ pin1: ".U_BPF > .INV_A", pin2: ".U_BPF > .V1_A" }} />
       <resistor name="R22" resistance="12.8k" footprint="0603" {...at("filter", "R22")}
-        connections={{ pin1: ".U_BPF > .INV2", pin2: ".U_BPF > .OUT2" }} />
+        connections={{ pin1: ".U_BPF > .INV_A", pin2: ".U_BPF > .V2_A" }} />
       <resistor name="RIN3" resistance="47.9k" footprint="0603" {...at("filter", "RIN3")}
-        connections={{ pin1: ".U_BPF > .OUT2", pin2: ".U_BPF > .IN3" }} />
+        connections={{ pin1: ".U_BPF > .V1_A", pin2: ".U_BPF > .INV_C" }} />
       <resistor name="RQ3" resistance="47.9k" footprint="0603" {...at("filter", "RQ3")}
-        connections={{ pin1: ".U_BPF > .IN3", pin2: ".U_BPF > .INV3" }} />
+        connections={{ pin1: ".U_BPF > .INV_C", pin2: ".U_BPF > .V1_C" }} />
       <resistor name="R23" resistance="12.8k" footprint="0603" {...at("filter", "R23")}
-        connections={{ pin1: ".U_BPF > .INV3", pin2: ".U_BPF > .OUT3" }} />
+        connections={{ pin1: ".U_BPF > .INV_C", pin2: ".U_BPF > .V2_C" }} />
       <resistor name="RIN4" resistance="47.9k" footprint="0603" {...at("filter", "RIN4")}
-        connections={{ pin1: ".U_BPF > .OUT3", pin2: ".U_BPF > .IN4" }} />
+        connections={{ pin1: ".U_BPF > .V1_C", pin2: ".U_BPF > .INV_D" }} />
       <resistor name="RQ4" resistance="47.9k" footprint="0603" {...at("filter", "RQ4")}
-        connections={{ pin1: ".U_BPF > .IN4", pin2: ".U_BPF > .INV4" }} />
+        connections={{ pin1: ".U_BPF > .INV_D", pin2: ".U_BPF > .V1_D" }} />
       <resistor name="R24" resistance="12.8k" footprint="0603" {...at("filter", "R24")}
-        connections={{ pin1: ".U_BPF > .INV4", pin2: ".U_BPF > .OUT4" }} />
+        connections={{ pin1: ".U_BPF > .INV_D", pin2: ".U_BPF > .V2_D" }} />
       {/* AGND is bypassed locally with a short return; it is not a general-purpose source. */}
       <capacitor name="CBPF1" capacitance="1uF" footprint="0603" {...at("filter", "CBPF1")}
         connections={{ pin1: ".U_BPF > .AGND", pin2: GND }} />
       <capacitor name="CBPF2" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("filter", "CBPF2")}
         connections={{ pin1: N.v5afe, pin2: GND }} />
-      {/* filter output node */}
-      <trace from=".U_BPF > .OUT4" to={N.bpfOut} />
+      {/* filter output node: the last section's band-pass output V1_D */}
+      <trace from=".U_BPF > .V1_D" to={N.bpfOut} />
     </>
   );
 }
@@ -168,20 +183,16 @@ export function ProgrammableGain() {
         name="U_PGA"
         footprint="ssop16"
         {...at("pga", "U_PGA")}
-        pinLabels={{
-          pin1: "INA", pin2: "INB", pin3: "AGND", pin4: "V_MINUS",
-          pin5: "V_PLUS", pin6: "SHDN", pin7: "DGND", pin8: "DAT",
-          pin9: "CLK", pin10: "CS_LD", pin11: "DOUT",
-          pin12: "OUTA", pin13: "OUTB", pin14: "NC1", pin15: "NC2", pin16: "NC3",
-        }}
-        pinAttributes={{ V_PLUS: { requiresPower: true }, DGND: { requiresGround: true } }}
+        pinLabels={pinLabelsOf("U_PGA")}
+        pinAttributes={{ V_PLUS: { requiresPower: true }, V_MINUS: { requiresGround: true } }}
         connections={{
           INA: N.pgaIn,
           OUTA: N.pgaOut,
           V_PLUS: N.v5afe,
           V_MINUS: GND,
           DGND: GND,
-          // DOUT is not used in Rev.0 and stays unconnected (5 V logic output).
+          // INB/OUTB/DOUT and the three no-connect pads stay open: Rev.0 only
+          // uses channel A, and DOUT is a 5 V logic output we do not read back.
         }}
       />
       {/* explicit AC coupling between the two ICs: their DC offsets must not be
@@ -205,7 +216,7 @@ export function ProgrammableGain() {
       <resistor name="RS_PGA_CS" resistance="100" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25076"] }} {...at("pga", "RS_PGA_CS")}
         connections={{ pin1: N.pgaCsN, pin2: N.pgaCsF }} />
       <trace from=".RS_PGA_SCK > .pin2" to=".U_PGA > .CLK" />
-      <trace from=".RS_PGA_MOSI > .pin2" to=".U_PGA > .DAT" />
+      <trace from=".RS_PGA_MOSI > .pin2" to=".U_PGA > .DIN" />
       <trace from=".RS_PGA_CS > .pin2" to=".U_PGA > .CS_LD" />
     </>
   );

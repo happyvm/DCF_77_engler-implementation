@@ -128,10 +128,12 @@ export const ECP5_CONNECTIONS: Record<string, string> = (() => {
     } else if (JTAG_NETS[sig]) {
       conns[b.ball] = JTAG_NETS[sig];
     }
-    // CFG0/CFG1/CFG2, PROGRAMN, INITN, DONE, WRITEN, CS1N, DOUT_CSON, R7/P7/N7/M7
-    // and every `unverified` ball stay intentionally unconnected: their identity
-    // is not yet cross-checked against FPGA-SC-02034 and an invented net here
-    // could silently miswire the FPGA. See pin-plan.json -> ball_audit.
+    // CFG0/CFG1/CFG2, PROGRAMN, INITN, DONE, WRITEN, CS1N, DOUT_CSON and the
+    // R7/P7/N7/M7 pair balls are not mapped to a net here: the sysCONFIG straps
+    // and status pins are wired by ball name in src/core/ecp5.tsx
+    // (RCFG0/RCFG1/RPROG/RINIT/RDONE), and the remainder stay open in Rev.0.
+    // All 256 balls are audited (pin-plan.json -> ball_audit), so an entry
+    // missing from this map is a deliberate wiring decision, not an identity gap.
   }
   return conns;
 })();

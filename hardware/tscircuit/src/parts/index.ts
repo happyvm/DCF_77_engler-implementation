@@ -7,12 +7,16 @@
  *
  * PINOUT STATUS
  * -------------
- * The ECP5 ball identity is audited (pin-plan.json). The other ICs are modelled
- * with their documented functional pin names on a package-appropriate footprint;
- * the pad-number-to-pin-name mapping for those parts still has to be verified
- * against each manufacturer pinout before the schematic is frozen. This is listed
- * as remaining work in hardware/tscircuit/README.md ("create verified tscircuit
- * part wrappers/footprints from manufacturer pinouts").
+ * The ECP5 ball identity is audited (pin-plan.json). The analog-chain ICs that
+ * have been cross-checked against their manufacturer pinout live in
+ * hardware/tscircuit/ic-pinouts.json and are consumed through
+ * `src/parts/pinouts.ts`; `scripts/verify-ic-pinouts.ts` gates them.
+ *
+ * The parts still listed in `ic-pinouts.json -> status.pending` are modelled with
+ * their documented functional pin names on a package-appropriate footprint, and
+ * their pad-number-to-pin-name mapping still has to be verified against the
+ * manufacturer pinout before fabrication. Never inline a new pin label map for
+ * one of them in a component file: add the verified map to ic-pinouts.json.
  */
 import { LOCKED_PLACEMENTS, pos, type RegionId } from "../board/hatplus_constraints";
 import { FP0402_CAP, FP0402_RES } from "./footprints";

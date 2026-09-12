@@ -19,6 +19,17 @@ single 5 V operation
 
 The LTC1562 family is currently listed by ADI as `PRODUCTION`.
 
+> **OPEN VERIFICATION (2026-09-12).** The resistor values below are scaled *linearly* from an
+> ADI high-frequency band-pass table that is not reproduced here. The LTC1562 data sheet
+> (`1562fa`) gives `fO = 1 / (2*pi*C*sqrt(R1*R2))` with `R1 = 10k` and `C = 159 pF` internal,
+> and `Q = RQ / sqrt(R1*R2)`. Those formulas put `R2 = 12.8k` at `fO ~= 88.5 kHz` and
+> `Q ~= 4.2`, i.e. ~14 % above the 77.5 kHz target and roughly a 21 kHz -3 dB bandwidth rather
+> than 7.75 kHz. Reaching 77.5 kHz needs `R2 ~= 16.65k`; `Q = 10` then needs `RQ ~= 129k`.
+> The data sheet does not contain the `RIN1 = 4.64k / RQ1 = 46.4k / R21 = 12.4k` row, so the
+> source table still has to be located before these values are frozen. The schematic
+> (`hardware/tscircuit/src/core/afe.tsx`) keeps these values unchanged; see
+> `hardware/tscircuit/README.md -> "Schematic-freeze status (Rev.0)"`.
+
 A September 2026 Digi-Key snapshot showed roughly 400 pieces of `LTC1562IG#PBF` immediately available. The tighter A-grade parts remain in production but are less consistently stocked. Because the required analog passband is intentionally much wider than the IC's center-frequency tolerance, Rev.0 prioritizes the stocked industrial standard grade.
 
 ## Manufacturer reference topology

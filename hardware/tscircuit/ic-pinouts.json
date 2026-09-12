@@ -1,0 +1,119 @@
+{
+  "schema": "dcf77-hardware/ic-pinouts@1",
+  "description": "Pad-number -> pin-name identity for the non-FPGA ICs of the Rev.0 analog/host chain. This is the schematic-freeze counterpart of pin-plan.json (which freezes the ECP5 BG256 ball identity). Every entry must name the manufacturer document it was taken from; scripts/verify-ic-pinouts.ts refuses a release build while a populated part has no source.",
+  "status": {
+    "audited": [
+      "U_BPF",
+      "U_PGA"
+    ],
+    "pending": [
+      "U_BUF",
+      "U_ADCLDO",
+      "U_DRV",
+      "U_ADC",
+      "U_CLK",
+      "U_CLKLDO",
+      "U_PPS",
+      "U_SW",
+      "U_CORE",
+      "U_AUXLDO",
+      "DS1",
+      "U_FLASH",
+      "U_EE",
+      "LCD_BLQ"
+    ],
+    "pending_scope": "pad-number-to-pin-name mapping not yet cross-checked against the manufacturer pinout; the functional net names in the TSX are the documented signal topology only. Tracked in hardware/tscircuit/README.md -> 'Schematic-freeze status (Rev.0)'."
+  },
+  "parts": {
+    "U_BPF": {
+      "ref": "U_BPF",
+      "opn": "LTC1562IG#PBF",
+      "device": "LTC1562 / LTC1562A quad universal continuous-time filter",
+      "package": "G package, 20-lead plastic SSOP",
+      "pins": {
+        "pin1": "INV_B",
+        "pin2": "V1_B",
+        "pin3": "V2_B",
+        "pin4": "SUB_4",
+        "pin5": "V_PLUS",
+        "pin6": "SHDN",
+        "pin7": "SUB_7",
+        "pin8": "V2_A",
+        "pin9": "V1_A",
+        "pin10": "INV_A",
+        "pin11": "INV_D",
+        "pin12": "V1_D",
+        "pin13": "V2_D",
+        "pin14": "SUB_14",
+        "pin15": "AGND",
+        "pin16": "V_MINUS",
+        "pin17": "SUB_17",
+        "pin18": "V2_C",
+        "pin19": "V1_C",
+        "pin20": "INV_C"
+      },
+      "pin_alias": {
+        "SUB_4": "V_MINUS",
+        "SUB_7": "V_MINUS",
+        "SUB_14": "V_MINUS",
+        "SUB_17": "V_MINUS"
+      },
+      "notes": [
+        "Pins 4, 7, 14 and 17 are substrate/shield connections internally tied to V_MINUS (pin 16) and must be soldered to the same point as pin 16.",
+        "Each 2nd-order section is a 3-terminal block: summing node INVx, bandpass output V1x, lowpass output V2x.",
+        "Figure 3 / Figure 6a wiring: ZIN (RINx) drives INVx from the source, RQx returns V1x to INVx, R2x returns V2x to INVx. The bandpass output of the cascade is V1x, not V2x.",
+        "Single supply: SHDN must be pulled to V_MINUS, never to AGND.",
+        "AGND (pin 15) is an internally generated V+/2 reference with ~7 kOhm source impedance; bypass it locally with >= 1 uF."
+      ],
+      "source": {
+        "document": "LTC1562/LTC1562A data sheet, 1562fa (REV A)",
+        "vendor": "Analog Devices / Linear Technology",
+        "url": "https://www.analog.com/media/en/technical-documentation/data-sheets/1562fa.pdf",
+        "retrieved": "2026-09-12",
+        "retrieval_method": "text proxy (analog.com is unreachable from the build host)",
+        "retrieved_artifact_sha256": "496c4361432d8c955c37724c1baa1c0e28f70e67a5156f0a27707bc7e54d4c55",
+        "retrieved_artifact_kind": "plain-text conversion of the 1562fa data sheet",
+        "evidence": "G PACKAGE 20-LEAD PLASTIC SSOP pin configuration table, plus the page-1 typical-application schematic (which omits pins 4, 7, 14, 17 because they are substrate connections)"
+      }
+    },
+    "U_PGA": {
+      "ref": "U_PGA",
+      "opn": "LTC6912IGN-1#PBF",
+      "device": "LTC6912-1 dual programmable gain amplifier",
+      "package": "GN package, 16-lead narrow plastic SSOP",
+      "pins": {
+        "pin1": "NC_1",
+        "pin2": "INA",
+        "pin3": "AGND",
+        "pin4": "INB",
+        "pin5": "SHDN",
+        "pin6": "CS_LD",
+        "pin7": "DIN",
+        "pin8": "CLK",
+        "pin9": "DOUT",
+        "pin10": "DGND",
+        "pin11": "NC_11",
+        "pin12": "V_PLUS",
+        "pin13": "OUTB",
+        "pin14": "V_MINUS",
+        "pin15": "OUTA",
+        "pin16": "NC_16"
+      },
+      "notes": [
+        "The GN-16 pinout is NOT the same as the UE12 (12-lead DFN) pinout: on the DFN the package is 1 INA / 2 AGND / 3 INB / 4 CS/LD / 5 DIN / 6 CLK / 7 DOUT / 8 DGND / 9 V+ / 10 OUTB / 11 V- / 12 OUTA with the exposed pad on V-.",
+        "Hardware shutdown is available on the GN-16 package only; SHDN is active high and a floating pin defaults to shutdown, so it must be tied to V_MINUS (or 0 V) for normal operation.",
+        "Only channel A is populated in Rev.0; INB/OUTB and DOUT stay open."
+      ],
+      "source": {
+        "document": "LTC6912/LTC6912-1/LTC6912-2 data sheet, 6912fa",
+        "vendor": "Analog Devices / Linear Technology",
+        "url": "https://www.analog.com/media/en/technical-documentation/data-sheets/6912fa.pdf",
+        "mirror": "https://www.farnell.com/datasheets/1576429.pdf",
+        "retrieved": "2026-09-12",
+        "retrieved_artifact_sha256": "f242dcbc7f6bddd8ee7f14a046a314e2c928e704eba9efe53d3be34b119bcda6",
+        "retrieved_artifact_kind": "application/pdf (6912fa)",
+        "evidence": "package/order-information page 2 pin configuration tables (UE12 and GN side by side) and the page-1 typical application 'A Dual, Matched Low Noise PGA (16-Lead SSOP Package)' schematic"
+      }
+    }
+  }
+}
