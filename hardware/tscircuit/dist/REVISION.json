@@ -1,10 +1,10 @@
 {
   "revision": "rev0",
   "board": "raspberry_pi_hatplus",
-  "generated_at": "2026-09-12T10:11:38.507Z",
+  "generated_at": "2026-09-12T10:51:32.357Z",
   "git": {
-    "commit": "aa61325f4b61611a92ee9b31a983c41d455a2eeb",
-    "commit_short": "aa61325",
+    "commit": "ee9d2784cf8d9c9b5629b7e20876f7237f772a25",
+    "commit_short": "ee9d278",
     "branch": "main",
     "source_path": "hardware/tscircuit",
     "source_dirty": false
