@@ -4,25 +4,35 @@
   "status": {
     "audited": [
       "U_BPF",
-      "U_PGA"
-    ],
-    "pending": [
+      "U_PGA",
       "U_BUF",
-      "U_ADCLDO",
       "U_DRV",
-      "U_ADC",
-      "U_CLK",
-      "U_CLKLDO",
-      "U_PPS",
       "U_SW",
-      "U_CORE",
-      "U_AUXLDO",
-      "DS1",
       "U_FLASH",
       "U_EE",
       "LCD_BLQ"
     ],
-    "pending_scope": "pad-number-to-pin-name mapping not yet cross-checked against the manufacturer pinout; the functional net names in the TSX are the documented signal topology only. Tracked in hardware/tscircuit/README.md -> 'Schematic-freeze status (Rev.0)'."
+    "pending": [
+      "U_ADCLDO",
+      "U_ADC",
+      "U_CLK",
+      "U_CLKLDO",
+      "U_PPS",
+      "U_CORE",
+      "U_AUXLDO",
+      "DS1"
+    ],
+    "pending_scope": "pad-number-to-pin-name mapping not yet cross-checked against the manufacturer pinout; the functional net names in the TSX are the documented signal topology only. Tracked in hardware/tscircuit/README.md -> 'Schematic-freeze status (Rev.0)'.",
+    "pending_findings": {
+      "U_ADCLDO": "LT3042EMSE#PBF is a 10-lead MSOP (MSE) + exposed GND pad, not a DFN. Datasheet pin map is 1 IN, 2 IN, 3 EN/UV, 4 PG, 5 ILIM, 6 PGFB, 7 SET, 8 GND, 9 OUTS, 10 OUT, pad GND. The TSX currently uses footprint dfn10 with an invented 1 OUT/2 SENSE/3 SET/4 ILIM/5 IN/6 EN_UV/7 PG/8 GND/9 OUT2/10 PGND map and ties ILIM to SET, which shorts the current-limit set input to the 100 uA voltage-set node.",
+      "U_ADC": "LTC1407AIMSE-1#PBF is a 10-lead MSOP (MSE) + exposed GND pad. Datasheet pin map is 1 CH0+, 2 CH0-, 3 VREF, 4 CH1+, 5 CH1-, 6 GND, 7 VDD, 8 SDO, 9 SCK, 10 CONV, pad GND. The TSX currently has 3 CH1_PLUS, 4 CH1_MINUS, 5 VREF, 6 VDD, 7 GND, 8 CONV, 9 SCK, 10 SDO.",
+      "U_CLK": "SiT5356 is a 10-pad 5.0 x 3.2 mm part, not a 4-pad DFN. Datasheet pin map is 1 OE/VC/NC, 2 SCL/NC, 3 NC, 4 GND, 5 A0/NC, 6 CLK, 7 NC, 8 NC, 9 VDD, 10 SDA/NC. Footprint dfn4 and the 4-pin map are wrong.",
+      "U_CLKLDO": "TPS7A2033PDQNR is the 4-pin X2SON (DQN) option: 1 OUT, 2 GND, 3 EN, 4 IN, 5 thermal pad -> GND. The TSX uses the SOT-23-5 (DBV) map and footprint; DQN and DBV are different packages in the same family.",
+      "U_AUXLDO": "TPS7A2025PDQNR is the 4-pin X2SON (DQN) option: 1 OUT, 2 GND, 3 EN, 4 IN, 5 thermal pad -> GND. Same DQN/DBV mismatch as U_CLKLDO.",
+      "U_CORE": "TPS628502DRLR is an 8-pin SOT-583 (DRL) part. Datasheet pin map is 1 VIN, 2 EN, 3 MODE/SYNC, 4 COMP/FSET, 5 FB, 6 PG, 7 SW, 8 GND. The TSX uses footprint sot563 (6 pads) with an invented VIN/GND/SW/FB/COMP_FSET/MODE_SYNC/EN/VOS ordering; there is no VOS pin and EN is on pin 2, not pin 7.",
+      "DS1": "NHD-C0220BiZ-FSW-FBW-3V3M has an 8-pin interface: 1 RST, 2 SCL, 3 SDA, 4 VSS, 5 VDD, 6 VOUT, 7 C1+, 8 C1-, plus a separate 2-pin backlight connector. The TSX models 7 pads (VDD/GND/SDA/SCL/RST/LED_A/LED_K) and is missing the charge-pump VOUT/C1+ C1- pins.",
+      "U_PPS": "no orderable MPN is frozen anywhere in the design (docs/27 only fixes the PPS_REF ball and the output path), so its pad identity cannot be audited yet."
+    }
   },
   "parts": {
     "U_BPF": {
@@ -113,6 +123,193 @@
         "retrieved_artifact_sha256": "f242dcbc7f6bddd8ee7f14a046a314e2c928e704eba9efe53d3be34b119bcda6",
         "retrieved_artifact_kind": "application/pdf (6912fa)",
         "evidence": "package/order-information page 2 pin configuration tables (UE12 and GN side by side) and the page-1 typical application 'A Dual, Matched Low Noise PGA (16-Lead SSOP Package)' schematic"
+      }
+    },
+    "U_BUF": {
+      "ref": "U_BUF",
+      "opn": "OPA810IDBVR",
+      "device": "OPA810 unity-gain-stable JFET-input voltage-feedback op amp",
+      "package": "DBV package, 5-pin SOT-23",
+      "pins": {
+        "pin1": "OUT",
+        "pin2": "V_MINUS",
+        "pin3": "IN_PLUS",
+        "pin4": "IN_MINUS",
+        "pin5": "V_PLUS"
+      },
+      "notes": [
+        "DBV (SOT-23-5) is not the D (SOIC-8) pinout: the SOIC is 1/5/8 NC, 2 VIN-, 3 VIN+, 4 VS-, 6 VO, 7 VS+. On the DBV the five pads are 1 VO, 2 VS-, 3 VIN+, 4 VIN-, 5 VS+.",
+        "The part is a single op amp; only the DBV column of Table 5-1 applies to the frozen OPN.",
+        "Rev.0 uses it single-supply from 5V_AFE as a follower on the antenna node; V_MINUS is the negative supply and is tied to GND."
+      ],
+      "source": {
+        "document": "OPA810 data sheet, SBOS799E (REVISED AUGUST 2024)",
+        "vendor": "Texas Instruments",
+        "url": "https://www.ti.com/lit/ds/symlink/opa810.pdf",
+        "retrieved": "2026-09-12",
+        "retrieved_artifact_kind": "application/pdf (SBOS799E)",
+        "retrieved_artifact_sha256": "74c61ac238989c94c1cf0d70da41bff6e167a590f86e06bae7cdd734d8fd26fa",
+        "evidence": "Section 5 Pin Configuration and Functions, Figure 5-2 'DBV Package, 5-Pin SOT23 and DCK Package, 5-Pin SC70 (Top View)' plus Table 5-1 Pin Functions DBV column (VO=1, VIN-=4, VIN+=3, VS-=2, VS+=5)"
+      }
+    },
+    "U_DRV": {
+      "ref": "U_DRV",
+      "opn": "OPA2835IDGSR",
+      "device": "OPA2835 dual-channel, ultra-low-power, rail-to-rail output, negative-rail input voltage-feedback op amp",
+      "package": "DGS package, 10-pin VSSOP",
+      "pins": {
+        "pin1": "VOUT_A",
+        "pin2": "VIN_A_MINUS",
+        "pin3": "VIN_A_PLUS",
+        "pin4": "V_MINUS",
+        "pin5": "PD_A",
+        "pin6": "PD_B",
+        "pin7": "VIN_B_PLUS",
+        "pin8": "VIN_B_MINUS",
+        "pin9": "VOUT_B",
+        "pin10": "V_PLUS"
+      },
+      "pin_alias": {
+        "PD_A": "V_PLUS",
+        "PD_B": "V_PLUS"
+      },
+      "notes": [
+        "IDGSR is the 10-pin VSSOP (DGS) orderable. The 8-pin SOIC (D) has no PD pins and the QFN/UQFN (RUN/RMC) packages move VS- to pin 5 and PD1 to pin 4.",
+        "PD1 (pin 5) and PD2 (pin 6) are active-high shutdown inputs and the data sheet states the pin MUST BE DRIVEN. A floating PD pin is not a valid operating condition, so both are tied to V_PLUS (3V3_ADC_A) for always-on operation.",
+        "Channel A is the signal driver and channel B the ADC common-mode buffer, both wired as unity-gain followers."
+      ],
+      "source": {
+        "document": "OPA835, OPA2835 data sheet, SLOS713J (REVISED MARCH 2021)",
+        "vendor": "Texas Instruments",
+        "url": "https://www.ti.com/lit/ds/symlink/opa2835.pdf",
+        "retrieved": "2026-09-12",
+        "retrieved_artifact_kind": "application/pdf (SLOS713J)",
+        "retrieved_artifact_sha256": "e8f645b1758f34451fd3d677b83269a430f58126294c0394933183c2af6750af",
+        "evidence": "Figure 6-3 'OPA2835: DGS Package 10-Pin VSSOP Top View' (1 VOUT1, 2 VIN1-, 3 VIN1+, 4 VS-, 5 PD1, 6 PD2, 7 VIN2+, 8 VIN2-, 9 VOUT2, 10 VS+) cross-checked against Table 6-1 Pin Functions VSSOP column"
+      }
+    },
+    "U_SW": {
+      "ref": "U_SW",
+      "opn": "TPS22975NDSGR",
+      "device": "TPS22975N 5.7 V, 6 A, 16 mOhm on-resistance load switch without quick-output discharge",
+      "package": "DSG package, 8-pin WSON with exposed thermal pad",
+      "pins": {
+        "pin1": "VIN_1",
+        "pin2": "VIN_2",
+        "pin3": "ON",
+        "pin4": "VBIAS",
+        "pin5": "GND",
+        "pin6": "CT",
+        "pin7": "VOUT_1",
+        "pin8": "VOUT_2",
+        "pin9": "THERMAL_PAD"
+      },
+      "pin_alias": {
+        "VIN_2": "VIN_1",
+        "VOUT_2": "VOUT_1",
+        "THERMAL_PAD": "GND"
+      },
+      "notes": [
+        "DSG (WSON-8) is not a 6-pin SOT-23: the switch input is split across pins 1 and 2, the output across pins 7 and 8, and the exposed centre pad must be tied to GND.",
+        "The 'N' variant has no quick-output-discharge FET, which is why it is used here: when PI_3V3 disappears the switch turns off without pulling 5V_SYS down through a discharge device.",
+        "ON is active high and must not float; VBIAS is the device bias supply, not the switch input."
+      ],
+      "source": {
+        "document": "TPS22975 data sheet, SLVSDD0B (REVISED SEPTEMBER 2017)",
+        "vendor": "Texas Instruments",
+        "url": "https://www.ti.com/lit/ds/symlink/tps22975.pdf",
+        "retrieved": "2026-09-12",
+        "retrieved_artifact_kind": "application/pdf (SLVSDD0B)",
+        "retrieved_artifact_sha256": "e9544d6c90f1f0973f0cd7eac78954d45b6582f2c6f26dac2e57d018ce743af2",
+        "evidence": "Section 6 Pin Configuration and Functions, 'DSG Package 8-Pin (WSON) Top View' (1 VIN, 2 VIN, 3 ON, 4 VBIAS, 5 GND, 6 CT, 7 VOUT, 8 VOUT) plus the Pin Functions table (pin 5 GND, pin 6 CT, pins 1/2 VIN, pins 7/8 VOUT, exposed thermal pad -> GND)"
+      }
+    },
+    "U_FLASH": {
+      "ref": "U_FLASH",
+      "opn": "W25Q64JVSSIQ",
+      "device": "W25Q64JV 64 Mbit serial NOR flash, standard/dual/quad SPI",
+      "package": "8-pin SOIC 208-mil (package code SS)",
+      "pins": {
+        "pin1": "CS_N",
+        "pin2": "DO_IO1",
+        "pin3": "WP_IO2",
+        "pin4": "GND",
+        "pin5": "DI_IO0",
+        "pin6": "CLK",
+        "pin7": "HOLD_IO3",
+        "pin8": "VCC"
+      },
+      "notes": [
+        "The 208-mil SOIC (SS) pad map is the frozen one; the 300-mil SOIC, WSON and XSON packages share the same pad order but the land pattern differs.",
+        "Rev.0 boots the ECP5 in single-bit Master SPI, so IO2 and IO3 keep their /WP and /HOLD functions and are pulled high through 10 kOhm."
+      ],
+      "source": {
+        "document": "W25Q64JV data sheet, Rev J",
+        "vendor": "Winbond",
+        "url": "https://www.winbond.com/resource-files/w25q64jv%20revj%2003272018%20plus.pdf",
+        "retrieved": "2026-09-12",
+        "retrieved_artifact_kind": "application/pdf (Rev J)",
+        "retrieved_artifact_sha256": "452d906c3be0da077fd751a2b8aa062629caf6081f8dd1eda04880854ce7c8f9",
+        "evidence": "Section 3.1 'Pin Configuration SOIC 208-mil' (Figure 1a, package code SS) with Section 3.3 'Pin Description SOIC 208-mil': 1 /CS, 2 DO (IO1), 3 /WP (IO2), 4 GND, 5 DI (IO0), 6 CLK, 7 /HOLD or /RESET (IO3), 8 VCC"
+      }
+    },
+    "U_EE": {
+      "ref": "U_EE",
+      "opn": "CAT24C32WI-GT3",
+      "device": "CAT24C32 32-Kb I2C serial CMOS EEPROM used as the HAT+ ID EEPROM",
+      "package": "SOIC-8 (W suffix), 8-lead",
+      "pins": {
+        "pin1": "A0",
+        "pin2": "A1",
+        "pin3": "A2",
+        "pin4": "VSS",
+        "pin5": "SDA",
+        "pin6": "SCL",
+        "pin7": "WP",
+        "pin8": "VCC"
+      },
+      "pin_alias": {
+        "VSS": "GND"
+      },
+      "notes": [
+        "This freezes the exact orderable MPN that docs/references.md previously listed only as a 'CAT24C32-compatible family' candidate; the SOIC-8 W-suffix pin map above is the one wired in the schematic.",
+        "A0/A1/A2 are hard-wired to VSS so the device answers at slave address 0x50, the HAT+ ID EEPROM address.",
+        "WP is pulled high through 1 kOhm; the ID bus is supplied from PI_3V3 and never reaches the ECP5.",
+        "The UDFN (HU4) option has a different land pattern and no WP pin on the WLCSP 4-ball option, so the package suffix is part of the identity."
+      ],
+      "source": {
+        "document": "CAT24C32 data sheet (32-Kb I2C CMOS Serial EEPROM), onsemi",
+        "vendor": "onsemi",
+        "url": "https://www.onsemi.com/download/data-sheet/pdf/cat24c32-d.pdf",
+        "retrieved": "2026-09-12",
+        "retrieved_artifact_kind": "application/pdf",
+        "retrieved_artifact_sha256": "c1b0ac1238cc695ccb09e3579ebbba38844c931e82565c3987b4e8a67f956f28",
+        "evidence": "Page-2 'PIN CONFIGURATIONS (Top Views)' drawing for 'PDIP (L), SOIC (W), TSSOP (Y), US (US), UDFN (HU4)': left 1 A0, 2 A1, 3 A2, 4 VSS; right 8 VCC, 7 WP, 6 SCL, 5 SDA; plus the 'PIN DESCRIPTION' section"
+      }
+    },
+    "LCD_BLQ": {
+      "ref": "LCD_BLQ",
+      "opn": "BSS138",
+      "device": "BSS138 logic-level N-channel MOSFET, LCD backlight low-side switch",
+      "package": "SOT-23-3 (case 318-08)",
+      "pins": {
+        "pin1": "GATE",
+        "pin2": "SOURCE",
+        "pin3": "DRAIN"
+      },
+      "notes": [
+        "SOT-23 pin 1 is the gate, pin 2 the source and pin 3 the drain, which is the order the backlight low-side switch wiring assumes.",
+        "The gate is driven from 3V3_D through RBL2 and held low by RBL3 so the backlight is OFF while the ECP5 is unconfigured or in reset.",
+        "VGS(th) is 0.8/1.3/1.5 V, so the 3.3 V gate rail fully enhances the device at the 28 mA backlight current."
+      ],
+      "source": {
+        "document": "BSS138 data sheet (N-channel logic level MOSFET), onsemi",
+        "vendor": "onsemi",
+        "url": "https://www.onsemi.com/download/data-sheet/pdf/bss138-d.pdf",
+        "retrieved": "2026-09-12",
+        "retrieved_artifact_kind": "application/pdf",
+        "retrieved_artifact_sha256": "c12f8ed894e768d8114cbf3d4ed1f23d95291fb162b169689a93f5b1c887b5d0",
+        "evidence": "Page-2 device drawing 'SOT-23-3 CASE 318-08' with the pin callouts 1 Gate / 2 Source / 3 Drain, plus the ordering information row BSS138 SOT-23-3 (Pb-Free)"
       }
     }
   }

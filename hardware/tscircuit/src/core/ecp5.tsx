@@ -15,6 +15,7 @@ import { N } from "../parts/nets";
 import { at } from "../parts";
 import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
 import { BALLS, ECP5_CONNECTIONS, ECP5_PIN_LABELS } from "../parts/ecp5_bg256";
+import { pinLabelsOf } from "../parts/pinouts";
 
 const GND = N.gnd;
 
@@ -45,10 +46,7 @@ export function Ecp5AndConfiguration() {
         name="U_FLASH"
         footprint="soic8"
         {...at("ecp5_flash", "U_FLASH")}
-        pinLabels={{
-          pin1: "CS_N", pin2: "DO_IO1", pin3: "WP_IO2", pin4: "GND",
-          pin5: "DI_IO0", pin6: "CLK", pin7: "HOLD_IO3", pin8: "VCC",
-        }}
+        pinLabels={pinLabelsOf("U_FLASH")}
         pinAttributes={{ VCC: { requiresPower: true }, GND: { requiresGround: true } }}
         connections={{
           CS_N: N.flashCsN,

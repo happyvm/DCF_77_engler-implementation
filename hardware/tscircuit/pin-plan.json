@@ -236,7 +236,9 @@
     "id_eeprom": {
       "class": "Standard HAT+",
       "i2c_address": "0x50",
+      "orderable_mpn": "CAT24C32WI-GT3",
       "recommended_family": "CAT24C32-compatible",
+      "pad_identity": "audited in hardware/tscircuit/ic-pinouts.json (1 A0, 2 A1, 3 A2, 4 VSS, 5 SDA, 6 SCL, 7 WP, 8 VCC)",
       "ID_SD": {
         "pi_gpio": 0,
         "pi_physical": 27

@@ -10,6 +10,7 @@
 import { N } from "../parts/nets";
 import { at } from "../parts";
 import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
+import { pinLabelsOf } from "../parts/pinouts";
 
 const GND = N.gnd;
 
@@ -84,7 +85,7 @@ export function LocalDisplay() {
         name="LCD_BLQ"
         footprint="sot23"
         {...at("lcd", "LCD_BLQ")}
-        pinLabels={{ pin1: "GATE", pin2: "SOURCE", pin3: "DRAIN" }}
+        pinLabels={pinLabelsOf("LCD_BLQ")}
         connections={{ GATE: N.lcdBlGate, SOURCE: GND, DRAIN: N.lcdBlK }}
       />
     </>

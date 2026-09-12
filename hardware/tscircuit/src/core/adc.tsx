@@ -13,6 +13,7 @@
 import { N } from "../parts/nets";
 import { at } from "../parts";
 import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
+import { pinLabelsOf } from "../parts/pinouts";
 
 const GND = N.gnd;
 
@@ -56,29 +57,31 @@ export function AdcBoundary() {
       <resistor name="R_VCMADC2" resistance="8.06k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C276278"] }} {...at("adc", "R_VCMADC2")}
         connections={{ pin1: N.vcmAdc, pin2: GND }} />
 
-      {/* OPA2835 dual: channel A = signal driver follower, channel B = VCM buffer */}
+      {/* OPA2835IDGSR dual, 10-pin VSSOP (DGS): channel A = signal driver
+          follower, channel B = VCM buffer. Pad identity is audited
+          (ic-pinouts.json). PD1/PD2 are active-high shutdown inputs and the data
+          sheet states they MUST be driven, so both are tied to V_PLUS. */}
       <chip
         name="U_DRV"
-        footprint="vssop8"
+        footprint="vssop10"
         {...at("adc", "U_DRV")}
-        pinLabels={{
-          pin1: "OUTA", pin2: "INA_MINUS", pin3: "INA_PLUS", pin4: "V_MINUS",
-          pin5: "INB_PLUS", pin6: "INB_MINUS", pin7: "OUTB", pin8: "V_PLUS",
-        }}
+        pinLabels={pinLabelsOf("U_DRV")}
         pinAttributes={{ V_PLUS: { requiresPower: true }, V_MINUS: { requiresGround: true } }}
         connections={{
-          INA_MINUS: ".U_DRV > .OUTA",
-          INB_MINUS: ".U_DRV > .OUTB",
+          VIN_A_MINUS: ".U_DRV > .VOUT_A",
+          VIN_B_MINUS: ".U_DRV > .VOUT_B",
           V_PLUS: N.v3v3adc,
           V_MINUS: GND,
+          PD_A: N.v3v3adc,
+          PD_B: N.v3v3adc,
         }}
       />
-      <trace from={N.animp} to=".U_DRV > .INA_PLUS" />
-      <trace from={N.vcmAdc} to=".U_DRV > .INB_PLUS" />
+      <trace from={N.animp} to=".U_DRV > .VIN_A_PLUS" />
+      <trace from={N.vcmAdc} to=".U_DRV > .VIN_B_PLUS" />
       <resistor name="R_ADCIN_P" resistance="10" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25077"] }} {...at("adc", "R_ADCIN_P")}
-        connections={{ pin1: ".U_DRV > .OUTA", pin2: N.adcInP }} />
+        connections={{ pin1: ".U_DRV > .VOUT_A", pin2: N.adcInP }} />
       <resistor name="R_ADCIN_N" resistance="10" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25077"] }} {...at("adc", "R_ADCIN_N")}
-        connections={{ pin1: ".U_DRV > .OUTB", pin2: N.adcInN }} />
+        connections={{ pin1: ".U_DRV > .VOUT_B", pin2: N.adcInN }} />
 
       {/* LTC1407AIMSE-1: 14-bit, 930 kS/s = 12 x 77.5 kHz. Channel 0 is the receive
           path; channel 1 stays free for the band-pass diagnostic tap. */}

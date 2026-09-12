@@ -376,14 +376,24 @@ the non-FPGA ICs, imported by `src/parts/pinouts.ts` and gated by
 audited part records the manufacturer document it came from, so a pin map cannot be changed
 without re-stating its source.
 
-Audited so far (2 of 16):
+Audited so far (8 of 16):
 
 ```text
-U_BPF  LTC1562IG#PBF     G package, 20-lead SSOP    LTC1562 data sheet 1562fa (REV A)
-U_PGA  LTC6912IGN-1#PBF  GN package, 16-lead SSOP   LTC6912 data sheet 6912fa
+U_BPF    LTC1562IG#PBF     G package, 20-lead SSOP        1562fa (REV A)
+U_PGA    LTC6912IGN-1#PBF  GN package, 16-lead SSOP       6912fa
+U_BUF    OPA810IDBVR       DBV package, 5-pin SOT-23      SBOS799E
+U_DRV    OPA2835IDGSR      DGS package, 10-pin VSSOP      SLOS713J
+U_SW     TPS22975NDSGR     DSG package, 8-pin WSON + pad  SLVSDD0B
+U_FLASH  W25Q64JVSSIQ      8-pin SOIC 208-mil (SS)        W25Q64JV Rev J
+U_EE     CAT24C32WI-GT3    SOIC-8 (W suffix)              CAT24C32 onsemi
+LCD_BLQ  BSS138            SOT-23-3 (case 318-08)         BSS138 onsemi
 ```
 
-Both were wrong before this audit and both were wiring defects, not cosmetic ones:
+Every one of them is now consumed through `pinLabelsOf("<ref>")`, so the TSX cannot
+diverge from the audited map.
+
+The first two were wrong before this audit and both were wiring defects, not cosmetic
+ones:
 
 - `U_BPF` was wired with invented `IN1/INV1/OUT1/R21_NODE..R24_NODE` pins. The real SSOP-20
   part has four 3-terminal sections (`INVx` summing node, `V1x` band-pass output, `V2x`
@@ -395,11 +405,60 @@ Both were wrong before this audit and both were wiring defects, not cosmetic one
   6 CS/LD, 7 DIN, 8 CLK, 9 DOUT, 10 DGND, 11 NC, 12 V+, 13 OUTB, 14 V-, 15 OUTA, 16 NC`;
   the UE12 (DFN-12) map is entirely different, so the package must be read off the OPN.
 
-Still un-audited (`ic-pinouts.json -> status.pending`, 14 parts): `U_BUF`, `U_ADCLDO`,
-`U_DRV`, `U_ADC`, `U_CLK`, `U_CLKLDO`, `U_PPS`, `U_SW`, `U_CORE`, `U_AUXLDO`, `DS1`,
-`U_FLASH`, `U_EE`, `LCD_BLQ`. Those keep documented functional net names on a
-package-appropriate footprint. `npm run check:pinouts:release` refuses a release while any of
-them is still pending, which is the point of the gate.
+The 2026-09-12 batch (this revision) was audited against the manufacturer data sheets
+fetched to a scratch directory; every entry records the document, revision and the SHA-256
+of the retrieved artifact. Two of the six were functional defects:
+
+- `U_DRV` was modelled as an 8-pin `vssop8` although `OPA2835IDGSR` is the **10-pin
+  VSSOP (DGS)** part. The corrected map is `1 VOUT_A, 2 VIN_A-, 3 VIN_A+, 4 VS-, 5 PD1,
+  6 PD2, 7 VIN_B+, 8 VIN_B-, 9 VOUT_B, 10 VS+`, and **PD1/PD2 are now tied to
+  `3V3_ADC_A`**: the data sheet states the pin MUST be driven, so the previous
+  (non-existent) 8-pin model would have left the driver permanently un-driven.
+- `U_SW` was modelled as a 6-pin `sot23-6` with `VIN` on pin 1 and `VOUT` on pin 6.
+  `TPS22975NDSGR` is an **8-pin WSON (DSG)** with `VIN` on pins 1+2, `VOUT` on pins 7+8,
+  `GND` on pin 5, `CT` on pin 6 and an exposed thermal pad that must be tied to GND.
+
+`U_BUF`, `U_FLASH`, `U_EE` and `LCD_BLQ` were already wired to the correct pads; they are
+now locked by the audit so a later edit cannot silently move a net.
+
+Still un-audited (`ic-pinouts.json -> status.pending`, 8 parts): `U_ADCLDO`, `U_ADC`,
+`U_CLK`, `U_CLKLDO`, `U_PPS`, `U_CORE`, `U_AUXLDO`, `DS1`. `npm run check:pinouts:release`
+refuses a release while any of them is pending, which is the point of the gate. The
+documented findings for each are recorded under `status.pending_findings`; they are all
+package/land-pattern corrections rather than label renames:
+
+```text
+U_ADCLDO  LT3042EMSE#PBF  is a 10-lead MSOP (MSE) + exposed GND pad, not a DFN;
+                          datasheet map 1 IN, 2 IN, 3 EN/UV, 4 PG, 5 ILIM, 6 PGFB,
+                          7 SET, 8 GND, 9 OUTS, 10 OUT; the TSX currently ties ILIM
+                          to SET, shorting the current-limit set to the 100 uA
+                          voltage-set node, and invents OUT2/PGND pads.
+U_ADC     LTC1407AIMSE-1  is a 10-lead MSOP (MSE) + exposed GND pad; datasheet map
+                          1 CH0+, 2 CH0-, 3 VREF, 4 CH1+, 5 CH1-, 6 GND, 7 VDD,
+                          8 SDO, 9 SCK, 10 CONV.
+U_CLK     SiT5356         is a 10-pad 5.0 x 3.2 mm part, not a 4-pad DFN; map
+                          1 OE, 2 SCL/NC, 3 NC, 4 GND, 5 A0/NC, 6 CLK, 7-8 NC,
+                          9 VDD, 10 SDA/NC.
+U_CLKLDO  TPS7A2033PDQNR  is the 4-pin X2SON (DQN) option: 1 OUT, 2 GND, 3 EN,
+                          4 IN, pad -> GND. The family also has a SOT-23-5 (DBV)
+                          option with a different map; the frozen OPN is DQN.
+U_AUXLDO  TPS7A2025PDQNR  same DQN mapping as U_CLKLDO.
+U_CORE    TPS628502DRLR   is an 8-pin SOT-583 (DRL): 1 VIN, 2 EN, 3 MODE/SYNC,
+                          4 COMP/FSET, 5 FB, 6 PG, 7 SW, 8 GND. The TSX footprint
+                          is sot563 (6 pads) with an invented VOS pin and EN on
+                          pin 7.
+DS1       NHD-C0220BiZ    has an 8-pin interface: 1 RST, 2 SCL, 3 SDA, 4 VSS,
+                          5 VDD, 6 VOUT, 7 C1+, 8 C1-, plus a separate 2-pin
+                          backlight connector. The TSX models 7 pads and omits the
+                          charge-pump VOUT / C1+ / C1- pins.
+U_PPS     no MPN frozen   only the ECP5 ball (R12) and the output path are fixed.
+```
+
+These eight need footprint/package changes (custom land patterns for SOT-583, X2SON-4 and
+the 10-pad 5.0 x 3.2 mm TCXO; a new 10-pad MSOP + exposed pad model for the two ADI parts;
+an 8-pin + backlight-connector LCD model), so they are tracked as `BEA-52` rather than
+folded into this commit.
+
 
 ### Filter values are a separate open question
 
@@ -450,6 +509,11 @@ C0402  copper bbox 1.3402 x 0.5400 mm, pads 0.500000 x 0.540004 mm @ pitch 0.840
 - `U_BPF` (LTC1562, 20-lead SSOP) and `U_PGA` (LTC6912, 16-lead SSOP) pad identities
   corrected against data sheets `1562fa` / `6912fa` and moved into `ic-pinouts.json`, with
   `npm run check:pinouts` wired into `npm run check`;
+- six more IC pad identities audited and locked through `pinLabelsOf` (`U_BUF`, `U_DRV`,
+  `U_SW`, `U_FLASH`, `U_EE`, `LCD_BLQ`), including the `U_DRV` 10-pin VSSOP + PD1/PD2
+  correction and the `U_SW` 8-pin WSON correction;
+- `CAT24C32WI-GT3` frozen as the HAT+ ID EEPROM and `BSS138` as the LCD backlight switch
+  (docs/references.md + pin-plan.json);
 - 69/69 `supplier_footprint_mismatch_warning` resolved with audited JLCPCB land patterns
   (`src/parts/footprints.tsx`, `suppliers/jlcpcb-land-patterns.json`);
 - UART 33 ohm series + 47 kOhm idle-high networks physically wired (`src/host/rpi_spi.tsx`);

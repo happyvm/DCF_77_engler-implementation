@@ -11,6 +11,7 @@ import { N } from "../parts/nets";
 import { HAT_HEADER, MOUNTING_HOLES } from "./hatplus_constraints";
 import { at } from "../parts";
 import { FP0402_RES, FP0402_CAP } from "../parts/footprints";
+import { pinLabelsOf } from "../parts/pinouts";
 
 const GND = N.gnd;
 
@@ -119,12 +120,9 @@ export function HatIdEeprom() {
         name="U_EE"
         footprint="soic8"
         {...at("host_debug", "U_EE")}
-        pinLabels={{
-          pin1: "A0", pin2: "A1", pin3: "A2", pin4: "GND",
-          pin5: "SDA", pin6: "SCL", pin7: "WP", pin8: "VCC",
-        }}
-        pinAttributes={{ VCC: { requiresPower: true }, GND: { requiresGround: true } }}
-        connections={{ A0: GND, A1: GND, A2: GND, GND: GND, SDA: N.idSd, SCL: N.idSc, VCC: N.pi3v3 }}
+        pinLabels={pinLabelsOf("U_EE")}
+        pinAttributes={{ VCC: { requiresPower: true }, VSS: { requiresGround: true } }}
+        connections={{ A0: GND, A1: GND, A2: GND, VSS: GND, SDA: N.idSd, SCL: N.idSc, VCC: N.pi3v3 }}
       />
       <resistor name="REESD" resistance="3.9k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C51721"] }} {...at("host_debug", "REESD")}
         connections={{ pin1: N.pi3v3, pin2: N.idSd }} />

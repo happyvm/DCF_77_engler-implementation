@@ -12,24 +12,31 @@
 import { N } from "../parts/nets";
 import { at } from "../parts";
 import { FP0402_RES } from "../parts/footprints";
+import { pinLabelsOf } from "../parts/pinouts";
 
 const GND = N.gnd;
 
 export function Hat5vInput() {
   return (
     <>
+      {/* TPS22975NDSGR is an 8-pin WSON (DSG) load switch with an exposed GND pad,
+          not a 6-pin SOT-23: VIN is pins 1+2, VOUT is pins 7+8, CT is pin 6 and
+          GND is pin 5. Pad identity is audited (ic-pinouts.json). */}
       <chip
         name="U_SW"
-        footprint="sot23-6"
+        footprint="wson8"
         {...at("power_1v1", "U_SW")}
-        pinLabels={{ pin1: "VIN", pin2: "GND", pin3: "ON", pin4: "VBIAS", pin5: "CT", pin6: "VOUT" }}
-        pinAttributes={{ VIN: { requiresPower: true }, GND: { requiresGround: true } }}
+        pinLabels={pinLabelsOf("U_SW")}
+        pinAttributes={{ VIN_1: { requiresPower: true }, GND: { requiresGround: true } }}
         connections={{
-          VIN: N.pi5v,
+          VIN_1: N.pi5v,
+          VIN_2: N.pi5v,
           VBIAS: N.pi5v,
           ON: N.pi3v3,
-          VOUT: N.v5sys,
+          VOUT_1: N.v5sys,
+          VOUT_2: N.v5sys,
           GND: GND,
+          THERMAL_PAD: GND,
         }}
       />
       <resistor name="RON_PD" resistance="100k" footprint={FP0402_RES} supplierPartNumbers={{ jlcpcb: ["C25741"] }} {...at("power_1v1", "RON_PD")}

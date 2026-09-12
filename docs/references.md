@@ -178,12 +178,18 @@ The controller is integrated into the selected Newhaven module; it is not a sepa
   - suggested file: `Sitronix_ST7036_V1.8b.pdf`
 - Newhaven support page: <https://support.newhavendisplay.com/hc/en-us/articles/4414860535575-ST7036>
 
-### HAT ID EEPROM — `CAT24C32`-compatible family, exact MPN not yet frozen
+### HAT ID EEPROM — `CAT24C32WI-GT3`
 
-The pin plan currently recommends a CAT24C32-compatible device but does not freeze an exact orderable MPN. This is therefore a **candidate/family reference**, not permission to silently lock the BOM to one package.
+The Rev.0 HAT+ ID EEPROM is frozen to **`CAT24C32WI-GT3`** (SOIC-8, W suffix), the
+32-Kb I2C EEPROM wired in `src/board/raspberry_pi_hatplus.tsx`. Its pad identity is
+audited in `hardware/tscircuit/ic-pinouts.json` (1 A0, 2 A1, 3 A2, 4 VSS, 5 SDA,
+6 SCL, 7 WP, 8 VCC).
 
 - onsemi CAT24C32 family data sheet PDF: <https://www.onsemi.com/pdf/datasheet/cat24c32-d.pdf>
   - suggested file: `onsemi_CAT24C32_Datasheet.pdf`
+
+Do not substitute the UDFN (HU4) or the WLCSP options: they have a different land
+pattern and the WLCSP 4-ball option has no WP pin.
 
 ### Raspberry Pi HAT+ electrical/mechanical interface
 
@@ -192,12 +198,21 @@ This is not a PCB component data sheet, but it is a fabrication-critical primary
 - Raspberry Pi HAT+ Specification PDF: <https://datasheets.raspberrypi.com/hat/hat_plus_specification.pdf>
   - suggested file: `Raspberry_Pi_HAT_Plus_Specification.pdf`
 
+### LCD backlight N-MOSFET — `BSS138`
+
+The Rev.0 LCD backlight low-side switch is frozen to **`BSS138`** (SOT-23-3), wired in
+`src/core/display.tsx`. Pad identity is audited in `hardware/tscircuit/ic-pinouts.json`
+(1 Gate, 2 Source, 3 Drain).
+
+- onsemi BSS138 data sheet PDF: <https://www.onsemi.com/download/data-sheet/pdf/bss138-d.pdf>
+  - suggested file: `onsemi_BSS138_Datasheet.pdf`
+
 ### Parts intentionally not assigned a data sheet yet
 
 Do **not** invent manufacturer documents for these until the BOM freezes an exact MPN:
 
-- HAT ID EEPROM package/orderable suffix beyond the CAT24C32-compatible recommendation;
-- LCD backlight N-MOSFET;
+- the external-PPS output buffer (`U_PPS`): only the ECP5 ball and output path are
+  frozen, no orderable MPN exists yet;
 - any HAT-side ESD/protection device not yet frozen;
 - generic resistors and capacitors where only value/dielectric/tolerance are currently specified;
 - optional external-antenna connector/link parts.

@@ -79,12 +79,13 @@ export function AntennaInputCluster() {
       <capacitor name="CVCM3" capacitance="100nF" footprint={FP0402_CAP} supplierPartNumbers={{ jlcpcb: ["C1525"] }} {...at("ferrite_afe", "CVCM3")}
         connections={{ pin1: N.vcmAfe, pin2: GND }} />
 
-      {/* OPA810IDBVR voltage follower, 5V_AFE, single supply */}
+      {/* OPA810IDBVR voltage follower, 5V_AFE, single supply. Pad identity is audited
+          (ic-pinouts.json): DBV-5 = 1 VO, 2 VS-, 3 VIN+, 4 VIN-, 5 VS+. */}
       <chip
         name="U_BUF"
         footprint="sot23-5"
         {...lockedAt("U_BUF")}
-        pinLabels={{ pin1: "OUT", pin2: "V_MINUS", pin3: "IN_PLUS", pin4: "IN_MINUS", pin5: "V_PLUS" }}
+        pinLabels={pinLabelsOf("U_BUF")}
         pinAttributes={{ V_PLUS: { requiresPower: true }, V_MINUS: { requiresGround: true } }}
         connections={{
           OUT: N.afeOut,
