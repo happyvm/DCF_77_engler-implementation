@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: MIT
 // One shared correlator for the remaining DCF77 fields.  Select FIELD when
 // loading/starting: 0=day, 1=weekday, 2=month, 3=year, 4=Z1/Z2/A1/A2 flags.
+//
+// Same multi-cycle sequencer as minute_candidate_search.sv /
+// hour_candidate_search.sv (see docs/37-timing-closure-plan.md §8): the shared
+// correlator runs a handful of times per minute, so each candidate is spread
+// over two cycles -- S_SCORE (decimal split + +-evidence balanced tree ->
+// score_q) then S_SELECT (score_q vs best_q/second_q, best-value capture) --
+// plus a final S_EMIT phase publishing best/score/gap.  The previous
+// single-cycle form put the whole decode+tree+compare cone on one ~20 ns path
+// at the top.  Bit-identical arithmetic and tie-break order; latency is
+// 2*(last-first+1) + 1 cycles (up to 201 for the year field, 0..99).
 module calendar_candidate_search #(
     parameter int SOFT_BITS=16, parameter int SCORE_BITS=SOFT_BITS+4
 ) (
@@ -13,11 +23,35 @@ module calendar_candidate_search #(
     output logic signed [SCORE_BITS-1:0] best_score,
     output logic signed [SCORE_BITS-1:0] second_score,
     output logic [SCORE_BITS-1:0] quality_gap
+`ifdef FORMAL
+    // Formal-only observability (see formal/calendar_candidate_search_formal.sv).
+    , output logic [7:0] candidate_o
+    , output logic [1:0] state_o
+    , output logic signed [SCORE_BITS-1:0] best_q_o
+    , output logic signed [SCORE_BITS-1:0] second_q_o
+    , output logic [7:0] best_value_q_o
+`endif
 );
+
+    localparam logic [1:0] S_IDLE   = 2'd0;
+    localparam logic [1:0] S_SCORE  = 2'd1;
+    localparam logic [1:0] S_SELECT = 2'd2;
+    localparam logic [1:0] S_EMIT   = 2'd3;
+
+    logic [1:0] state;
     logic signed [SOFT_BITS-1:0] evidence[0:8];
     logic [7:0] candidate, last, first, best_value_q;
+`ifdef FORMAL
+    assign candidate_o = candidate;
+    assign state_o = state;
+`endif
     logic [8:0] bits; logic [3:0] units, tens;
-    logic signed [SCORE_BITS-1:0] score, best_q, second_q, nb, ns;
+    logic signed [SCORE_BITS-1:0] score, score_q, best_q, second_q, nb, ns;
+`ifdef FORMAL
+    assign best_q_o = best_q;
+    assign second_q_o = second_q;
+    assign best_value_q_o = best_value_q;
+`endif
     // Balanced-tree score accumulation.  The naive serial loop
     //   score = score +/- evidence[i]
     // built a nine-deep carry chain that dominated the ECP5 critical path
@@ -29,6 +63,8 @@ module calendar_candidate_search #(
     // avoiding explicit width casts.
     logic signed [SCORE_BITS-1:0] t0, t1, t2, t3, t4, t5, t6, t7, t8;
     logic signed [SCORE_BITS-1:0] p0, p1, p2, p3;
+
+    // Pure per-candidate decode + balanced tree: no register boundary inside.
     always_comb begin
         case(field)
           0: begin first=1; last=31; end
@@ -75,28 +111,56 @@ module calendar_candidate_search #(
         p2 = t4 + t5;
         p3 = t6 + t7;
         score = (p0 + p1) + (p2 + (p3 + t8));
-        nb=best_q; ns=second_q;
-        if(score>best_q) begin nb=score; ns=best_q; end
-        else if(score>second_q) ns=score;
     end
+
+    // Top-2 selection on the registered score of the current candidate.
+    always_comb begin
+        nb=best_q; ns=second_q;
+        if(score_q>best_q) begin nb=score_q; ns=best_q; end
+        else if(score_q>second_q) ns=score_q;
+    end
+
     always_ff @(posedge clk) begin
         if(rst) begin
             for(int i=0;i<9;i=i+1) evidence[i]<='0;
-            candidate<=0; busy<=0; result_valid<=0; best_value<=0;
+            candidate<=0; score_q<=0; busy<=0; result_valid<=0; best_value<=0;
             best_value_q<=0; best_q<={1'b1,{(SCORE_BITS-1){1'b0}}};
             second_q<={1'b1,{(SCORE_BITS-1){1'b0}}}; best_score<=0; second_score<=0; quality_gap<=0;
+            state<=S_IDLE;
         end else begin
             result_valid<=0;
             if(load_valid&&!busy) evidence[load_index]<=soft_bit;
-            if(start&&!busy) begin candidate<=first; best_value_q<=first; best_q<={1'b1,{(SCORE_BITS-1){1'b0}}};
-                second_q<={1'b1,{(SCORE_BITS-1){1'b0}}}; busy<=1; end
-            else if(busy) begin
-                if(score>best_q) best_value_q<=candidate;
-                if(candidate==last) begin best_value <= score>best_q ? candidate:best_value_q;
-                    best_score<=nb; second_score<=ns; quality_gap<=nb-ns;
-                    busy<=0; result_valid<=1; end
-                else begin candidate<=candidate+1'b1; best_q<=nb; second_q<=ns; end
-            end
+
+            case(state)
+                S_IDLE: begin
+                    busy<=1'b0;
+                    if(start) begin candidate<=first; best_value_q<=first;
+                        best_q<={1'b1,{(SCORE_BITS-1){1'b0}}};
+                        second_q<={1'b1,{(SCORE_BITS-1){1'b0}}}; busy<=1'b1;
+                        state<=S_SCORE; end
+                end
+
+                S_SCORE: begin
+                    score_q<=score;
+                    state<=S_SELECT;
+                end
+
+                S_SELECT: begin
+                    best_q<=nb; second_q<=ns;
+                    if(score_q>best_q) best_value_q<=candidate;
+                    if(candidate==last) state<=S_EMIT;
+                    else begin candidate<=candidate+1'b1; state<=S_SCORE; end
+                end
+
+                S_EMIT: begin
+                    best_value<=best_value_q;
+                    best_score<=best_q; second_score<=second_q;
+                    quality_gap<=best_q-second_q;
+                    result_valid<=1'b1; busy<=1'b0; state<=S_IDLE;
+                end
+
+                default: state<=S_IDLE;
+            endcase
         end
     end
 endmodule

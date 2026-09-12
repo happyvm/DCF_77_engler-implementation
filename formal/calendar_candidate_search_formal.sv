@@ -1,21 +1,28 @@
-// The shared calendar/zone correlator: field selects a per-field candidate
-// range (day 1..31, weekday 1..7, month 1..12, year 0..99, zone/flags
-// 0..7), fixed for the whole run by construction (ml_field_sequencer holds
-// cal_field stable from S_CAL_LOAD through S_CAL_WAIT). field is therefore
+// The shared calendar/zone correlator (multi-cycle sequencer): field selects a
+// per-field candidate range (day 1..31, weekday 1..7, month 1..12, year 0..99,
+// zone/flags 0..7), fixed for the whole run by construction (ml_field_sequencer
+// holds cal_field stable from S_CAL_LOAD through S_CAL_WAIT). field is therefore
 // (* anyconst *): the proof explores every legal value while staying fixed
-// within any one trace, matching real usage. A started search stays busy
-// for exactly last-first+1 clocks, result_valid is a single pulse that ends
-// it, best_value always lands in [first,last], and quality_gap is never
+// within any one trace, matching real usage.
+//
+// A started search runs 2*(last-first+1)+1 clocks (S_SCORE + S_SELECT per
+// candidate, then one S_EMIT phase); result_valid is a single pulse produced by
+// S_EMIT, best_value always lands in [first,last], and quality_gap is never
 // negative (best_score never trails second_score).
 //
-// field==3 (year, 0..99) is excluded here (see the .sby depth comment):
-// its candidate loop shares the exact same per-candidate score/compare
-// logic as the other four fields, just iterated further, so this bounds
-// the proof to the three-field/one-flag-set case that already exercises
-// every branch of that shared logic and keeps the BMC unroll tractable.
+// Unlike the previous 40-step BMC, this proof is k-induction and therefore now
+// also covers field==3 (year, 0..99, the longest run): the run/candidate phase
+// relation below is mutually inductive with the goals, so no long unroll is
+// needed.
 module calendar_candidate_search_formal;
     localparam int SOFT_BITS = 4;
     localparam int SCORE_BITS = SOFT_BITS + 4;
+
+    // Same sequencer encoding as the DUT.
+    localparam logic [1:0] S_IDLE   = 2'd0;
+    localparam logic [1:0] S_SCORE  = 2'd1;
+    localparam logic [1:0] S_SELECT = 2'd2;
+    localparam logic [1:0] S_EMIT   = 2'd3;
 
     (* gclk *) logic clk;
     (* anyconst *) logic [2:0] field;
@@ -29,6 +36,11 @@ module calendar_candidate_search_formal;
     logic [7:0] best_value;
     logic signed [SCORE_BITS-1:0] best_score, second_score;
     logic [SCORE_BITS-1:0] quality_gap;
+    // Connected to the FORMAL-only observation ports on the DUT via (.*).
+    logic [7:0] candidate_o;
+    logic [1:0] state_o;
+    logic signed [SCORE_BITS-1:0] best_q_o, second_q_o;
+    logic [7:0] best_value_q_o;
 
     calendar_candidate_search #(.SOFT_BITS(SOFT_BITS), .SCORE_BITS(SCORE_BITS)) dut (.*);
 
@@ -43,7 +55,18 @@ module calendar_candidate_search_formal;
         endcase
     end
 
-    logic [7:0] run = '0;
+    logic [8:0] run = '0;
+
+    // Phase offset of the current sequencer state within the 2-cycle-per-
+    // candidate cadence.
+    logic [1:0] phase_k;
+    always_comb begin
+        case (state_o)
+            S_SELECT: phase_k = 2'd1;
+            S_EMIT:   phase_k = 2'd2;
+            default:  phase_k = 2'd0;
+        endcase
+    end
 
     always_ff @(posedge clk) begin
         past_valid <= 1'b1;
@@ -52,26 +75,31 @@ module calendar_candidate_search_formal;
         else run <= run + 1'b1;
 
         // field only takes the five legal values calendar_candidate_search's
-        // own case statement handles by name; anyconst still lets the
-        // solver pick any 3-bit value, so values 5..7 (which fall into the
-        // same "default" branch as 4) are assumed away, and field==3
-        // (year, the 100-candidate case) is excluded per the header
-        // comment above.
-        assume(field <= 3'd4 && field != 3'd3);
+        // own case statement handles by name; anyconst still lets the solver
+        // pick any 3-bit value, so values 5..7 (which fall into the same
+        // "default" branch as 4) are assumed away.
+        assume(field <= 3'd4);
 
         if (past_valid) begin
-            assert(run <= (ref_last - ref_first + 1'b1));
+            assert(busy == (state_o != S_IDLE));
+            // while a search is running the candidate cursor stays in range
+            assert(!busy || (candidate_o >= ref_first && candidate_o <= ref_last));
+            assert(!busy || run == 2*(candidate_o - ref_first) + phase_k);
+            assert(run <= 2*(ref_last - ref_first) + 3);
+            // top-2 register ordering and the captalized best value stay legal
+            assert(best_q_o >= second_q_o);
+            assert(!busy || (best_value_q_o >= ref_first && best_value_q_o <= ref_last));
+            assert(!result_valid || !busy);
         end
         if (past_valid && !$past(rst)) begin
             assert(!(result_valid && $past(result_valid)));
             if (result_valid) begin
+                assert($past(state_o) == S_EMIT);
                 // best_value is only meaningful once a search has actually
                 // completed and published it; its power-on-reset default
                 // of 0 is legitimately outside range for a field whose
-                // first candidate is 1 (day/weekday/month), so the range
-                // check applies here, not unconditionally.
+                // first candidate is 1 (day/weekday/month).
                 assert(best_value >= ref_first && best_value <= ref_last);
-                assert($past(busy) && $past(run) == (ref_last - ref_first));
                 assert(!busy);
                 assert(best_score >= second_score);
                 assert(quality_gap == (best_score - second_score));

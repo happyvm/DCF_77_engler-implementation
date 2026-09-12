@@ -1,14 +1,14 @@
 [options]
-# field==3 (year, 0..99) is excluded from this proof (see the formal
-# testbench header): the longest remaining case is day, 31 candidates, so
-# depth just needs to cover one full run plus setup/reset.
-# Solver: z3 completes depth 40 in ~7m44s; cvc5 exceeds the 600s budget
-# on this 2-core box.
-mode bmc
-depth 40
+# k-induction: the run/candidate phase relation in the formal testbench is
+# mutually inductive with the goals, so this proves one full run for every
+# legal field -- including field==3 (year, 0..99, the longest) -- without the
+# long BMC unroll the previous 40-step z3 proof needed (and which had to
+# exclude the year field).  cvc5 discharges it in well under a second.
+mode prove
+depth 6
 
 [engines]
-smtbmc z3
+smtbmc cvc5
 
 [script]
 read -formal -sv calendar_candidate_search.sv calendar_candidate_search_formal.sv

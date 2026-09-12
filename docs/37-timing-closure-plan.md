@@ -496,3 +496,72 @@ Gain depuis le baseline : 21,54 → **37,40 MHz (+73,7 %)**, toutes les limites 
 profil `release_reference` respectées, `MULT18X18D` inchangé (28/32), précision
 DSP préservée. **Objectif 125 MHz non atteint** — campagne multi-bloc en cours.
 
+## 8. Corrélateurs de champs ML : séquenceur multi-cycle (BEA-36, cycle courant)
+
+Les trois moteurs de recherche ML `minute_candidate_search`,
+`hour_candidate_search` et `calendar_candidate_search` partageaient la même
+structure : un **seul cycle combinatoire** allant du curseur `candidate` au
+résultat (`candidate → découpage décimal → arbre ±évidence → comparaison →
+confident/quality_gap`). Chacun était déjà « multicycle » (une recherche par
+minute, lancée par `ml_field_sequencer` via `start`/`result_valid`), mais la
+recherche elle-même déroulait un candidat par cycle sur **un** long chemin.
+
+Comme `frequency_discipline` (§3), `pm_minute_sync` (§6) et le résonateur
+Goertzel (§5), ces blocs disposent d'un budget de cycles énorme (une recherche
+par minute ⇒ ~10⁸ `clk_sys` oisifs à 125 MHz). Chacun est réécrit en
+**séquenceur à quatre états** — `S_IDLE → S_SCORE → S_SELECT → S_EMIT` — avec
+**une réduction arithmétique par état** :
+
+- `S_SCORE` : découpage décimal du curseur + arbre d'additionneurs équilibré des
+  huit/sept/neuf termes ±évidence → `score_q` (registre) ;
+- `S_SELECT` : `score_q` contre `best_q`/`second_q`, capture de la meilleure
+  valeur ; le curseur n'avance qu'en quittant `S_SELECT` ;
+- `S_EMIT` : seuils de qualification (`MIN_SCORE`/`MIN_GAP`) → `confident`,
+  `quality_gap`, `result_valid` ; `busy` retombe.
+
+**Précision DSP strictement préservée (bit-à-bit)** : mêmes expressions,
+largeurs, constantes, sentinelles, ordre de départage et conventions de signe ;
+seules les frontières de registre entre réductions *indépendantes* ont bougé.
+Latences (documentées) : `2*60 + 1 = 121` cycles (minute), `2*24 + 1 = 49`
+(hour), `2*(last−first+1) + 1` (calendrier, jusqu'à 201 pour l'année 0..99).
+`ml_field_sequencer` attend `result_valid` — la latence supplémentaire est
+transparente à la cadence réelle (une recherche/minute).
+
+### Vérification
+
+| Contrôle | Résultat |
+|---|---|
+| `make test-minute-ml` / `test-hour-ml` / `test-calendar-ml` | PASS (vecteurs exacts inchangés) |
+| `make test-ml-controller` / `test-field-sequencer` / `test-qualification-disabled` | PASS |
+| `make test` (suite complète, `dcf77_system_tb` incluse) | PASS |
+| `make lint` | PASS (0 avertissement) |
+| `sby -f formal/{minute,hour,calendar}_candidate_search.sby` | PASS (k-induction) |
+| `make resource-check` | PASS (LUT4 9 351, FF 7 026, EBR 8, MULT 28, PLL 1) |
+
+Les trois preuves `candidate_search` passent désormais en **k-induction**
+(invariants de phase mutuellement inductifs), ce qui a permis de **réintégrer
+`calendar_candidate_search` champ `year` (0..99)** dans la preuve — le BMC 40 pas
+précédent devait l'exclure faute d'un déroulé tractable.
+
+### Rapport de timing versionné (`make timing`, seed 1)
+
+| Champ | Valeur |
+|---|---|
+| Cible | `LFE5U-45F-7BG256I`, `release_reference`, 125 MHz |
+| Fmax obtenu | **52,27 MHz** (37,40 → 41,76 → 48,71 → 52,27) |
+| Slack pire chemin | −11,13 ns (8,00 − 19,13 ns) |
+| Chemin critique final | `core_i.detector_i.observables_i.state` → `observables_i.mul_a` (`engeler_observables`) |
+| LUT4 | 9 351 |
+| FF | 7 026 |
+| EBR18 | 8 |
+| MULT18X18D | 28 |
+| PLL | 1 |
+
+Le chemin critique **quitte le décodeur ML** : il est maintenant dans
+`engeler_observables` (entrée d'un multiplicateur du banc). Gain depuis le
+baseline : 21,54 → **52,27 MHz (+142,6 %)**, toutes les limites du profil
+`release_reference` respectées, `MULT18X18D` inchangé (28/32), précision DSP
+préservée. **Objectif 125 MHz non atteint** — campagne multi-bloc en cours ; le
+prochain bloc est `engeler_observables`.
+
+
